@@ -429,21 +429,20 @@ def i_list_db_token():
         return dbc.fetchall()
 
 def i_get_local_user_token(username, key_name):
-    return_json = []
-    for i in range(len(users_dict[username]['keys'])):
-        key = users_dict[username]['keys'][i]
+    for key in users_dict[username]['keys']:
+        if not 'key_name' in user_keys_dict[key]:
+            continue
+        
         if user_keys_dict[key]['key_name'] == key_name:
             i_entry = dict(user_keys_dict[key])
             return i_entry
     
-    return return_json
+    raise WebRequestException(400,'error','i_get_local_user_token: Token doesn\'t exist.')
 
 def i_list_local_user_token(username):
     return_json = []
-    for i in range(len(users_dict[username]['keys'])):
-        key = users_dict[username]['keys'][i]
+    for key in users_dict[username]['keys']:
         i_entry = dict(user_keys_dict[key])
-        
         return_json.append(i_entry)
     
     return return_json
@@ -467,7 +466,7 @@ def e_get_user_token(username, key_name):
 @api_external_function(plugin)
 def e_list_user_token(username):
     if write_trough_cache_enabled:
-        return e_list_user_token(username)
+        return i_list_local_user_token(username)
     
     else:
         return_json = []

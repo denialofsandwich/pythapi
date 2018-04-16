@@ -22,7 +22,6 @@
 #              You should have received a copy of the GNU General Public License
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
-# lalala
 
 import sys
 import getpass
