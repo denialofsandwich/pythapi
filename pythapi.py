@@ -1,0 +1,521 @@
+#!/usr/bin/python
+#
+# Name:        pythapi
+# Author:      Rene Fa
+# Date:        11.04.2018
+# Version:     0.8
+#
+# Description: This is a RESTful API WebServer with focus on extensibility and performance.
+#              It's target is to make it possible to easily build your own API.
+#
+# Copyright:   Copyright (C) 2018  Rene Fa
+#
+#              This program is free software: you can redistribute it and/or modify
+#              it under the terms of the GNU Affero General Public License as published by
+#              the Free Software Foundation, either version 3 of the License, or any later version.
+#
+#              This program is distributed in the hope that it will be useful,
+#              but WITHOUT ANY WARRANTY; without even the implied warranty of
+#              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#              GNU Affero General Public License for more details.
+#
+#              You should have received a copy of the GNU General Public License
+#              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
+#
+
+import sys
+import getpass
+import signal
+import configparser # apt
+import MySQLdb # apt
+import tools.fancy_logs as log
+import importlib
+from tornado import httpserver # apt
+from tornado import gen
+from tornado.ioloop import IOLoop
+import tornado.web
+import glob
+import re
+import json
+from api_plugin import WebRequestException
+
+usage_text = """
+Syntax:
+    ./pythapi.py [instruction] [options]
+
+Global options:
+    -v ,--verbosity
+                        Changes the verbosity. 0 means only critical errors
+                        and 5 shows debugging information
+
+    -f ,--force
+                        Force an instruction to execute.
+
+    -h ,--help
+                        Shows this help message.
+
+Instructions:
+    help [options]
+                        Shows this help message.
+
+    install [plugin] [options]
+                        Install the pythapi. You can also specify a plugin.
+        
+        -r, --reinstall
+                        Try to delete a old installation before installing.
+                        
+    uninstall [plugin] [options]
+                        Uninstall the pythapi. This deletes tables created by pythapi.
+                        You can also specify a plugin.
+
+"""
+
+config_defaults = {
+    'core.general': {
+        'loglevel': '4',
+        'colored_logs': 'true',
+        'user': 'root'
+    },
+    'core.mysql': {
+        'hostname': 'localhost',
+        'username': 'pythapi',
+        'password': 'pythapi',
+        'database': 'pythapi',
+        'prefix': 'pa_'
+    },
+    'core.web': {
+        'bind_ip': '0.0.0.0',
+        'bind_port': '8123'
+    }
+}
+
+plugin_dict = {}
+action_call_dict = {}
+action_tree = {}
+global_preexecution_hook_list = []
+dependency_list = []
+reverse_dependency_list = []
+indices_generated = False
+
+class MainHandler(tornado.web.RequestHandler):
+    def executeRequest(self, method, data):
+        for action in action_call_dict[method]:
+            match = action['c_regex'].match(data)
+            if match:
+                try:
+                    for hook in global_preexecution_hook_list:
+                        hook(self, action)
+                    
+                    raw_body = self.request.body
+                    if action['request_body_type'] == 'application/json':
+                        try:
+                            body = tornado.escape.json_decode(raw_body)
+                        except ValueError as e:
+                            body = {}
+                    else:
+                        body = raw_body
+
+                    return_value = action['func'](self, match.groups(), body)
+                    
+                    if action['content_type'] == "raw":
+                        return
+                    
+                    elif action['content_type'] == "application/json":
+
+                        if not 'status' in return_value:
+                            return_value['status'] = 'success'
+                        
+                        return_value = json.dumps(return_value) + '\n'
+                    
+                    self.set_header("Content-Type", action['content_type'])
+                    self.write(return_value)
+                    return
+                
+                except WebRequestException as e:
+                    self.set_status(e.error_code)
+                    self.set_header("Content-Type", 'application/json')
+                    
+                    return_json = {}
+                    return_json['status'] = e.error_type
+                    return_json['message'] = e.message
+                    
+                    return_value = json.dumps(return_json) + '\n'
+                    self.write(return_value)
+                    return
+        
+        self.set_status(404)
+        self.set_header("Content-Type", 'application/json')
+        return_json = {'status':'not found','message':'Request doesn\'t exist.'}
+        
+        return_value = json.dumps(return_json) + '\n'
+        self.write(return_value)
+        
+    def get(self, data):
+        self.executeRequest('GET' ,data)
+        
+    def post(self, data):
+        self.executeRequest('POST' ,data)
+        
+    def put(self, data):
+        self.executeRequest('PUT' ,data)
+        
+    def patch(self, data):
+        self.executeRequest('PATCH' ,data)
+        
+    def delete(self, data):
+        self.executeRequest('DELETE' ,data)
+        
+    def copy(self, data):
+        self.executeRequest('COPY' ,data)
+        
+    def head(self, data):
+        self.executeRequest('HEAD' ,data)
+        
+    def options(self, data):
+        self.executeRequest('OPTIONS' ,data)
+        
+    def link(self, data):
+        self.executeRequest('LINK' ,data)
+        
+    def unlink(self, data):
+        self.executeRequest('UNLINK' ,data)
+        
+    def purge(self, data):
+        self.executeRequest('PURGE' ,data)
+        
+    def lock(self, data):
+        self.executeRequest('LOCK' ,data)
+        
+    def unlock(self, data):
+        self.executeRequest('UNLOCK' ,data)
+        
+    def propfind(self, data):
+        self.executeRequest('PROPFIND' ,data)
+        
+    def view(self, data):
+        self.executeRequest('VIEW' ,data)
+
+class BaseWebServer(tornado.web.Application):
+    def __init__(self):
+        handlers = [
+            (r"/(.*)?", MainHandler)
+        ]
+        tornado.web.Application.__init__(self, handlers)
+
+def signal_handler(signal, frame):
+        log.info("pythapi terminated.")
+        sys.exit(0)
+
+def r_build_dependency_list(plugin_name, max_depth, depth = 0):
+    if depth > max_depth:
+        log.critical(plugin_name +': Dependency loop detected! Exiting...')
+        sys.exit(1)
+    
+    if plugin_name in dependency_list:
+        return 1
+    
+    for dependency in plugin_dict[plugin_name].depends:
+        if not dependency['name'] in plugin_dict:
+            if dependency['required'] == True:
+                
+                log.error(plugin_name +': Required plugin "' +dependency['name'] +'" not found!')
+                plugin_dict[plugin_name].info['i_error'] = 1
+                if plugin_dict[plugin_name].essential:
+                    log.critical(plugin_dict[plugin_name].name + " is marked as essential. Exiting...")
+                    sys.exit(1)
+                
+                return 0
+            else:
+                log.warning(plugin_name +': Optional plugin "' +dependency['name'] +'" not found.')
+                continue
+        
+        
+        if 'i_error' in plugin_dict[dependency['name']].info:
+            return 0
+        
+        if not r_build_dependency_list(dependency['name'], max_depth, depth +1):
+
+            if dependency['required'] == True:
+                log.error(plugin_dict[plugin_name].name + ": could not load a required plugin.")
+                
+            else:
+                log.warning(plugin_dict[plugin_name].name + ": could not load a optional plugin.")
+                continue
+
+            plugin_dict[plugin_name].info['i_error'] = 1
+            if plugin_dict[plugin_name].essential:
+                log.critical(plugin_dict[plugin_name].name + " is marked as essential. Exiting...")
+                sys.exit(1)
+            
+            return 0
+        
+        plugin_dict[dependency['name']].reverse_dependencies.append(plugin_name)
+    
+    dependency_list.append(plugin_name)
+    return 1
+
+def r_build_reverse_dependency_list(plugin_name, max_depth, depth = 0):
+    if plugin_name in reverse_dependency_list:
+        return
+    
+    for dependency in plugin_dict[plugin_name].reverse_dependencies:
+        r_build_reverse_dependency_list(dependency, max_depth, depth +1)
+    
+    reverse_dependency_list.append(plugin_name)
+
+def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
+    if 'i_loaded' in plugin_dict[plugin_name].info:
+        return 1
+    
+    plugin = plugin_dict[plugin_name]
+    
+    for dependency in plugin.depends:
+        if 'i_error' in plugin_dict[dependency['name']].info:
+            return 0
+        
+        if not r_check_dependencies(dependency['name'], max_depth, event_name, depth +1):
+
+            if dependency['required'] == True:
+                log.error(plugin.name + ": could not load a required plugin.")
+                
+            else:
+                log.warning(plugin.name + ": could not load a optional plugin.")
+                continue
+
+            plugin.info['i_error'] = 1
+            if plugin.essential:
+                log.critical(plugin.name + " is marked as essential. Exiting...")
+                sys.exit(1)
+            
+            return 0
+    
+    log.info('Checking ' +plugin_name)
+    if 'check' in plugin.events and plugin.events['check']() == 0 and event_name != 'install':
+        log.error(plugin_name +" returned an error.")
+        plugin.info['i_error'] = 1
+        return 0
+    
+    elif 'check' in plugin.events and plugin.events['check']() == 1 and event_name == 'install':
+        plugin.info['i_loaded'] = 1
+        return 1
+    
+    log.info('Execute event "' +event_name +'" from ' +plugin_name)
+    if event_name in plugin.events and not plugin.events[event_name]():
+        log.error('Event: ' +event_name +' of ' +plugin_name +" returned an error.")
+        plugin.info['i_error'] = 1
+        return 0
+    
+    plugin.info['i_loaded'] = 1
+    return 1
+
+def i_build_indices():
+    global indices_generated
+    
+    if indices_generated:
+        return
+    
+    for plugin_name in dependency_list:
+        plugin = plugin_dict[plugin_name]
+        
+        if 'global_preexecution_hook' in plugin.events:
+            global_preexecution_hook_list.append(plugin.events['global_preexecution_hook'])
+        
+        action_tree[plugin_name] = {}
+        for action in plugin.actions:
+            if not action['method'] in action_call_dict:
+                action_call_dict[action['method']] = []
+                
+            action_call_dict[action['method']].append(action)
+            
+            action_sub_name = re.split('\.', action['name'])[1]
+            
+            if action_sub_name in action_tree[plugin.name]:
+                log.warning("Duplicate Name in: " +action['name'])
+            
+            action_tree[plugin.name][action_sub_name] = action
+    
+    indices_generated = True
+
+def i_removeBrokenPlugins():
+    for plugin_name in plugin_dict.keys():
+        
+        if 'i_error' in plugin_dict[plugin_name].info:
+            del plugin_dict[plugin_name]
+            continue
+        
+        i = 0;
+        while i < len(plugin_dict[plugin_name].reverse_dependencies):
+            r_dependency = plugin_dict[plugin_name].reverse_dependencies[i]
+            
+            if not r_dependency in plugin_dict or 'i_error' in plugin_dict[r_dependency].info:
+                del plugin_dict[plugin_name].reverse_dependencies[i]
+                continue
+            
+            i += 1
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+    
+    # Read the config file
+    config = configparser.ConfigParser()
+    config.read('pythapi.ini')
+    
+    # Apply default values
+    config_defaults.update(config)
+    config = config_defaults
+
+    # Initialize fancy_logs
+    log.init()
+    log.fancy_mode = 1 if config['core.general']['colored_logs'] == "true" else 0
+
+    # Only the user defined in the config should be able to execute this program
+    if(getpass.getuser() != config['core.general']['user']):
+        log.critical("The user " +getpass.getuser() + " is not authorized to execute pythapi.")
+        sys.exit(1)
+
+    # Parameter interpreter
+    i = 1
+    mode="none"
+    p = sys.argv
+    bp = 0 # Base parameters without explicit parameter tag
+    while(i < len(p)):
+        if(p[i] == "install" and bp == 0):
+            mode = "install"
+            bp += 1
+
+        elif(p[i] == "uninstall" and bp == 0):
+            mode = "uninstall"
+            bp += 1
+            
+        elif(p[i][0] != "-" and (mode == "install" or mode == "uninstall") and bp == 1):
+            param_plugin = p[i]
+            bp += 1
+            
+        elif(p[i][:2] == "-r" or p[i] == "--reinstall" and mode == "install"):
+            reinstall = True
+
+        elif(p[i][:2] == "-f" or p[i] == "--force"):
+            force_mode = True
+            
+        elif(p[i][:2] == "-v" or p[i] == "--verbosity"):
+            config['core.general']['loglevel'] = p[i+1]
+            del p[i+1]
+            
+        elif(p[i][:2] == "-h" or p[i] == "--help"):
+            print usage_text
+            sys.exit(0)
+            
+        else:
+            log.error("Parameter Error at: " +p[i])
+            log.info("Execute: 'pythapi help' for more information.")
+            log.critical("Some errors make it impossiple to continue the programm.")
+            sys.exit(1)
+
+        if(p[i][0] == "-" and p[i][1] != "-" and len(p[i]) > 2):
+            p[i] = p[i][:1] + p[i][2:]
+            
+        else:
+            i += 1
+
+    log.loglevel = int(config['core.general']['loglevel'])
+
+    # Plugin loader
+    log.header("Loading Plugins...")
+
+    dir_r = glob.glob("plugins/*.py")
+    log.debug("Plugins found: " +str(len(dir_r) -1) )
+    
+    # Import and initializing of the found plugins
+    for i_dir in dir_r:
+        
+        module_name = re.search('^plugins/(.*)\.py$', i_dir).group(1)
+        if(module_name == "__init__"): continue
+        
+        plugin = importlib.import_module("plugins." +module_name).plugin
+        
+        plugin.init(config, plugin_dict, action_tree)
+        plugin_dict[plugin.name] = plugin
+        
+    for plugin_name in plugin_dict:
+        if not plugin_name in dependency_list and not 'i_error' in plugin_dict[plugin_name].info:
+            r_build_dependency_list(plugin_name, len(plugin_dict) )
+    
+    i_removeBrokenPlugins()
+
+    if mode == 'uninstall' or (mode == 'install' and 'reinstall' in globals()):
+        log.header('Start uninstallation process...')
+        
+        # Fill plugin list based in instruction
+        if 'param_plugin' in globals():
+            if not param_plugin in plugin_dict:
+                log.critical(param_plugin +' does not exist!')
+                sys.exit(1)
+            
+            if 'i_error' in plugin_dict[param_plugin].info:
+                log.critical('Installation falied due to an error.')
+                sys.exit(1)
+            
+            r_build_reverse_dependency_list(param_plugin, len(plugin_dict))
+            
+            if len(reverse_dependency_list) > 1 and not 'force_mode' in globals():
+                log.warning(param_plugin +' is used by other plugins.')
+                log.info('Use --force to ignpore this. This will also reinstall all plugins which use this plugin!')
+                log.critical('Execution stopped.')
+                sys.exit(1)
+            
+        else:
+            reverse_dependency_list = list(reversed(dependency_list))
+        
+        for plugin_name in reverse_dependency_list:
+            plugin = plugin_dict[plugin_name]
+            
+            log.info("Uninstall "+plugin.name)
+            
+            if 'uninstall' in plugin.events and not plugin.events['uninstall']():
+                log.error(plugin.name +" returned an error.")
+                log.critical("Unistallation failed!")
+                sys.exit(1)
+                
+        if mode == 'uninstall':
+            log.success("pythapi successfully uninstalled.")
+            sys.exit(0)
+
+    if mode == 'install':
+        log.header('Start installation process...')
+        
+        # Fill plugin list based in instruction
+        if 'param_plugin' in globals():
+            if not param_plugin in plugin_dict:
+                log.critical(param_plugin +' does not exist!')
+                sys.exit(1)
+            
+            if 'i_error' in plugin_dict[param_plugin].info:
+                log.critical('Installation falied due to an error.')
+                sys.exit(1)
+            
+            dependency_list = []
+            r_build_dependency_list(param_plugin, len(plugin_dict) )
+            
+            if 'reinstall' in globals():
+                for r_dependency in reversed(reverse_dependency_list):
+                    if not r_dependency in dependency_list:
+                        dependency_list.append(r_dependency)
+        
+        for plugin_name in dependency_list:
+            if not 'i_error' in plugin_dict[plugin_name].info and not 'i_loaded' in plugin_dict[plugin_name].info:
+                r_check_dependencies(plugin_name, len(plugin_dict), 'install')
+    
+    if mode == 'none':
+        i_build_indices()
+        
+        for plugin_name in dependency_list:
+            if not 'i_error' in plugin_dict[plugin_name].info and not 'i_loaded' in plugin_dict[plugin_name].info:
+                r_check_dependencies(plugin_name, len(plugin_dict), 'load')
+        
+        i_removeBrokenPlugins()
+        
+        log.success("pythapi successfully started.")
+        log.info("Entering main loop...")
+        app = BaseWebServer()
+        app.listen(int(config['core.web']['bind_port']),config['core.web']['bind_ip'])
+        IOLoop.instance().start()

@@ -1,0 +1,11 @@
+Installation:
+    1. Setup a database with a user:
+
+        DROP DATABASE IF EXISTS pythapi;
+        DROP USER IF EXISTS 'pythapi'@'localhost';
+        CREATE DATABASE pythapi;
+        CREATE USER 'pythapi'@'localhost' IDENTIFIED BY '1234';
+        GRANT ALL PRIVILEGES ON pythapi.* TO 'pythapi'@'localhost';
+    
+    2. Start the installation with:
+        ./pythapi.py install -u admin -p 1234
