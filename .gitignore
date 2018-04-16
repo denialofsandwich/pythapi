@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+pythapi.ini
+
 # C extensions
 *.so
 
