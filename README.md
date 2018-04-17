@@ -44,7 +44,7 @@ EOM
 Navigate to your pythapi directory and copy `pythapi.example.ini` to `pythapi.ini.`
 Change the the nessesary parameters.
 
-**IMPORTANT**: generate a salt. This dramaticaly increases the security. You can do this in linux with:
+**IMPORTANT**: generate a salt. This dramatically increases the security. You can do this in linux with:
 
 `</dev/urandom tr -dc A-Za-z0-9 | head -c 64`
 
