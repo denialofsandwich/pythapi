@@ -41,8 +41,9 @@ GRANT ALL PRIVILEGES ON $PYTHAPI_DB_NAME.* TO '$PYTHAPI_DB_USER'@'localhost';
 EOM
 ```
 
-Navigate to your pythapi directory and copy `pythapi.example.ini` to `pythapi.ini.`
-Change the the nessesary parameters.
+Navigate to your pythapi directory, copy `pythapi.example.ini` to `pythapi.ini` and edit the config.
+
+Change all nessesary parameters.
 
 **IMPORTANT**: generate a salt. This dramatically increases the security. You can do this in linux with:
 

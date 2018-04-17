@@ -19,7 +19,7 @@
 #              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #              GNU Affero General Public License for more details.
 #
-#              You should have received a copy of the GNU General Public License
+#              You should have received a copy of the GNU Affero General Public License
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
 
@@ -39,6 +39,8 @@ import re
 import json
 from api_plugin import WebRequestException
 import logging
+
+from pprint import pprint
 
 usage_text = """
 Syntax:
@@ -99,9 +101,9 @@ reverse_dependency_list = []
 indices_generated = False
 
 class MainHandler(tornado.web.RequestHandler):
-    def executeRequest(self, method, data):
+    def executeRequest(self, method, path):
         for action in action_call_dict[method]:
-            match = action['c_regex'].match(data)
+            match = action['c_regex'].match(path)
             if match:
                 try:
                     for hook in global_preexecution_hook_list:
@@ -151,50 +153,50 @@ class MainHandler(tornado.web.RequestHandler):
         return_value = json.dumps(return_json) + '\n'
         self.write(return_value)
         
-    def get(self, data):
-        self.executeRequest('GET' ,data)
+    def get(self, path):
+        self.executeRequest('GET' ,path)
         
-    def post(self, data):
-        self.executeRequest('POST' ,data)
+    def post(self, path):
+        self.executeRequest('POST' ,path)
         
-    def put(self, data):
-        self.executeRequest('PUT' ,data)
+    def put(self, path):
+        self.executeRequest('PUT' ,path)
         
-    def patch(self, data):
-        self.executeRequest('PATCH' ,data)
+    def patch(self, path):
+        self.executeRequest('PATCH' ,path)
         
-    def delete(self, data):
-        self.executeRequest('DELETE' ,data)
+    def delete(self, path):
+        self.executeRequest('DELETE' ,path)
         
-    def copy(self, data):
-        self.executeRequest('COPY' ,data)
+    def copy(self, path):
+        self.executeRequest('COPY' ,path)
         
-    def head(self, data):
-        self.executeRequest('HEAD' ,data)
+    def head(self, path):
+        self.executeRequest('HEAD' ,path)
         
-    def options(self, data):
-        self.executeRequest('OPTIONS' ,data)
+    def options(self, path):
+        self.executeRequest('OPTIONS' ,path)
         
-    def link(self, data):
-        self.executeRequest('LINK' ,data)
+    def link(self, path):
+        self.executeRequest('LINK' ,path)
         
-    def unlink(self, data):
-        self.executeRequest('UNLINK' ,data)
+    def unlink(self, path):
+        self.executeRequest('UNLINK' ,path)
         
-    def purge(self, data):
-        self.executeRequest('PURGE' ,data)
+    def purge(self, path):
+        self.executeRequest('PURGE' ,path)
         
-    def lock(self, data):
-        self.executeRequest('LOCK' ,data)
+    def lock(self, path):
+        self.executeRequest('LOCK' ,path)
         
-    def unlock(self, data):
-        self.executeRequest('UNLOCK' ,data)
+    def unlock(self, path):
+        self.executeRequest('UNLOCK' ,path)
         
-    def propfind(self, data):
-        self.executeRequest('PROPFIND' ,data)
+    def propfind(self, path):
+        self.executeRequest('PROPFIND' ,path)
         
-    def view(self, data):
-        self.executeRequest('VIEW' ,data)
+    def view(self, path):
+        self.executeRequest('VIEW' ,path)
 
 class BaseWebServer(tornado.web.Application):
     def __init__(self):

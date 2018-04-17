@@ -3,7 +3,7 @@
 # Name:        pythapi: userdata.py
 # Author:      Rene Fa
 # Date:        13.04.2018
-# Version:     1.0
+# Version:     0.9
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -16,7 +16,7 @@
 #              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #              GNU Affero General Public License for more details.
 #
-#              You should have received a copy of the GNU General Public License
+#              You should have received a copy of the GNU Affero General Public License
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
 

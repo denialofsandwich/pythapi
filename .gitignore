@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 pythapi.ini
+plugins/debug.py
 commitandpush.sh
 
 # C extensions

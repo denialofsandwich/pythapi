@@ -15,7 +15,7 @@
 #              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #              GNU Affero General Public License for more details.
 #
-#              You should have received a copy of the GNU General Public License
+#              You should have received a copy of the GNU Affero General Public License
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
 
@@ -102,6 +102,9 @@ def api_action(plugin, pJSON):
         
         if not 'method' in plugin.actions[-1]:
             plugin.actions[-1]['method'] = 'GET'
+        
+        else:
+            plugin.actions[-1]['method'] = plugin.actions[-1]['method'].upper()
         
         if not 'request_body_type' in plugin.actions[-1]:
             plugin.actions[-1]['request_body_type'] = 'application/json'
