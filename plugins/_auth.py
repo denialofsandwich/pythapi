@@ -79,7 +79,7 @@ def e_get_current_user():
     return current_user
 
 @api_external_function(plugin)
-def e_create_session(reqHandler, username):
+def e_create_session(reqHandler, username, options):
     if reqHandler.get_cookie("session_id"):
         if reqHandler.get_cookie("session_id") in user_keys_dict:
             del user_keys_dict[reqHandler.get_cookie("session_id")]
@@ -90,6 +90,12 @@ def e_create_session(reqHandler, username):
         'username': username,
         'type': 'session'
     }
+    
+    if 'csrf_token' in options and options['csrf_token'] == True:
+        csrf_token = e_generate_random_string(cookie_length)
+        user_keys_dict[new_session_id]['last_csrf_token'] = csrf_token
+        reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
+    
     users_dict[current_user]['keys'].append(new_session_id)
     
     reqHandler.set_cookie("session_id", new_session_id)
@@ -1142,7 +1148,7 @@ def i_is_permited(username, action):
         if ir_check_permissions(role_name, action['roles']):
             return 1
     
-    return 0
+    raise WebRequestException(401,'unauthorized','Permission denied.')
 
 @api_event(plugin, 'global_preexecution_hook')
 def global_preexecution_hook(reqHandler, action):
@@ -1170,6 +1176,9 @@ def global_preexecution_hook(reqHandler, action):
                     current_user = credentials[0]
                     if i_is_permited(current_user, action):
                         return
+                
+                else:
+                    raise WebRequestException(401,'unauthorized','Invalid username or password.')
         
         elif(r_auth_header[0] == "Bearer"):
             h_token = e_hash_password('', r_auth_header[1])
@@ -1178,10 +1187,23 @@ def global_preexecution_hook(reqHandler, action):
                 current_user = user_keys_dict[h_token]['username']
                 if i_is_permited(current_user, action):
                     return
+            
+            else:
+                raise WebRequestException(401,'unauthorized','Invalid token.')
       
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
         if session_id in user_keys_dict:
+            
+            if 'last_csrf_token' in user_keys_dict[session_id]:
+                csrf_token = reqHandler.request.headers.get('X-CSRF-TOKEN', None)
+                if csrf_token != user_keys_dict[session_id]['last_csrf_token']:
+                    raise WebRequestException(401,'unauthorized','Invalid CSRF-token.')
+                
+                csrf_token = e_generate_random_string(cookie_length)
+                user_keys_dict[session_id]['last_csrf_token'] = csrf_token
+                reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
+                
             current_user = user_keys_dict[session_id]['username']
             if i_is_permited(current_user, action):
                 return
@@ -1248,7 +1270,7 @@ def get_current_user(reqHandler, p, body):
     'f_description': 'Sets a cookie and creates a session.'
 })
 def create_session(reqHandler, p, body):
-    e_create_session(reqHandler, current_user)
+    e_create_session(reqHandler, current_user, body)
     
     return {}
 
