@@ -38,6 +38,7 @@ import glob
 import re
 import json
 from api_plugin import WebRequestException
+import logging
 
 usage_text = """
 Syntax:
@@ -518,4 +519,10 @@ if __name__ == "__main__":
         log.info("Entering main loop...")
         app = BaseWebServer()
         app.listen(int(config['core.web']['bind_port']),config['core.web']['bind_ip'])
+        
+        hn = logging.NullHandler()
+        hn.setLevel(logging.DEBUG)
+        logging.getLogger("tornado.access").addHandler(hn)
+        logging.getLogger("tornado.access").propagate = False
+        
         IOLoop.instance().start()
