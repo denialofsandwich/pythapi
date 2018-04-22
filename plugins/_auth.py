@@ -36,6 +36,7 @@ import math
 
 cookie_length = 64
 max_depth = 10
+session_clean_threshold = 1000
 
 plugin = api_plugin()
 plugin.name = "auth"
@@ -48,11 +49,13 @@ plugin.depends = []
 
 plugin.config_defaults = {
     plugin.name: {
-        'sec_salt': 'generatea128characterrandomstring',
+        'sec_salt': 'generatea64characterrandomstring',
         'first_user_name': 'admin',
         'first_user_password': 'admin',
         'bf_basic_auth_delay': '0.5',
-        'bf_temporary_ban_enabled': 'true'
+        'bf_temporary_ban_enabled': 'true',
+        'session_expiration_time': '604800',
+        'session_create_limit': '1000'
     }
 }
 
@@ -65,6 +68,7 @@ write_trough_cache_enabled = False
 bf_blacklist = {}
 bf_basic_auth_delay = 0
 bf_temporary_ban_enabled = True
+session_counter = 0
 
 @api_external_function(plugin)
 def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digits):
@@ -84,18 +88,50 @@ def e_hash_password(username, password):
 def e_get_current_user():
     return current_user
 
+def i_get_client_ip(reqHandler):
+    
+    if reqHandler.request.remote_ip == "127.0.0.1":
+        x_real_ip = reqHandler.request.headers.get("X-Real-IP")
+        x_forwarded_for = reqHandler.request.headers.get("X-Forwarded-For")
+        return x_real_ip or x_forwarded_for or reqHandler.request.remote_ip
+    
+    else:
+        return reqHandler.request.remote_ip
+
+def i_clean_expired_sessions():
+    global session_counter
+    
+    for session_id in user_keys_dict.keys():
+        session = user_keys_dict[session_id]
+        if session['type'] == 'session' and time.time() > session['expiration_time']:
+            e_delete_session(session_id)
+    
+    session_counter = 0
+
 @api_external_function(plugin)
 def e_create_session(reqHandler, username, options):
+    global session_counter
+    
     if reqHandler.get_cookie("session_id"):
         if reqHandler.get_cookie("session_id") in user_keys_dict:
-            del user_keys_dict[reqHandler.get_cookie("session_id")]
+            e_delete_session(reqHandler.get_cookie("session_id"))
+    
+    if users_dict[username]['sessions'] >= int(plugin.config[plugin.name]['session_create_limit']):
+        raise WebRequestException(400,'error','e_create_session: Session limit exceeded.')
     
     new_session_id = e_generate_random_string(cookie_length)
     
     user_keys_dict[new_session_id] = {
         'username': username,
-        'type': 'session'
+        'type': 'session',
+        'remote_ip': i_get_client_ip(reqHandler),
+        'creation_time': time.time(),
+        'expiration_time': time.time() +int(plugin.config[plugin.name]['session_expiration_time'])
     }
+    
+    session_counter += 1
+    if session_counter > session_clean_threshold:
+        i_clean_expired_sessions()
     
     if 'csrf_token' in options and options['csrf_token'] == True:
         csrf_token = e_generate_random_string(cookie_length)
@@ -103,11 +139,23 @@ def e_create_session(reqHandler, username, options):
         reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
     
     users_dict[current_user]['keys'].append(new_session_id)
+    users_dict[username]['sessions'] += 1
     
     reqHandler.set_cookie("session_id", new_session_id)
 
 @api_external_function(plugin)
-def e_delete_session(username):
+def e_delete_session(session_id):
+    
+    if not session_id in user_keys_dict:
+        raise WebRequestException(400,'error','e_delete_session: Session ID doesn\'t exist.')
+    
+    username = user_keys_dict[session_id]['username']
+    users_dict[username]['keys'].remove(session_id)
+    del user_keys_dict[session_id]
+    users_dict[username]['sessions'] -= 1
+
+@api_external_function(plugin)
+def e_delete_sessions_from_user(username):
     
     i = 0;
     while i < len(users_dict[username]['keys']):
@@ -116,6 +164,7 @@ def e_delete_session(username):
         if user_keys_dict[key]['type'] == 'session':
             del user_keys_dict[key]
             del users_dict[username]['keys'][i]
+            users_dict[username]['sessions'] -= 1
             continue
         
         i += 1
@@ -297,7 +346,8 @@ def e_create_user(username, data):
             'id': user_id,
             'h_password': h_password,
             'keys': [],
-            'roles': []
+            'roles': [],
+            'sessions': 0
         }
     
     e_add_member_to_role('default', username)
@@ -951,7 +1001,8 @@ def load():
             'id': row[0],
             'h_password': row[2],
             'keys': [],
-            'roles': []
+            'roles': [],
+            'sessions': 0
         }
         
         for role in i_get_db_roles_from_user(row[1]):
@@ -1153,15 +1204,6 @@ def ir_check_permissions(role_name, target_list, depth = 0):
         
     return 0
 
-def i_get_client_ip(reqHandler):
-    
-    if reqHandler.request.remote_ip == "127.0.0.1":
-        x_real_ip = reqHandler.request.headers.get("X-Real-IP")
-        x_forwarded_for = reqHandler.request.headers.get("X-Forwarded-For")
-        return x_real_ip or x_forwarded_for or reqHandler.request.remote_ip
-    else:
-        return reqHandler.request.remote_ip
-
 def unauthorized_error(error_code, error_name, error_message, remote_ip = "N/A"):
     
     return_json = {}
@@ -1255,8 +1297,13 @@ def global_preexecution_hook(reqHandler, action):
                 csrf_token = e_generate_random_string(cookie_length)
                 user_keys_dict[session_id]['last_csrf_token'] = csrf_token
                 reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
-                
+            
             current_user = user_keys_dict[session_id]['username']
+            
+            if time.time() > user_keys_dict[session_id]['expiration_time']:
+                i_clean_expired_sessions()
+                raise WebRequestException(401, 'unauthorized', 'Session expired.')
+            
             if i_is_permited(current_user, action, remote_ip):
                 return
 
@@ -1277,7 +1324,8 @@ def auth_debug1(reqHandler, p, body):
         'users_dict': users_dict,
         'user_keys_dict': user_keys_dict,
         'roles_dict': roles_dict,
-        'bf_blacklist': bf_blacklist
+        'bf_blacklist': bf_blacklist,
+        'session_counter': session_counter
     }
 
 @api_action(plugin, {
@@ -1335,7 +1383,7 @@ def create_session(reqHandler, p, body):
 })
 def delete_session(reqHandler, p, body):
     
-    e_delete_session(current_user)
+    e_delete_sessions_from_user(current_user)
     return {}
 
 @api_action(plugin, {
