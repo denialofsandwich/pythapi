@@ -1,7 +1,7 @@
 # pythapi
 A flexible and light API for nearly every purpose with focus on extensibility.
 
-This Project is designed to easily create your own webservices and connect it with others. Nearly everything is running as a plugin, which means that you can easily extend and remove features if needed.
+This Project is designed to easily create your own webservices and connect it with others. Nearly everything is running as a plugin, which means that you can easy extend and remove features if needed.
 
 ## Install
 
@@ -59,11 +59,11 @@ You can get more information about the parameters with
 
 Now you can start pythapi with the command `./pythapi.py`
 
-If everything is running fine, you can get a list of all running plugins and its possible requests with:
-
 **NOTE**: This example uses `jq` to format the returned JSON Object and `curl` to make a request. You can install it on Debian with the following command:
 
 `apt-get install curl jq`
+
+If everything is running fine, you can get a list of all running plugins and its possible requests with:
 
 ```bash
 # List all plugins
