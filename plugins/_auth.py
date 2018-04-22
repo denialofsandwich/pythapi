@@ -32,6 +32,7 @@ import time
 import json
 import string
 import random
+import math
 
 cookie_length = 64
 max_depth = 10
@@ -49,7 +50,9 @@ plugin.config_defaults = {
     plugin.name: {
         'sec_salt': 'generatea128characterrandomstring',
         'first_user_name': 'admin',
-        'first_user_password': 'admin'
+        'first_user_password': 'admin',
+        'bf_basic_auth_delay': '0.5',
+        'bf_temporary_ban_enabled': 'true'
     }
 }
 
@@ -59,6 +62,9 @@ users_dict = {}
 user_keys_dict = {}
 roles_dict = {}
 write_trough_cache_enabled = False
+bf_blacklist = {}
+bf_basic_auth_delay = 0
+bf_temporary_ban_enabled = True
 
 @api_external_function(plugin)
 def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digits):
@@ -937,6 +943,8 @@ def check():
 @api_event(plugin, 'load')
 def load():
     global write_trough_cache_enabled
+    global bf_basic_auth_delay
+    global bf_temporary_ban_enabled
     
     for row in i_list_db_user():
         users_dict[row[1]] = {
@@ -965,6 +973,9 @@ def load():
     
     for role_name in roles_dict:
         i_apply_ruleset(role_name)
+    
+    bf_basic_auth_delay = float(plugin.config[plugin.name]['bf_basic_auth_delay'])
+    bf_temporary_ban_enabled = 1 if plugin.config[plugin.name]['bf_temporary_ban_enabled'] == "true" else 0
     
     write_trough_cache_enabled = True
     return 1
@@ -1142,27 +1153,66 @@ def ir_check_permissions(role_name, target_list, depth = 0):
         
     return 0
 
-def i_is_permited(username, action):
+def i_get_client_ip(reqHandler):
+    
+    if reqHandler.request.remote_ip == "127.0.0.1":
+        x_real_ip = reqHandler.request.headers.get("X-Real-IP")
+        x_forwarded_for = reqHandler.request.headers.get("X-Forwarded-For")
+        return x_real_ip or x_forwarded_for or reqHandler.request.remote_ip
+    else:
+        return reqHandler.request.remote_ip
+
+def unauthorized_error(error_code, error_name, error_message, remote_ip = "N/A"):
+    
+    return_json = {}
+    if bf_temporary_ban_enabled:
+        if not remote_ip in bf_blacklist:
+            
+            new_entry = {}
+            new_entry['failed_attempts'] = 1
+            new_entry['banned_until'] = time.time() + 1
+            
+            bf_blacklist[remote_ip] = new_entry
+        
+        else:
+            bf_blacklist[remote_ip]['failed_attempts'] += 1
+            
+            ban_time = 2**bf_blacklist[remote_ip]['failed_attempts']
+            bf_blacklist[remote_ip]['banned_until'] = time.time() +ban_time
+            return_json['ban_time'] = ban_time
+    
+    raise WebRequestException(error_code, error_name, error_message, return_json)
+
+def i_reset_ban_time(remote_ip = "N/A"):
+    
+    if bf_temporary_ban_enabled:
+        try: del bf_blacklist[remote_ip]
+        except: pass
+
+def i_is_permited(username, action, remote_ip = "N/A"):
 
     for role_name in users_dict[username]['roles']:
         if ir_check_permissions(role_name, action['roles']):
             return 1
     
-    raise WebRequestException(401,'unauthorized','Permission denied.')
+    unauthorized_error(401,'unauthorized','Permission denied.', remote_ip)
 
 @api_event(plugin, 'global_preexecution_hook')
 def global_preexecution_hook(reqHandler, action):
     global current_user
     
-    db = plugin.mysql_connect()
-    dbc = db.cursor()
+    if bf_temporary_ban_enabled:
+        remote_ip = i_get_client_ip(reqHandler)
+        if remote_ip in bf_blacklist and bf_blacklist[remote_ip]['banned_until'] > time.time():
+            reaming_time = math.ceil(bf_blacklist[remote_ip]['banned_until'] - time.time())
+            raise WebRequestException(401, 'unauthorized', 'Too many failed login attempts.', {'reaming_time': reaming_time})
     
     auth_header = reqHandler.request.headers.get('Authorization', None)
     if auth_header is not None:
         r_auth_header = re.split(' ', auth_header)
         
         if(r_auth_header[0] == "Basic"):
-            time.sleep(0.5) # Increased security
+            time.sleep(bf_basic_auth_delay)
         
             credentials = re.split(':',
                 base64.b64decode(
@@ -1174,22 +1224,24 @@ def global_preexecution_hook(reqHandler, action):
                 if (e_hash_password(credentials[0], credentials[1]) == users_dict[credentials[0]]['h_password']):
                 
                     current_user = credentials[0]
-                    if i_is_permited(current_user, action):
+                    if i_is_permited(current_user, action, remote_ip):
+                        i_reset_ban_time(remote_ip)
                         return
                 
                 else:
-                    raise WebRequestException(401,'unauthorized','Invalid username or password.')
+                    unauthorized_error(401,'unauthorized','Invalid username or password.', remote_ip)
         
         elif(r_auth_header[0] == "Bearer"):
             h_token = e_hash_password('', r_auth_header[1])
             
             if h_token in user_keys_dict:
                 current_user = user_keys_dict[h_token]['username']
-                if i_is_permited(current_user, action):
+                if i_is_permited(current_user, action, remote_ip):
+                    i_reset_ban_time(remote_ip)
                     return
             
             else:
-                raise WebRequestException(401,'unauthorized','Invalid token.')
+                unauthorized_error(401,'unauthorized','Invalid token.', remote_ip)
       
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
@@ -1198,21 +1250,21 @@ def global_preexecution_hook(reqHandler, action):
             if 'last_csrf_token' in user_keys_dict[session_id]:
                 csrf_token = reqHandler.request.headers.get('X-CSRF-TOKEN', None)
                 if csrf_token != user_keys_dict[session_id]['last_csrf_token']:
-                    raise WebRequestException(401,'unauthorized','Invalid CSRF-token.')
+                    unauthorized_error(401,'unauthorized','Invalid CSRF-token.', remote_ip)
                 
                 csrf_token = e_generate_random_string(cookie_length)
                 user_keys_dict[session_id]['last_csrf_token'] = csrf_token
                 reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
                 
             current_user = user_keys_dict[session_id]['username']
-            if i_is_permited(current_user, action):
+            if i_is_permited(current_user, action, remote_ip):
                 return
 
     current_user = "anonymous"
-    if i_is_permited(current_user, action):
+    if i_is_permited(current_user, action, remote_ip):
         return
 
-    raise WebRequestException(401,'unauthorized','Permission denied.')
+    unauthorized_error(401,'unauthorized','Permission denied.', reqHandler)
 
 @api_action(plugin, {
     'path': 'debug',
@@ -1224,7 +1276,8 @@ def auth_debug1(reqHandler, p, body):
     return {
         'users_dict': users_dict,
         'user_keys_dict': user_keys_dict,
-        'roles_dict': roles_dict
+        'roles_dict': roles_dict,
+        'bf_blacklist': bf_blacklist
     }
 
 @api_action(plugin, {

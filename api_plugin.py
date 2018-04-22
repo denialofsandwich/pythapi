@@ -21,19 +21,31 @@
 
 import re
 import MySQLdb
+import collections
+
+
+def update(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.Mapping):
+            d[k] = update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
 
 class WebRequestException(Exception):
     error_code = 0
     error_type = 'error'
     message = 'N/A'
+    return_json = {}
     
-    def __init__(self, error_code=400, error_type='error', message='N/A'):
+    def __init__(self, error_code=400, error_type='error', message='N/A', return_json = {}):
 
         Exception.__init__(self,message)
         
         self.error_code = error_code
         self.error_type = error_type
         self.message = message
+        self.return_json = return_json
 
 class api_plugin():
 
@@ -61,7 +73,7 @@ class api_plugin():
         self.action_tree = p_action_tree
         self.db_prefix = p_config['core.mysql']['prefix']
         
-        self.config_defaults.update(self.config)
+        update(self.config_defaults, self.config)
         self.config = self.config_defaults
         
         if not self.name in self.config:

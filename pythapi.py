@@ -141,6 +141,7 @@ class MainHandler(tornado.web.RequestHandler):
                     return_json = {}
                     return_json['status'] = e.error_type
                     return_json['message'] = e.message
+                    return_json.update(e.return_json)
                     
                     return_value = json.dumps(return_json) + '\n'
                     self.write(return_value)
@@ -346,7 +347,7 @@ def i_removeBrokenPlugins():
             del plugin_dict[plugin_name]
             continue
         
-        i = 0;
+        i = 0
         while i < len(plugin_dict[plugin_name].reverse_dependencies):
             r_dependency = plugin_dict[plugin_name].reverse_dependencies[i]
             
