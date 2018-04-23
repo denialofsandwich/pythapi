@@ -37,7 +37,7 @@ import tornado.web
 import glob
 import re
 import json
-from api_plugin import WebRequestException
+import api_plugin
 import logging
 
 from pprint import pprint
@@ -88,7 +88,11 @@ config_defaults = {
     },
     'core.web': {
         'bind_ip': '0.0.0.0',
-        'bind_port': '8123'
+        'https_enabled': 'false',
+        'http_port': '8123',
+        'https_port': '8124',
+        'ssl_cert_file': 'certfile_missing',
+        'ssl_key_file': 'keyfile_missing'
     }
 }
 
@@ -134,7 +138,7 @@ class MainHandler(tornado.web.RequestHandler):
                     self.write(return_value)
                     return
                 
-                except WebRequestException as e:
+                except api_plugin.WebRequestException as e:
                     self.set_status(e.error_code)
                     self.set_header("Content-Type", 'application/json')
                     
@@ -365,7 +369,7 @@ if __name__ == "__main__":
     config.read('pythapi.ini')
     
     # Apply default values
-    config_defaults.update(config)
+    api_plugin.update(config_defaults, config)
     config = config_defaults
 
     # Initialize fancy_logs
@@ -520,8 +524,25 @@ if __name__ == "__main__":
         
         log.success("pythapi successfully started.")
         log.info("Entering main loop...")
-        app = BaseWebServer()
-        app.listen(int(config['core.web']['bind_port']),config['core.web']['bind_ip'])
+        
+        app = tornado.web.Application([
+            (r"/(.*)?", MainHandler)
+        ])
+        
+        http_ports = config['core.web']['http_port'].split(',')
+        for port in http_ports:
+            app.listen(int(port),config['core.web']['bind_ip'])
+        
+        if config['core.web']['https_enabled'] == 'true':
+            
+            https_server = tornado.httpserver.HTTPServer(app, ssl_options={
+                "certfile": config['core.web']['ssl_cert_file'],
+                "keyfile": config['core.web']['ssl_key_file']
+            })
+            
+            https_ports = config['core.web']['https_port'].split(',')
+            for port in https_ports:
+                https_server.listen(int(port),config['core.web']['bind_ip'])
         
         hn = logging.NullHandler()
         hn.setLevel(logging.DEBUG)
