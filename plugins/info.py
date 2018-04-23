@@ -42,11 +42,13 @@ plugin.depends = [
 
 plugin.config_defaults = {
     plugin.name: {
-        'action_property_blacklist': []
+        'action_property_blacklist': [],
+        'plugin_property_blacklist': []
     }
 }
 
 action_property_blacklist = []
+plugin_property_blacklist = []
 
 def i_format_action(action):
     
@@ -72,7 +74,12 @@ def i_get_plugin(plugin_name):
     return_json['version'] = i_plugin.version
     return_json['essential'] = i_plugin.essential
     return_json['depends'] = i_plugin.depends
+    return_json['action_count'] = len(i_plugin.actions)
     return_json.update(i_plugin.info)
+    
+    for property_name in plugin_property_blacklist:
+        try: del return_json[property_name]
+        except: pass
     
     return return_json
 
@@ -171,6 +178,7 @@ def uninstall():
 def load():
     
     action_property_blacklist.extend(plugin.config[plugin.name]['action_property_blacklist'].split(','))
+    plugin_property_blacklist.extend(plugin.config[plugin.name]['plugin_property_blacklist'].split(','))
     
     return 1
 
