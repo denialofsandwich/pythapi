@@ -2,8 +2,8 @@
 #
 # Name:        pythapi: _auth.py
 # Author:      Rene Fa
-# Date:        17.04.2018
-# Version:     0.7
+# Date:        23.04.2018
+# Version:     0.8
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -40,7 +40,7 @@ session_clean_threshold = 1000
 
 plugin = api_plugin()
 plugin.name = "auth"
-plugin.version = "0.7"
+plugin.version = "0.8"
 plugin.essential = True
 plugin.info['f_name'] = "Authentification"
 plugin.info['f_description'] = "This plugin implements authentification. You can create accounts and grant permissions to them."
@@ -60,9 +60,10 @@ plugin.config_defaults = {
 }
 
 current_user = "anonymous"
-used_tables = ["user","api_key","role","role_member"]
+used_tables = ["user","api_token","role","role_member"]
 users_dict = {}
-user_keys_dict = {}
+api_token_dict = {}
+session_dict = {}
 roles_dict = {}
 write_trough_cache_enabled = False
 bf_blacklist = {}
@@ -101,29 +102,37 @@ def i_get_client_ip(reqHandler):
 def i_clean_expired_sessions():
     global session_counter
     
-    for session_id in user_keys_dict.keys():
-        session = user_keys_dict[session_id]
-        if session['type'] == 'session' and time.time() > session['expiration_time']:
+    for session_id in session_dict.keys():
+        session = session_dict[session_id]
+        if time.time() > session['expiration_time']:
             e_delete_session(session_id)
     
     session_counter = 0
+
+@api_external_function(plugin)
+def e_list_sessions(username):
+    return_json = []
+    for session_id in users_dict[username]['sessions']:
+        i_entry = dict(session_dict[session_id])
+        return_json.append(i_entry)
+    
+    return return_json
 
 @api_external_function(plugin)
 def e_create_session(reqHandler, username, options):
     global session_counter
     
     if reqHandler.get_cookie("session_id"):
-        if reqHandler.get_cookie("session_id") in user_keys_dict:
+        if reqHandler.get_cookie("session_id") in session_dict:
             e_delete_session(reqHandler.get_cookie("session_id"))
     
-    if users_dict[username]['sessions'] >= int(plugin.config[plugin.name]['session_create_limit']):
+    if users_dict[username]['session_count'] >= int(plugin.config[plugin.name]['session_create_limit']):
         raise WebRequestException(400,'error','e_create_session: Session limit exceeded.')
     
     new_session_id = e_generate_random_string(cookie_length)
     
-    user_keys_dict[new_session_id] = {
+    session_dict[new_session_id] = {
         'username': username,
-        'type': 'session',
         'remote_ip': i_get_client_ip(reqHandler),
         'creation_time': time.time(),
         'expiration_time': time.time() +int(plugin.config[plugin.name]['session_expiration_time'])
@@ -135,37 +144,36 @@ def e_create_session(reqHandler, username, options):
     
     if 'csrf_token' in options and options['csrf_token'] == True:
         csrf_token = e_generate_random_string(cookie_length)
-        user_keys_dict[new_session_id]['last_csrf_token'] = csrf_token
+        session_dict[new_session_id]['last_csrf_token'] = csrf_token
         reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
     
-    users_dict[current_user]['keys'].append(new_session_id)
-    users_dict[username]['sessions'] += 1
+    users_dict[current_user]['sessions'].append(new_session_id)
+    users_dict[username]['session_count'] += 1
     
     reqHandler.set_cookie("session_id", new_session_id)
 
 @api_external_function(plugin)
 def e_delete_session(session_id):
     
-    if not session_id in user_keys_dict:
+    if not session_id in session_dict:
         raise WebRequestException(400,'error','e_delete_session: Session ID doesn\'t exist.')
     
-    username = user_keys_dict[session_id]['username']
-    users_dict[username]['keys'].remove(session_id)
-    del user_keys_dict[session_id]
-    users_dict[username]['sessions'] -= 1
+    username = session_dict[session_id]['username']
+    users_dict[username]['sessions'].remove(session_id)
+    del session_dict[session_id]
+    users_dict[username]['session_count'] -= 1
 
 @api_external_function(plugin)
 def e_delete_sessions_from_user(username):
     
     i = 0;
-    while i < len(users_dict[username]['keys']):
+    while i < len(users_dict[username]['sessions']):
         
-        key = users_dict[username]['keys'][i]
-        if user_keys_dict[key]['type'] == 'session':
-            del user_keys_dict[key]
-            del users_dict[username]['keys'][i]
-            users_dict[username]['sessions'] -= 1
-            continue
+        key = users_dict[username]['sessions'][i]
+        del session_dict[key]
+        del users_dict[username]['sessions'][i]
+        users_dict[username]['session_count'] -= 1
+        continue
         
         i += 1
 
@@ -215,6 +223,7 @@ def i_local_get_user(username):
     return_json = dict(users_dict[username])
     return_json['username'] = username
     del return_json['keys']
+    del return_json['sessions']
     del return_json['h_password']
         
     return return_json
@@ -225,6 +234,7 @@ def i_list_local_users():
         i_entry = dict(users_dict[key])
         i_entry['username'] = key
         del i_entry['keys']
+        del i_entry['sessions']
         del i_entry['h_password']
         
         return_json.append(i_entry)
@@ -346,8 +356,9 @@ def e_create_user(username, data):
             'id': user_id,
             'h_password': h_password,
             'keys': [],
+            'sessions': [],
             'roles': [],
-            'sessions': 0
+            'session_count': 0
         }
     
     e_add_member_to_role('default', username)
@@ -411,12 +422,17 @@ def e_delete_user(username):
     if write_trough_cache_enabled:
         for i in range(len(users_dict[username]['keys'])):
             key = users_dict[username]['keys'][i]
-            del user_keys_dict[key]
+            del api_token_dict[key]
             del users_dict[username]['keys'][i]
+        
+        for i in range(len(users_dict[username]['sessions'])):
+            key = users_dict[username]['sessions'][i]
+            del session_dict[key]
+            del users_dict[username]['sessions'][i]
         
         del users_dict[username]
 
-def i_get_db_user_token(username, key_name):
+def i_get_db_user_token(username, token_name):
     db = plugin.mysql_connect()
     dbc = db.cursor()
     
@@ -431,11 +447,11 @@ def i_get_db_user_token(username, key_name):
     
     with db:
         sql = """
-            SELECT * FROM """ +plugin.db_prefix +"""api_key WHERE user_id = %s AND key_name = %s;
+            SELECT * FROM """ +plugin.db_prefix +"""api_token WHERE user_id = %s AND token_name = %s;
         """
         
         try:
-            dbc.execute(sql, [user_id, key_name])
+            dbc.execute(sql, [user_id, token_name])
             
         except MySQLdb.IntegrityError as e:
             log.error("i_get_db_user_token: Unknown SQL error.")
@@ -453,8 +469,8 @@ def i_list_db_user_token(username):
     
     with db:
         sql = """
-            SELECT """ +plugin.db_prefix +"""api_key.id, name, key_name, user_key
-                FROM """ +plugin.db_prefix +"""api_key
+            SELECT """ +plugin.db_prefix +"""api_token.id, name, token_name, user_key
+                FROM """ +plugin.db_prefix +"""api_token
                 JOIN """ +plugin.db_prefix +"""user
                 ON user_id = """ +plugin.db_prefix +"""user.id
                 WHERE name = %s;
@@ -475,8 +491,8 @@ def i_list_db_token():
     
     with db:
         sql = """
-            SELECT """ +plugin.db_prefix +"""api_key.id, name, key_name, user_key
-                FROM """ +plugin.db_prefix +"""api_key
+            SELECT """ +plugin.db_prefix +"""api_token.id, name, token_name, user_key
+                FROM """ +plugin.db_prefix +"""api_token
                 JOIN """ +plugin.db_prefix +"""user
                 ON user_id = """ +plugin.db_prefix +"""user.id;
         """
@@ -490,13 +506,13 @@ def i_list_db_token():
         
         return dbc.fetchall()
 
-def i_get_local_user_token(username, key_name):
+def i_get_local_user_token(username, token_name):
     for key in users_dict[username]['keys']:
-        if not 'key_name' in user_keys_dict[key]:
+        if not 'token_name' in api_token_dict[key]:
             continue
         
-        if user_keys_dict[key]['key_name'] == key_name:
-            i_entry = dict(user_keys_dict[key])
+        if api_token_dict[key]['token_name'] == token_name:
+            i_entry = dict(api_token_dict[key])
             return i_entry
     
     raise WebRequestException(400,'error','i_get_local_user_token: Token doesn\'t exist.')
@@ -504,24 +520,23 @@ def i_get_local_user_token(username, key_name):
 def i_list_local_user_token(username):
     return_json = []
     for key in users_dict[username]['keys']:
-        i_entry = dict(user_keys_dict[key])
+        i_entry = dict(api_token_dict[key])
         return_json.append(i_entry)
     
     return return_json
 
 @api_external_function(plugin)
-def e_get_user_token(username, key_name):
+def e_get_user_token(username, token_name):
     if write_trough_cache_enabled:
-        return i_get_local_user_token(username, key_name)
+        return i_get_local_user_token(username, token_name)
     
     else:
         # Just to check if the token exists
-        i_get_db_user_token(username, key_name)
+        i_get_db_user_token(username, token_name)
         
         return_json = {}
-        return_json['key_name'] = key_name
+        return_json['token_name'] = token_name
         return_json['username'] = username
-        return_json['type'] = 'token'
         
         return return_json
 
@@ -535,22 +550,21 @@ def e_list_user_token(username):
         for token in i_list_db_user_token(username):
             i_entry = {}
             
-            i_entry['key_name'] = token[1]
+            i_entry['token_name'] = token[1]
             i_entry['username'] = username
-            i_entry['type'] = 'token'
             
             return_json.append(i_entry)
         
         return return_json
 
 @api_external_function(plugin)
-def e_create_api_key(username, key_name):
+def e_create_api_token(username, token_name):
     db = plugin.mysql_connect()
     dbc = db.cursor()
     
     if write_trough_cache_enabled:
         if not username in users_dict:
-            raise WebRequestException(400,'error','e_create_api_key: User doesn\'t exist.')
+            raise WebRequestException(400,'error','e_create_api_token: User doesn\'t exist.')
         
         user_id = users_dict[username]['id']
     
@@ -562,41 +576,40 @@ def e_create_api_key(username, key_name):
     
     with db:
         sql = """
-            INSERT INTO """ +plugin.db_prefix +"""api_key (
-                    key_name, user_key, user_id
+            INSERT INTO """ +plugin.db_prefix +"""api_token (
+                    token_name, user_key, user_id
                 )
                 VALUES (%s, %s, %s);
         """
         
         try:
             dbc.execute(sql,[
-                key_name,
+                token_name,
                 h_new_token,
                 user_id
             ])
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400,'error','e_create_api_key: key_name already exists.')
+            raise WebRequestException(400,'error','e_create_api_token: token_name already exists.')
     
     if write_trough_cache_enabled:
-        user_keys_dict[h_new_token] = {
+        api_token_dict[h_new_token] = {
             'username': current_user,
-            'key_name': key_name,
-            'type': 'token'
+            'token_name': token_name
         }
         users_dict[current_user]['keys'].append(h_new_token)
     
     return new_token
 
 @api_external_function(plugin)
-def e_delete_api_key(username, key_name):
+def e_delete_api_token(username, token_name):
     db = plugin.mysql_connect()
     dbc = db.cursor()
     
     if write_trough_cache_enabled:
         if not username in users_dict:
-            raise WebRequestException(400,'error','e_delete_api_key: User doesn\'t exist.')
+            raise WebRequestException(400,'error','e_delete_api_token: User doesn\'t exist.')
         
         
         user_id = users_dict[username]['id']
@@ -604,27 +617,27 @@ def e_delete_api_key(username, key_name):
     else:
         user_id = i_get_db_user(username)[0]
 
-    i_get_db_user_token(username, key_name)
+    i_get_db_user_token(username, token_name)
     
     with db:
         sql = """
-            DELETE FROM """ +plugin.db_prefix +"""api_key 
-                WHERE user_id = %s AND key_name = %s;
+            DELETE FROM """ +plugin.db_prefix +"""api_token 
+                WHERE user_id = %s AND token_name = %s;
         """
             
         try:
-            dbc.execute(sql,[user_id ,key_name])
+            dbc.execute(sql,[user_id ,token_name])
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_api_key: Unknown SQL error.")
-            raise WebRequestException(501,'error','e_delete_api_key: Unknown SQL error.')
+            log.error("e_delete_api_token: Unknown SQL error.")
+            raise WebRequestException(501,'error','e_delete_api_token: Unknown SQL error.')
     
     if write_trough_cache_enabled:
         for i in range(len(users_dict[username]['keys'])):
             key = users_dict[username]['keys'][i]
-            if user_keys_dict[key]['key_name'] == key_name:
-                del user_keys_dict[key]
+            if api_token_dict[key]['token_name'] == token_name:
+                del api_token_dict[key]
                 del users_dict[username]['keys'][i]
                 break
 
@@ -1001,18 +1014,18 @@ def load():
             'id': row[0],
             'h_password': row[2],
             'keys': [],
+            'sessions': [],
             'roles': [],
-            'sessions': 0
+            'session_count': 0
         }
         
         for role in i_get_db_roles_from_user(row[1]):
             users_dict[row[1]]['roles'].append(role[0])
     
     for row in i_list_db_token():
-        user_keys_dict[row[3]] = {
+        api_token_dict[row[3]] = {
             'username': row[1],
-            'key_name': row[2],
-            'type': 'token'
+            'token_name': row[2]
         }
         users_dict[row[1]]['keys'].append(row[3])
         
@@ -1053,17 +1066,17 @@ def install():
         log.debug("Table: '" +plugin.db_prefix +"user' created.")
 
         sql = """
-            CREATE TABLE """ +plugin.db_prefix +"""api_key (
+            CREATE TABLE """ +plugin.db_prefix +"""api_token (
                 id INT NOT NULL AUTO_INCREMENT,
-                key_name VARCHAR(32) NOT NULL,
+                token_name VARCHAR(32) NOT NULL,
                 user_key VARCHAR(64) NOT NULL,
                 user_id INT NOT NULL,
                 PRIMARY KEY (id),
-                UNIQUE (key_name, user_id)
+                UNIQUE (token_name, user_id)
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +plugin.db_prefix +"api_key' created.")
+        log.debug("Table: '" +plugin.db_prefix +"api_token' created.")
         
         sql = """
             CREATE TABLE """ +plugin.db_prefix +"""role (
@@ -1090,8 +1103,8 @@ def install():
         log.debug("Table: '" +plugin.db_prefix +"role_member' created.")
         
         sql = """
-            ALTER TABLE """ +plugin.db_prefix +"""api_key
-                ADD CONSTRAINT """ +plugin.db_prefix +"""api_key_to_user
+            ALTER TABLE """ +plugin.db_prefix +"""api_token
+                ADD CONSTRAINT """ +plugin.db_prefix +"""api_token_to_user
                 FOREIGN KEY ( user_id )
                 REFERENCES """ +plugin.db_prefix +"""user ( id )
                 ON DELETE CASCADE
@@ -1128,13 +1141,14 @@ def install():
     
     e_create_role('auth_default', {
         "permissions":  [
+            "auth.list_sessions",
             "auth.create_session",
             "auth.delete_session",
             
-            "auth.get_api_key",
-            "auth.list_api_keys",
-            "auth.create_api_key",
-            "auth.delete_api_key",
+            "auth.get_api_token",
+            "auth.list_api_tokens",
+            "auth.create_api_token",
+            "auth.delete_api_token",
             
             "auth.change_password",
             "auth.get_current_user"
@@ -1276,8 +1290,8 @@ def global_preexecution_hook(reqHandler, action):
         elif(r_auth_header[0] == "Bearer"):
             h_token = e_hash_password('', r_auth_header[1])
             
-            if h_token in user_keys_dict:
-                current_user = user_keys_dict[h_token]['username']
+            if h_token in api_token_dict:
+                current_user = api_token_dict[h_token]['username']
                 if i_is_permited(current_user, action, remote_ip):
                     i_reset_ban_time(remote_ip)
                     return
@@ -1287,20 +1301,20 @@ def global_preexecution_hook(reqHandler, action):
       
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
-        if session_id in user_keys_dict:
+        if session_id in session_dict:
             
-            if 'last_csrf_token' in user_keys_dict[session_id]:
+            if 'last_csrf_token' in session_dict[session_id]:
                 csrf_token = reqHandler.request.headers.get('X-CSRF-TOKEN', None)
-                if csrf_token != user_keys_dict[session_id]['last_csrf_token']:
+                if csrf_token != session_dict[session_id]['last_csrf_token']:
                     unauthorized_error(401,'unauthorized','Invalid CSRF-token.', remote_ip)
                 
                 csrf_token = e_generate_random_string(cookie_length)
-                user_keys_dict[session_id]['last_csrf_token'] = csrf_token
+                session_dict[session_id]['last_csrf_token'] = csrf_token
                 reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
             
-            current_user = user_keys_dict[session_id]['username']
+            current_user = session_dict[session_id]['username']
             
-            if time.time() > user_keys_dict[session_id]['expiration_time']:
+            if time.time() > session_dict[session_id]['expiration_time']:
                 i_clean_expired_sessions()
                 raise WebRequestException(401, 'unauthorized', 'Session expired.')
             
@@ -1322,7 +1336,8 @@ def global_preexecution_hook(reqHandler, action):
 def auth_debug1(reqHandler, p, body):
     return {
         'users_dict': users_dict,
-        'user_keys_dict': user_keys_dict,
+        'api_token_dict': api_token_dict,
+        'session_dict': session_dict,
         'roles_dict': roles_dict,
         'bf_blacklist': bf_blacklist,
         'session_counter': session_counter
@@ -1365,6 +1380,17 @@ def get_current_user(reqHandler, p, body):
     }
 
 @api_action(plugin, {
+    'path': 'session/list',
+    'method': 'GET',
+    'f_name': 'List sessions',
+    'f_description': 'Lists all available sessions.'
+})
+def list_sessions(reqHandler, p, body):
+    return {
+        'data': e_list_sessions(current_user)
+    }
+
+@api_action(plugin, {
     'path': 'session',
     'method': 'POST',
     'f_name': 'Create session',
@@ -1389,10 +1415,10 @@ def delete_session(reqHandler, p, body):
 @api_action(plugin, {
     'path': 'token/list',
     'method': 'GET',
-    'f_name': 'List API keys',
-    'f_description': 'Lists all availabla session keys and token.'
+    'f_name': 'List API token',
+    'f_description': 'Lists all available API token.'
 })
-def list_api_keys(reqHandler, p, body):
+def list_api_tokens(reqHandler, p, body):
     return {
         'data': e_list_user_token(current_user)
     }
@@ -1400,10 +1426,10 @@ def list_api_keys(reqHandler, p, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'GET',
-    'f_name': 'Get API key',
+    'f_name': 'Get API token',
     'f_description': 'Returns a single API token.'
 })
-def get_api_key(reqHandler, p, body):
+def get_api_token(reqHandler, p, body):
     return {
         'data': e_get_user_token(current_user, p[0])
     }
@@ -1411,22 +1437,22 @@ def get_api_key(reqHandler, p, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'POST',
-    'f_name': 'Create API Token',
+    'f_name': 'Create API token',
     'f_description': 'Creates a new API token.'
 })
-def create_api_key(reqHandler, p, body):
+def create_api_token(reqHandler, p, body):
     return {
-        'token': e_create_api_key(current_user, p[0])
+        'token': e_create_api_token(current_user, p[0])
     }
 
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'DELETE',
-    'f_name': 'Delete API Token',
+    'f_name': 'Delete API token',
     'f_description': 'Deletes an API token.'
 })
-def delete_api_key(reqHandler, p, body):
-    e_delete_api_key(current_user, p[0])
+def delete_api_token(reqHandler, p, body):
+    e_delete_api_token(current_user, p[0])
     return {}
 
 @api_action(plugin, {
