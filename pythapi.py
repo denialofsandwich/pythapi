@@ -122,7 +122,7 @@ class MainHandler(tornado.web.RequestHandler):
                     else:
                         body = raw_body
 
-                    return_value = action['func'](self, match.groups(), body)
+                    return_value = action['func'](self, match.groups(), self.request.arguments, body)
                     
                     if action['content_type'] == "raw":
                         return

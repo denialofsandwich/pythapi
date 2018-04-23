@@ -35,7 +35,6 @@ import random
 import math
 
 cookie_length = 64
-max_depth = 10
 session_clean_threshold = 1000
 
 plugin = api_plugin()
@@ -84,6 +83,40 @@ def e_hash_password(username, password):
     h_password = h.hexdigest()
     
     return h_password
+
+def i_default_custom_permission_validator(ruleset, rule_section, target_rule):
+    if rule_section in ruleset and target_rule in ruleset[rule_section]:
+        return 1
+    
+    return 0
+
+def ir_check_custom_permissions(role_name, rule_section, target_rule, f, depth = 0):
+    
+    if depth > len(roles_dict):
+        raise WebRequestException(400,'error','ir_check_custom_permissions: Recursive loop detected.')
+    
+    if f(roles_dict[role_name]['ruleset'], rule_section, target_rule):
+        return 1
+    
+    if 'inherit' in roles_dict[role_name]['ruleset']:
+        parents = roles_dict[role_name]['ruleset']['inherit']
+        for parent in parents:
+            if ir_check_custom_permissions(parent, rule_section, target_rule, f, depth +1):
+                return 1
+        
+    return 0
+
+@api_external_function(plugin)
+def e_check_custom_permissions(username, rule_section, target_rule, f = i_default_custom_permission_validator):
+    
+    if not username in users_dict:
+        raise WebRequestException(400,'error','e_check_custom_permissions: User doesn\'t exist.')
+    
+    for role_name in users_dict[username]['roles']:
+        if ir_check_custom_permissions(role_name, rule_section, target_rule, f):
+            return 1
+    
+    return 0
 
 @api_external_function(plugin)
 def e_get_current_user():
@@ -733,7 +766,13 @@ def e_list_roles():
 def e_create_role(role_name, ruleset):
     db = plugin.mysql_connect()
     dbc = db.cursor()
-
+    
+    if not 'inherit' in ruleset:
+        ruleset['inherit'] = []
+    
+    if not 'permissions' in ruleset:
+        ruleset['permissions'] = []
+    
     with db:
         sql = """
             INSERT INTO """ +plugin.db_prefix +"""role (
@@ -1205,16 +1244,17 @@ def uninstall():
 
 def ir_check_permissions(role_name, target_list, depth = 0):
     
-    if depth > max_depth: return 0
+    if depth > len(roles_dict):
+        raise WebRequestException(400,'error','ir_check_permissions: Recursive loop detected.')
+    
+    if role_name in target_list:
+        return 1
     
     if 'inherit' in roles_dict[role_name]['ruleset']:
         parents = roles_dict[role_name]['ruleset']['inherit']
         for parent in parents:
             if ir_check_permissions(parent, target_list, depth +1):
                 return 1
-    
-    if role_name in target_list:
-        return 1
         
     return 0
 
@@ -1333,7 +1373,7 @@ def global_preexecution_hook(reqHandler, action):
     'f_name': 'Debug 1',
     'f_description': 'Dumps the write through cache.'
 })
-def auth_debug1(reqHandler, p, body):
+def auth_debug1(reqHandler, p, args, body):
     return {
         'users_dict': users_dict,
         'api_token_dict': api_token_dict,
@@ -1347,7 +1387,7 @@ def auth_debug1(reqHandler, p, body):
     'path': 'debug2',
     'method': 'POST'
 })
-def auth_debug2(reqHandler, p, body):
+def auth_debug2(reqHandler, p, args, body):
     
     plist = {} 
     for i_p in plugin.all_plugins:
@@ -1374,7 +1414,7 @@ def auth_debug2(reqHandler, p, body):
     'f_name': 'Get current user',
     'f_description': 'Returns the current user.'
 })
-def get_current_user(reqHandler, p, body):
+def get_current_user(reqHandler, p, args, body):
     return {
         'data': e_get_user(e_get_current_user())
     }
@@ -1385,7 +1425,7 @@ def get_current_user(reqHandler, p, body):
     'f_name': 'List sessions',
     'f_description': 'Lists all available sessions.'
 })
-def list_sessions(reqHandler, p, body):
+def list_sessions(reqHandler, p, args, body):
     return {
         'data': e_list_sessions(current_user)
     }
@@ -1396,7 +1436,7 @@ def list_sessions(reqHandler, p, body):
     'f_name': 'Create session',
     'f_description': 'Sets a cookie and creates a session.'
 })
-def create_session(reqHandler, p, body):
+def create_session(reqHandler, p, args, body):
     e_create_session(reqHandler, current_user, body)
     
     return {}
@@ -1407,7 +1447,7 @@ def create_session(reqHandler, p, body):
     'f_name': 'Delete session',
     'f_description': 'Quits all active sessions.'
 })
-def delete_session(reqHandler, p, body):
+def delete_session(reqHandler, p, args, body):
     
     e_delete_sessions_from_user(current_user)
     return {}
@@ -1418,7 +1458,7 @@ def delete_session(reqHandler, p, body):
     'f_name': 'List API token',
     'f_description': 'Lists all available API token.'
 })
-def list_api_tokens(reqHandler, p, body):
+def list_api_tokens(reqHandler, p, args, body):
     return {
         'data': e_list_user_token(current_user)
     }
@@ -1429,7 +1469,7 @@ def list_api_tokens(reqHandler, p, body):
     'f_name': 'Get API token',
     'f_description': 'Returns a single API token.'
 })
-def get_api_token(reqHandler, p, body):
+def get_api_token(reqHandler, p, args, body):
     return {
         'data': e_get_user_token(current_user, p[0])
     }
@@ -1440,7 +1480,7 @@ def get_api_token(reqHandler, p, body):
     'f_name': 'Create API token',
     'f_description': 'Creates a new API token.'
 })
-def create_api_token(reqHandler, p, body):
+def create_api_token(reqHandler, p, args, body):
     return {
         'token': e_create_api_token(current_user, p[0])
     }
@@ -1451,7 +1491,7 @@ def create_api_token(reqHandler, p, body):
     'f_name': 'Delete API token',
     'f_description': 'Deletes an API token.'
 })
-def delete_api_token(reqHandler, p, body):
+def delete_api_token(reqHandler, p, args, body):
     e_delete_api_token(current_user, p[0])
     return {}
 
@@ -1461,7 +1501,7 @@ def delete_api_token(reqHandler, p, body):
     'f_name': 'List users',
     'f_description': 'Returns a list with all registered users.'
 })
-def list_users(reqHandler, p, body):
+def list_users(reqHandler, p, args, body):
     return {
         'data': e_list_users()
     }
@@ -1472,7 +1512,7 @@ def list_users(reqHandler, p, body):
     'f_name': 'Change password',
     'f_description': 'Changes the password of the current user.'
 })
-def change_password(reqHandler, p, body):
+def change_password(reqHandler, p, args, body):
     
     if not 'password' in body:
         raise WebRequestException(400,'error','change_password: Password missing.')
@@ -1486,7 +1526,7 @@ def change_password(reqHandler, p, body):
     'f_name': 'Get user',
     'f_description': 'Returns a single user.'
 })
-def get_user(reqHandler, p, body):
+def get_user(reqHandler, p, args, body):
     return {
         'data': e_get_user(p[0])
     }
@@ -1497,7 +1537,7 @@ def get_user(reqHandler, p, body):
     'f_name': 'Create user',
     'f_description': 'Creates a single user.'
 })
-def create_user(reqHandler, p, body):
+def create_user(reqHandler, p, args, body):
         
     if (p[0] == ""):
         raise WebRequestException(400,'error','create_user: Username missing.')
@@ -1512,7 +1552,7 @@ def create_user(reqHandler, p, body):
     'f_name': 'Edit user',
     'f_description': 'Edit the properties of a user.'
 })
-def edit_user(reqHandler, p, body):
+def edit_user(reqHandler, p, args, body):
         
     if (p[0] == ""):
         raise WebRequestException(400,'error','edit_user: Username missing.')
@@ -1526,7 +1566,7 @@ def edit_user(reqHandler, p, body):
     'f_name': 'Delete user',
     'f_description': 'Deletes a user.'
 })
-def delete_user(reqHandler, p, body):
+def delete_user(reqHandler, p, args, body):
     
     if (p[0] == ""):
         raise WebRequestException(400,'error','delete_user: User missing.')
@@ -1540,7 +1580,7 @@ def delete_user(reqHandler, p, body):
     'f_name': 'List roles',
     'f_description': 'Lists all available roles.'
 })
-def list_roles(reqHandler, p, body):
+def list_roles(reqHandler, p, args, body):
     return {
         'data': e_list_roles()
     }
@@ -1551,7 +1591,7 @@ def list_roles(reqHandler, p, body):
     'f_name': 'Get role',
     'f_description': 'Returns a single role.'
 })
-def get_role(reqHandler, p, body):
+def get_role(reqHandler, p, args, body):
     role_data = e_get_role(p[0])
     
     if role_data == None:
@@ -1567,7 +1607,7 @@ def get_role(reqHandler, p, body):
     'f_name': 'Create role',
     'f_description': 'Creates a new role.'
 })
-def create_role(reqHandler, p, body):
+def create_role(reqHandler, p, args, body):
         
     if (p[0] == ""):
         raise WebRequestException(400,'error','create_role: Role missing.')
@@ -1582,7 +1622,7 @@ def create_role(reqHandler, p, body):
     'f_name': 'Edit role',
     'f_description': 'Edit a role and its properties.'
 })
-def edit_role(reqHandler, p, body):
+def edit_role(reqHandler, p, args, body):
         
     if (p[0] == ""):
         raise WebRequestException(400,'error','edit_role: Role missing.')
@@ -1596,7 +1636,7 @@ def edit_role(reqHandler, p, body):
     'f_name': 'Delete role',
     'f_description': 'Deletes a role.'
 })
-def delete_role(reqHandler, p, body):
+def delete_role(reqHandler, p, args, body):
 
     if (p[0] == ""):
         raise WebRequestException(400,'error','delete_role: Role missing.')
@@ -1610,7 +1650,7 @@ def delete_role(reqHandler, p, body):
     'f_name': 'Add member to role',
     'f_description': 'Adds a new member to a role.'
 })
-def add_member_to_role(reqHandler, p, body):
+def add_member_to_role(reqHandler, p, args, body):
 
     if (p[0] == ""):
         raise WebRequestException(400,'error','add_member_to_role: Role missing.')
@@ -1627,7 +1667,7 @@ def add_member_to_role(reqHandler, p, body):
     'f_name': 'Remove member from role',
     'f_description': 'Removes a member from a role.'
 })
-def remove_member_from_role(reqHandler, p, body):
+def remove_member_from_role(reqHandler, p, args, body):
 
     if (p[0] == ""):
         raise WebRequestException(400,'error','remove_member_from_role: Role missing.')

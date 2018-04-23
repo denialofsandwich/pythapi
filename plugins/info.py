@@ -188,7 +188,7 @@ def load():
     'f_name': 'List plugins',
     'f_description': 'Returns a list of all enabled plugins.'
 })
-def list_plugins(reqHandler, p, body):
+def list_plugins(reqHandler, p, args, body):
     return {
         'data': i_list_plugins()
     }
@@ -199,7 +199,7 @@ def list_plugins(reqHandler, p, body):
     'f_name': 'Get plugins',
     'f_description': 'Returns a single plugin.'
 })
-def get_plugin(reqHandler, p, body):
+def get_plugin(reqHandler, p, args, body):
     return {
         'data': i_get_plugin(p[0])
     }
@@ -210,7 +210,7 @@ def get_plugin(reqHandler, p, body):
     'f_name': 'List actions of plugin',
     'f_description': 'Returns a list of all actions from a specific plugin.'
 })
-def list_actions_of_plugin(reqHandler, p, body):
+def list_actions_of_plugin(reqHandler, p, args, body):
     return {
         'data': i_list_actions_of_plugin(p[0])
     }
@@ -221,7 +221,7 @@ def list_actions_of_plugin(reqHandler, p, body):
     'f_name': 'Get action of plugin',
     'f_description': 'Returns a single action from a plugin.'
 })
-def get_action_of_plugin(reqHandler, p, body):
+def get_action_of_plugin(reqHandler, p, args, body):
     return {
         'data': i_get_action_of_plugin(p[0], p[1])
     }
@@ -232,7 +232,7 @@ def get_action_of_plugin(reqHandler, p, body):
     'f_name': 'Search action by path',
     'f_description': 'Search an action by path.'
 })
-def get_action_by_path(reqHandler, p, body):
+def get_action_by_path(reqHandler, p, args, body):
     return {
         'data': i_get_action_by_path(p[0], p[1])
     }

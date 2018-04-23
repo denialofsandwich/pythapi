@@ -50,7 +50,7 @@ plugin.config_defaults = {
 used_tables = ["user_data"]
 
 @api_external_function(plugin)
-def e_write_data(username, container_name, data):
+def e_write_data(username, container_name, data, hidden = 0):
     auth = plugin.all_plugins['auth']
     db = plugin.mysql_connect()
     dbc = db.cursor()
@@ -60,10 +60,11 @@ def e_write_data(username, container_name, data):
     values_skeleton_list = []
     data_list = []
     for key_name in data:
-        values_skeleton_list.append('(%s, %s, %s, %s)')
+        values_skeleton_list.append('(%s, %s, %s, %s, %s)')
         data_list.append(user_id)
         data_list.append(container_name)
         data_list.append(key_name)
+        data_list.append(hidden)
         data_list.append(json.dumps(data[key_name]))
         
     values_skeleton = ','.join(values_skeleton_list)
@@ -71,11 +72,11 @@ def e_write_data(username, container_name, data):
     with db:
         sql = """
             INSERT INTO """ +plugin.db_prefix +"""user_data (
-                    user_id, container, key_name, data
+                    user_id, container, key_name, hidden, data
                 )
                 VALUES """ +values_skeleton +"""
                 ON DUPLICATE KEY
-                UPDATE data = VALUES (data);
+                UPDATE data = VALUES (data), hidden = VALUES (hidden);
         """
         
         try:
@@ -88,7 +89,7 @@ def e_write_data(username, container_name, data):
         return dbc.rowcount
 
 @api_external_function(plugin)
-def e_delete_data(username, container_name, key_name):
+def e_delete_data(username, container_name, key_name, hidden = 0):
     auth = plugin.all_plugins['auth']
     db = plugin.mysql_connect()
     dbc = db.cursor()
@@ -99,11 +100,11 @@ def e_delete_data(username, container_name, key_name):
     with db:
         sql = """
             DELETE FROM """ +plugin.db_prefix +"""user_data 
-                WHERE user_id = %s AND container = %s AND key_name LIKE %s;
+                WHERE user_id = %s AND container = %s AND key_name LIKE %s AND hidden = %s;
         """
         
         try:
-            dbc.execute(sql, [user_id, container_name, key_name])
+            dbc.execute(sql, [user_id, container_name, key_name, hidden])
             db.commit()
             
         except MySQLdb.IntegrityError as e:
@@ -112,7 +113,7 @@ def e_delete_data(username, container_name, key_name):
         return dbc.rowcount
 
 @api_external_function(plugin)
-def e_get_data(username, container_name, key_name):
+def e_get_data(username, container_name, key_name, hidden = 0):
     auth = plugin.all_plugins['auth']
     db = plugin.mysql_connect()
     dbc = db.cursor()
@@ -124,11 +125,11 @@ def e_get_data(username, container_name, key_name):
         sql = """
             SELECT * 
                 FROM """ +plugin.db_prefix +"""user_data
-                WHERE user_id = %s AND container = %s AND key_name LIKE %s;
+                WHERE user_id = %s AND container = %s AND key_name LIKE %s AND hidden = %s;
         """
         
         try:
-            dbc.execute(sql, [user_id, container_name, key_name])
+            dbc.execute(sql, [user_id, container_name, key_name, hidden])
             
         except MySQLdb.IntegrityError as e:
             log.error("i_get_db_data: Unknown SQL error.")
@@ -136,12 +137,12 @@ def e_get_data(username, container_name, key_name):
         
     return_array = {}
     for row in dbc.fetchall():
-        return_array[row[2]] = json.loads(row[3])
+        return_array[row[2]] = json.loads(row[4])
     
     return return_array
 
 @api_external_function(plugin)
-def e_list_containers(username):
+def e_list_containers(username, hidden = 0):
     auth = plugin.all_plugins['auth']
     db = plugin.mysql_connect()
     dbc = db.cursor()
@@ -152,12 +153,12 @@ def e_list_containers(username):
         sql = """
             SELECT container, COUNT(key_name) AS "count"
                 FROM pa_user_data
-                WHERE user_id = %s
+                WHERE user_id = %s AND hidden = %s
                 GROUP BY container;
         """
         
         try:
-            dbc.execute(sql, [user_id])
+            dbc.execute(sql, [user_id, hidden])
             
         except MySQLdb.IntegrityError as e:
             log.error("i_list_db_containers: Unknown SQL error.")
@@ -173,7 +174,7 @@ def e_list_containers(username):
     return return_array
 
 @api_external_function(plugin)
-def e_list_keys_of_container(username, container_name):
+def e_list_keys_of_container(username, container_name, hidden = 0):
     auth = plugin.all_plugins['auth']
     db = plugin.mysql_connect()
     dbc = db.cursor()
@@ -184,11 +185,11 @@ def e_list_keys_of_container(username, container_name):
         sql = """
             SELECT key_name
                 FROM pa_user_data
-                WHERE user_id = %s and container = %s;
+                WHERE user_id = %s and container = %s AND hidden = %s;
         """
         
         try:
-            dbc.execute(sql, [user_id, container_name])
+            dbc.execute(sql, [user_id, container_name, hidden])
             
         except MySQLdb.IntegrityError as e:
             log.error("i_list_db_keys_of_container: Unknown SQL error.")
@@ -250,6 +251,7 @@ def install():
             user_id INT NOT NULL,
             container VARCHAR(64) NOT NULL,
             key_name VARCHAR(64) NOT NULL,
+            hidden BOOLEAN NOT NULL,
             data TEXT NOT NULL,
             PRIMARY KEY (user_id, container, key_name)
         ) ENGINE = InnoDB;
@@ -285,6 +287,23 @@ def install():
         auth.e_edit_role('default', ruleset)
     except WebRequestException as e:
         log.error('Editing the default role failed!')
+        return 0
+    
+    auth.e_create_role('userdata_admin', {
+        plugin.name +'_permissions':  [
+            'hidden_access'
+        ]
+    })
+    
+    ruleset = auth.e_get_role('admin')['ruleset']
+    
+    try:
+        if not 'userdata_admin' in ruleset['inherit']:
+            ruleset['inherit'].append('userdata_admin')
+            
+        auth.e_edit_role('admin', ruleset)
+    except WebRequestException as e:
+        log.error('Editing the admin role failed!')
         return 0
     
     return 1
@@ -330,11 +349,20 @@ def uninstall():
     'f_name': 'List containers',
     'f_description': 'Lists all available containers.'
 })
-def list_containers(reqHandler, p, body):
+def list_containers(reqHandler, p, args, body):
     auth = plugin.all_plugins['auth']
+    current_user = auth.e_get_current_user()
+    
+    hidden = 0
+    if 'hidden' in args and args['hidden'][0] == 'true':
+        if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
+            hidden = 1
+        
+        else:
+            raise WebRequestException(401,'unauthorized','list_containers: Permission denied.')
     
     return {
-        'data': e_list_containers(auth.e_get_current_user())
+        'data': e_list_containers(current_user, hidden)
     }
 
 @api_action(plugin, {
@@ -343,11 +371,20 @@ def list_containers(reqHandler, p, body):
     'f_name': 'List keys of container',
     'f_description': 'Lists all available keys in a container.'
 })
-def list_keys_of_container(reqHandler, p, body):
+def list_keys_of_container(reqHandler, p, args, body):
     auth = plugin.all_plugins['auth']
+    current_user = auth.e_get_current_user()
+    
+    hidden = 0
+    if 'hidden' in args and args['hidden'][0] == 'true':
+        if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
+            hidden = 1
+        
+        else:
+            raise WebRequestException(401,'unauthorized','list_keys_of_container: Permission denied.')
     
     return {
-        'data': e_list_keys_of_container(auth.e_get_current_user(), p[0])
+        'data': e_list_keys_of_container(current_user, p[0], hidden)
     }
 
 @api_action(plugin, {
@@ -356,11 +393,20 @@ def list_keys_of_container(reqHandler, p, body):
     'f_name': 'Get data',
     'f_description': 'Read data in a container.'
 })
-def get_data(reqHandler, p, body):
+def get_data(reqHandler, p, args, body):
     auth = plugin.all_plugins['auth']
+    current_user = auth.e_get_current_user()
+    
+    hidden = 0
+    if 'hidden' in args and args['hidden'][0] == 'true':
+        if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
+            hidden = 1
+        
+        else:
+            raise WebRequestException(401,'unauthorized','get_data: Permission denied.')
     
     return {
-        'data': e_get_data(auth.e_get_current_user(), p[0], p[1])
+        'data': e_get_data(current_user, p[0], p[1], hidden)
     }
 
 @api_action(plugin, {
@@ -369,14 +415,23 @@ def get_data(reqHandler, p, body):
     'f_name': 'Write data',
     'f_description': 'Write data in a container.'
 })
-def write_data(reqHandler, p, body):
+def write_data(reqHandler, p, args, body):
     auth = plugin.all_plugins['auth']
+    current_user = auth.e_get_current_user()
     
     if body == {}:
         raise WebRequestException(400,'error','write_data: Post body empty.')
     
+    hidden = 0
+    if 'hidden' in args and args['hidden'][0] == 'true':
+        if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
+            hidden = 1
+        
+        else:
+            raise WebRequestException(401,'unauthorized','write_data: Permission denied.')
+    
     return {
-        'affected_rows': e_write_data(auth.e_get_current_user(), p[0], body)
+        'affected_rows': e_write_data(current_user, p[0], body, hidden)
     }
 
 @api_action(plugin, {
@@ -385,9 +440,18 @@ def write_data(reqHandler, p, body):
     'f_name': 'Delete data',
     'f_description': 'Deletes data in a container.'
 })
-def delete_data(reqHandler, p, body):
+def delete_data(reqHandler, p, args, body):
     auth = plugin.all_plugins['auth']
+    current_user = auth.e_get_current_user()
+    
+    hidden = 0
+    if 'hidden' in args and args['hidden'][0] == 'true':
+        if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
+            hidden = 1
+        
+        else:
+            raise WebRequestException(401,'unauthorized','delete_data: Permission denied.')
     
     return {
-        'affected_rows': e_delete_data(auth.e_get_current_user(), p[0], p[1])
+        'affected_rows': e_delete_data(current_user, p[0], p[1], hidden)
     }
