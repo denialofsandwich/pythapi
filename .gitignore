@@ -6,6 +6,7 @@ __pycache__/
 pythapi.ini
 plugins/debug.py
 commitandpush.sh
+downloads/*
 
 # C extensions
 *.so
@@ -16,7 +17,6 @@ env/
 build/
 develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
 lib/

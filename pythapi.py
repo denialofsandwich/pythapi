@@ -119,8 +119,9 @@ class MainHandler(tornado.web.RequestHandler):
                             body = tornado.escape.json_decode(raw_body)
                         except ValueError as e:
                             body = {}
+                        
                     else:
-                        body = raw_body
+                        body = {}
 
                     return_value = action['func'](self, match.groups(), self.request.arguments, body)
                     
@@ -209,10 +210,6 @@ class BaseWebServer(tornado.web.Application):
             (r"/(.*)?", MainHandler)
         ]
         tornado.web.Application.__init__(self, handlers)
-
-def signal_handler(signal, frame):
-        log.info("pythapi terminated.")
-        sys.exit(0)
 
 def r_build_dependency_list(plugin_name, max_depth, depth = 0):
     if depth > max_depth:
@@ -360,6 +357,19 @@ def i_removeBrokenPlugins():
                 continue
             
             i += 1
+
+def signal_handler(signal, frame):
+    log.info("Terminate all active plugins...")
+    
+    for plugin_name in reversed(dependency_list):
+        plugin = plugin_dict[plugin_name]
+        if 'terminate' in plugin.events and not plugin.events['terminate']():
+            log.error(plugin.name +" returned an error.")
+            log.critical("Termination process failed!")
+            sys.exit(1)
+        
+    log.debug("pythapi terminated.")
+    sys.exit(0)
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)

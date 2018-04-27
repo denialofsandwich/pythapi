@@ -41,11 +41,7 @@ plugin.depends = [
     }
 ]
 
-plugin.config_defaults = {
-    plugin.name: {
-        'cache_enabled': True
-    }
-}
+plugin.config_defaults = {}
 
 used_tables = ["user_data"]
 
@@ -200,25 +196,6 @@ def e_list_keys_of_container(username, container_name, hidden = 0):
         return_array.append(row[0])
     
     return return_array
-
-def i_dump_db_table():
-    db = plugin.mysql_connect()
-    dbc = db.cursor()
-    
-    with db:
-        sql = """
-            SELECT *
-                FROM pa_user_data;
-        """
-        
-        try:
-            dbc.execute(sql)
-            
-        except MySQLdb.IntegrityError as e:
-            log.error("i_dump_db_table: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_dump_db_table: Unknown SQL error.')
-        
-        return dbc.fetchall()
 
 @api_event(plugin, 'check')
 def check():
