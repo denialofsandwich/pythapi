@@ -2,8 +2,8 @@
 #
 # Name:        pythapi: telegram.py
 # Author:      Rene Fa
-# Date:        23.04.2018
-# Version:     0.1
+# Date:        28.04.2018
+# Version:     0.5
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -38,7 +38,7 @@ from StringIO import StringIO
 
 plugin = api_plugin()
 plugin.name = "telegram"
-plugin.version = "0.1"
+plugin.version = "0.5"
 plugin.essential = False
 plugin.info['f_name'] = "Telegram-bot plugin"
 plugin.info['f_description'] = "This plugin can control a telegram bot."
@@ -46,10 +46,6 @@ plugin.info['f_description'] = "This plugin can control a telegram bot."
 plugin.depends = [
     {
         'name': 'auth',
-        'required': False
-    },
-    {
-        'name': 'userdata',
         'required': False
     }
 ]
