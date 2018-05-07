@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 #
 # Name:        pythapi: telegram.py
 # Author:      Rene Fa
@@ -31,10 +32,6 @@ import telegram
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler, Filters
-
-from io import BytesIO
-from PIL import Image
-from StringIO import StringIO
 
 plugin = api_plugin()
 plugin.name = "telegram"
@@ -375,8 +372,8 @@ def uninstall():
     return 1
 
 def tc_start(bot, update):
-    log.debug("Discovered a new chat_id: %s".format(str(update.message.chat_id)))
-    update.message.reply_text("Hello. This is your chat_id: %s".format(str(update.message.chat_id)))
+    log.debug("Discovered a new chat_id: {}".format(str(update.message.chat_id)))
+    update.message.reply_text("Hello. This is your chat_id: {}".format(str(update.message.chat_id)))
 
 @api_event(plugin, 'load')
 def load():

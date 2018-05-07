@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 #
 # Name:        pythapi
 # Author:      Rene Fa
@@ -47,7 +48,7 @@ Syntax:
     ./pythapi.py [instruction] [options]
 
 Global options:
-    -v ,--verbosity
+    -v ,--verbosity loglevel
                         Changes the verbosity. 0 means only critical errors
                         and 5 shows debugging information
 
@@ -332,7 +333,7 @@ def i_build_indices():
                 
             action_call_dict[action['method']].append(action)
             
-            action_sub_name = re.split('\.', action['name'])[1]
+            action_sub_name = action['name'].split('.')[1]
             
             if action_sub_name in action_tree[plugin.name]:
                 log.warning("Duplicate Name in: " +action['name'])
@@ -420,7 +421,7 @@ if __name__ == "__main__":
             del p[i+1]
             
         elif(p[i][:2] == "-h" or p[i] == "--help"):
-            print usage_text
+            print(usage_text)
             sys.exit(0)
             
         else:

@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 #
 # Name:        fancy_logs.py
 # Author:      Rene Fa

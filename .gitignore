@@ -6,7 +6,7 @@ __pycache__/
 pythapi.ini
 plugins/debug.py
 commitandpush.sh
-downloads/*
+downloads/tmp_telegram.jpg
 
 # C extensions
 *.so

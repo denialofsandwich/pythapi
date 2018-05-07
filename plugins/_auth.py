@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 #
 # Name:        pythapi: _auth.py
 # Author:      Rene Fa
@@ -77,9 +78,9 @@ def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digit
 @api_external_function(plugin)
 def e_hash_password(username, password):
     h = SHA256.new()
-    h.update(username)
-    h.update(password) 
-    h.update(plugin.config[plugin.name]['sec_salt'])
+    h.update(username.encode('utf-8'))
+    h.update(password.encode('utf-8')) 
+    h.update(plugin.config[plugin.name]['sec_salt'].encode('utf-8'))
     h_password = h.hexdigest()
     
     return h_password
@@ -975,7 +976,7 @@ def i_apply_ruleset(role_name):
     
     ruleset = roles_dict[role_name]['ruleset']
     for p_rule in roles_dict[role_name]['ruleset']['permissions']:
-        rule_r = re.split('\.', p_rule)
+        rule_r = p_rule.split('.')
         
         if rule_r[0] == '*':
             if len(rule_r) > 1:
@@ -1305,16 +1306,12 @@ def global_preexecution_hook(reqHandler, action):
     
     auth_header = reqHandler.request.headers.get('Authorization', None)
     if auth_header is not None:
-        r_auth_header = re.split(' ', auth_header)
+        r_auth_header = auth_header.split(' ')
         
         if(r_auth_header[0] == "Basic"):
             time.sleep(bf_basic_auth_delay)
-        
-            credentials = re.split(':',
-                base64.b64decode(
-                    r_auth_header[1]
-                )
-            )
+            
+            credentials = base64.b64decode(r_auth_header[1]).decode("utf-8").split(':')
             
             if credentials[0] in users_dict:
                 if (e_hash_password(credentials[0], credentials[1]) == users_dict[credentials[0]]['h_password']):

@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
 #
 # Name:        pythapi: api_plugin.py
 # Author:      Rene Fa
@@ -99,8 +100,8 @@ def api_event(plugin, event_name):
 def api_external_function(plugin):
     def ap_generator(f):
         
-        plugin.functions[f.func_name] = f
-        setattr (plugin, f.func_name, f)
+        plugin.functions[f.__name__] = f
+        setattr (plugin, f.__name__, f)
         return f
     
     return ap_generator
@@ -109,7 +110,7 @@ def api_action(plugin, pJSON):
     def ap_generator(f):
         
         plugin.actions.append(pJSON)
-        plugin.actions[-1]['name'] = plugin.name +'.' +f.func_name
+        plugin.actions[-1]['name'] = plugin.name +'.' +f.__name__
         plugin.actions[-1]['func'] = f
         
         if not 'method' in plugin.actions[-1]:
