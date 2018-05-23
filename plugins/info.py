@@ -48,6 +48,18 @@ plugin.config_defaults = {
     }
 }
 
+plugin.translation_dict = {
+    'INFO_PLUGIN_NOT_FOUND': {
+        'EN': 'Plugin not found.',
+        'DE': 'Plugin nicht gefunden.'
+    },
+    
+    'INFO_ACTION_NOT_FOUND': {
+        'EN': 'Action not found.',
+        'DE': 'Action nicht gefunden.'
+    }
+}
+
 action_property_blacklist = []
 plugin_property_blacklist = []
 
@@ -65,10 +77,10 @@ def i_format_action(action):
 
 def i_get_plugin(plugin_name):
     
-    if not plugin_name in plugin.all_plugins:
+    if not plugin_name in api_plugins():
         raise WebRequestException(400,'error','i_get_plugin: Plugin not found.')
     
-    i_plugin = plugin.all_plugins[plugin_name]
+    i_plugin = api_plugins()[plugin_name]
     
     return_json = {}
     return_json['name'] = i_plugin.name
@@ -87,38 +99,38 @@ def i_get_plugin(plugin_name):
 def i_list_plugins():
     
     return_json = []
-    for plugin_name in plugin.all_plugins:
+    for plugin_name in api_plugins():
         return_json.append(i_get_plugin(plugin_name))
         
     return return_json
 
 def i_get_action_of_plugin(plugin_name, action_name):
 
-    if not plugin_name in plugin.action_tree:
-        raise WebRequestException(400,'error','i_get_action_of_plugin: Plugin not found.')
+    if not plugin_name in api_action_tree():
+        raise WebRequestException(400, 'error', 'INFO_PLUGIN_NOT_FOUND')
     
-    if not action_name in plugin.action_tree[plugin_name]:
-        raise WebRequestException(400,'error','i_get_action_of_plugin: Action not found.')
+    if not action_name in api_action_tree()[plugin_name]:
+        raise WebRequestException(400, 'error', 'INFO_ACTION_NOT_FOUND')
 
-    return i_format_action(plugin.action_tree[plugin_name][action_name])
+    return i_format_action(api_action_tree()[plugin_name][action_name])
 
 def i_list_actions_of_plugin(plugin_name):
     
-    if not plugin_name in plugin.all_plugins:
-        raise WebRequestException(400,'error','i_list_actions_of_plugin: Plugin not found.')
+    if not plugin_name in api_plugins():
+        raise WebRequestException(400, 'error', 'INFO_PLUGIN_NOT_FOUND')
     
     return_json = []
-    for i_action in plugin.all_plugins[plugin_name].actions:
+    for i_action in api_plugins()[plugin_name].actions:
         return_json.append(i_format_action(i_action))
         
-    return return_json 
+    return return_json
 
 def i_get_action_by_path(method, path):
     
-    for i_plugin in plugin.action_tree:
-        for i_action in plugin.action_tree[i_plugin]:
+    for i_plugin in api_action_tree():
+        for i_action in api_action_tree()[i_plugin]:
             
-            action = plugin.action_tree[i_plugin][i_action]
+            action = api_action_tree()[i_plugin][i_action]
             
             if not action['method'] == method.upper():
                 continue
@@ -129,10 +141,10 @@ def i_get_action_by_path(method, path):
 @api_event(plugin, 'install')
 def install():
     
-    if 'auth' in plugin.all_plugins:
+    if 'auth' in api_plugins():
         log.info('auth installed. Apply ruleset...')
         
-        auth = plugin.all_plugins['auth']
+        auth = api_plugins()['auth']
         
         auth.e_create_role('info_default', {
             'permissions':  [
@@ -156,9 +168,9 @@ def install():
 @api_event(plugin, 'uninstall')
 def uninstall():
     
-    if 'auth' in plugin.all_plugins and plugin.all_plugins['auth'].events['check']():
+    if 'auth' in api_plugins() and api_plugins()['auth'].events['check']():
         
-        auth = plugin.all_plugins['auth']
+        auth = api_plugins()['auth']
         
         ruleset = auth.e_get_role('default')['ruleset']
         
@@ -178,8 +190,8 @@ def uninstall():
 @api_event(plugin, 'load')
 def load():
     
-    action_property_blacklist.extend(plugin.config[plugin.name]['action_property_blacklist'].split(','))
-    plugin_property_blacklist.extend(plugin.config[plugin.name]['plugin_property_blacklist'].split(','))
+    action_property_blacklist.extend(api_config()[plugin.name]['action_property_blacklist'].split(','))
+    plugin_property_blacklist.extend(api_config()[plugin.name]['plugin_property_blacklist'].split(','))
     
     return 1
 

@@ -24,6 +24,17 @@ import re
 import MySQLdb
 import collections
 
+import tools.fancy_logs as log # Logging
+
+config = {}
+plugin_dict = {}
+action_call_dict = {}
+action_tree = {}
+global_preexecution_hook_list = []
+dependency_list = []
+reverse_dependency_list = []
+indices_generated = False
+translation_dict = {}
 
 def update(d, u):
     for k, v in u.items():
@@ -36,17 +47,49 @@ def update(d, u):
 class WebRequestException(Exception):
     error_code = 0
     error_type = 'error'
-    message = 'N/A'
     return_json = {}
     
-    def __init__(self, error_code=400, error_type='error', message='N/A', return_json = {}):
+    def __init__(self, error_code=400, error_type='error', text_id='GENERAL_ERROR' , return_json = {}):
 
-        Exception.__init__(self,message)
+        Exception.__init__(self,text_id)
         
         self.error_code = error_code
         self.error_type = error_type
-        self.message = message
+        self.text_id = text_id
         self.return_json = return_json
+
+def api_mysql_connect():
+    return MySQLdb.connect(config['core.mysql']['hostname'],
+                           config['core.mysql']['username'],
+                           config['core.mysql']['password'],
+                           config['core.mysql']['database'])
+
+def api_config():
+    return config
+
+def api_plugins():
+    return plugin_dict
+
+def api_action_tree():
+    return action_tree
+
+def api_action_call_dict():
+    return action_call_dict
+    
+def api_tr(text_id):
+    try:
+        return translation_dict[text_id][config['core.general']['default_language']]
+
+    except:
+        try:
+            return translation_dict[text_id]['EN']
+        
+        except:
+            try:
+                return translation_dict['GENERAL_ERROR'][config['core.general']['default_language']]
+            
+            except:
+                return translation_dict['GENERAL_ERROR']['EN']
 
 class api_plugin():
 
@@ -58,36 +101,29 @@ class api_plugin():
         self.reverse_dependencies = []
         self.info = {}
         
-        self.all_plugins = {}
         self.actions = []
-        self.action_tree = None
         self.events = {}
         self.functions = {}
         self.config_defaults = {}
+        self.translation_dict = {}
 
-        self.config = None
-        self.db_prefix = None
+    def init(self):
+        global config
+        global translation_dict
+        
+        update(self.config_defaults, config)
+        config = self.config_defaults
+        
+        update(translation_dict, self.translation_dict)
+        
+        if not self.name in config:
+            config[self.name] = {}
+        
+        if 'essential' in config[self.name]:
+            self.essential = config[self.name]['essential']
 
-    def init(self, p_config, p_plugins, p_action_tree):
-        self.config = p_config
-        self.all_plugins = p_plugins
-        self.action_tree = p_action_tree
-        self.db_prefix = p_config['core.mysql']['prefix']
-        
-        update(self.config_defaults, self.config)
-        self.config = self.config_defaults
-        
-        if not self.name in self.config:
-            self.config[self.name] = {}
-        
-        if 'essential' in self.config[self.name]:
-            self.essential = self.config[self.name]['essential']
-        
-    def mysql_connect(self):
-        return MySQLdb.connect(self.config['core.mysql']['hostname'],
-                               self.config['core.mysql']['username'],
-                               self.config['core.mysql']['password'],
-                               self.config['core.mysql']['database'])
+def tr(plugin, plugin_name, text_id):
+    return 0
 
 def api_event(plugin, event_name):
     def ap_generator(f):
@@ -101,7 +137,7 @@ def api_external_function(plugin):
     def ap_generator(f):
         
         plugin.functions[f.__name__] = f
-        setattr (plugin, f.__name__, f)
+        setattr(plugin, f.__name__, f)
         return f
     
     return ap_generator

@@ -41,8 +41,6 @@ import json
 import api_plugin
 import logging
 
-from pprint import pprint
-
 usage_text = """
 Syntax:
     ./pythapi.py [instruction] [options]
@@ -78,7 +76,8 @@ config_defaults = {
     'core.general': {
         'loglevel': '4',
         'colored_logs': 'true',
-        'user': 'root'
+        'user': 'root',
+        'default_language': 'EN'
     },
     'core.mysql': {
         'hostname': 'localhost',
@@ -97,21 +96,30 @@ config_defaults = {
     }
 }
 
-plugin_dict = {}
-action_call_dict = {}
-action_tree = {}
-global_preexecution_hook_list = []
-dependency_list = []
-reverse_dependency_list = []
-indices_generated = False
+translation_dict = {
+    'GENERAL_ERROR': {
+        'EN': 'Unknown error.',
+        'DE': 'Unbekannter Fehler.'
+    },
+    
+    'GENERAL_SQL_ERROR': {
+        'EN': 'Unknown SQL error.',
+        'DE': 'Unbekannter SQL Fehler.'
+    },
+    
+    'GENERAL_RECURSIVE_LOOP': {
+        'EN': 'Recursive loop detected.',
+        'DE': 'Rekursive Schleife entdeckt.'
+    }
+}
 
 class MainHandler(tornado.web.RequestHandler):
     def executeRequest(self, method, path):
-        for action in action_call_dict[method]:
+        for action in api_plugin.action_call_dict[method]:
             match = action['c_regex'].match(path)
             if match:
                 try:
-                    for hook in global_preexecution_hook_list:
+                    for hook in api_plugin.global_preexecution_hook_list:
                         hook(self, action)
                     
                     raw_body = self.request.body
@@ -146,7 +154,8 @@ class MainHandler(tornado.web.RequestHandler):
                     
                     return_json = {}
                     return_json['status'] = e.error_type
-                    return_json['message'] = e.message
+                    return_json['f_message'] = api_plugin.api_tr(e.text_id)
+                    return_json['error_id'] = e.text_id
                     return_json.update(e.return_json)
                     
                     return_value = json.dumps(return_json) + '\n'
@@ -217,17 +226,17 @@ def r_build_dependency_list(plugin_name, max_depth, depth = 0):
         log.critical(plugin_name +': Dependency loop detected! Exiting...')
         sys.exit(1)
     
-    if plugin_name in dependency_list:
+    if plugin_name in api_plugin.dependency_list:
         return 1
     
-    for dependency in plugin_dict[plugin_name].depends:
-        if not dependency['name'] in plugin_dict:
+    for dependency in api_plugin.plugin_dict[plugin_name].depends:
+        if not dependency['name'] in api_plugin.plugin_dict:
             if dependency['required'] == True:
                 
                 log.error(plugin_name +': Required plugin "' +dependency['name'] +'" not found!')
-                plugin_dict[plugin_name].info['i_error'] = 1
-                if plugin_dict[plugin_name].essential:
-                    log.critical(plugin_dict[plugin_name].name + " is marked as essential. Exiting...")
+                api_plugin.plugin_dict[plugin_name].info['i_error'] = 1
+                if api_plugin.plugin_dict[plugin_name].essential:
+                    log.critical(api_plugin.plugin_dict[plugin_name].name + " is marked as essential. Exiting...")
                     sys.exit(1)
                 
                 return 0
@@ -236,47 +245,47 @@ def r_build_dependency_list(plugin_name, max_depth, depth = 0):
                 continue
         
         
-        if 'i_error' in plugin_dict[dependency['name']].info:
+        if 'i_error' in api_plugin.plugin_dict[dependency['name']].info:
             return 0
         
         if not r_build_dependency_list(dependency['name'], max_depth, depth +1):
 
             if dependency['required'] == True:
-                log.error(plugin_dict[plugin_name].name + ": could not load a required plugin.")
+                log.error(api_plugin.plugin_dict[plugin_name].name + ": could not load a required plugin.")
                 
             else:
-                log.warning(plugin_dict[plugin_name].name + ": could not load a optional plugin.")
+                log.warning(api_plugin.plugin_dict[plugin_name].name + ": could not load a optional plugin.")
                 continue
 
-            plugin_dict[plugin_name].info['i_error'] = 1
-            if plugin_dict[plugin_name].essential:
-                log.critical(plugin_dict[plugin_name].name + " is marked as essential. Exiting...")
+            api_plugin.plugin_dict[plugin_name].info['i_error'] = 1
+            if api_plugin.plugin_dict[plugin_name].essential:
+                log.critical(api_plugin.plugin_dict[plugin_name].name + " is marked as essential. Exiting...")
                 sys.exit(1)
             
             return 0
         
-        plugin_dict[dependency['name']].reverse_dependencies.append(plugin_name)
+        api_plugin.plugin_dict[dependency['name']].reverse_dependencies.append(plugin_name)
     
-    dependency_list.append(plugin_name)
+    api_plugin.dependency_list.append(plugin_name)
     return 1
 
 def r_build_reverse_dependency_list(plugin_name, max_depth, depth = 0):
-    if plugin_name in reverse_dependency_list:
+    if plugin_name in api_plugin.reverse_dependency_list:
         return
     
-    for dependency in plugin_dict[plugin_name].reverse_dependencies:
+    for dependency in api_plugin.plugin_dict[plugin_name].reverse_dependencies:
         r_build_reverse_dependency_list(dependency, max_depth, depth +1)
     
-    reverse_dependency_list.append(plugin_name)
+    api_plugin.reverse_dependency_list.append(plugin_name)
 
 def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
-    if 'i_loaded' in plugin_dict[plugin_name].info:
+    if 'i_loaded' in api_plugin.plugin_dict[plugin_name].info:
         return 1
     
-    plugin = plugin_dict[plugin_name]
+    plugin = api_plugin.plugin_dict[plugin_name]
     
     for dependency in plugin.depends:
-        if 'i_error' in plugin_dict[dependency['name']].info:
+        if 'i_error' in api_plugin.plugin_dict[dependency['name']].info:
             return 0
         
         if not r_check_dependencies(dependency['name'], max_depth, event_name, depth +1):
@@ -315,46 +324,46 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     return 1
 
 def i_build_indices():
-    global indices_generated
+    #global api_plugin.indices_generated
     
-    if indices_generated:
+    if api_plugin.indices_generated:
         return
     
-    for plugin_name in dependency_list:
-        plugin = plugin_dict[plugin_name]
+    for plugin_name in api_plugin.dependency_list:
+        plugin = api_plugin.plugin_dict[plugin_name]
         
         if 'global_preexecution_hook' in plugin.events:
-            global_preexecution_hook_list.append(plugin.events['global_preexecution_hook'])
+            api_plugin.global_preexecution_hook_list.append(plugin.events['global_preexecution_hook'])
         
-        action_tree[plugin_name] = {}
+        api_plugin.action_tree[plugin_name] = {}
         for action in plugin.actions:
-            if not action['method'] in action_call_dict:
-                action_call_dict[action['method']] = []
+            if not action['method'] in api_plugin.action_call_dict:
+                api_plugin.action_call_dict[action['method']] = []
                 
-            action_call_dict[action['method']].append(action)
+            api_plugin.action_call_dict[action['method']].append(action)
             
             action_sub_name = action['name'].split('.')[1]
             
-            if action_sub_name in action_tree[plugin.name]:
+            if action_sub_name in api_plugin.action_tree[plugin.name]:
                 log.warning("Duplicate Name in: " +action['name'])
             
-            action_tree[plugin.name][action_sub_name] = action
+            api_plugin.action_tree[plugin.name][action_sub_name] = action
     
-    indices_generated = True
+    api_plugin.indices_generated = True
 
 def i_removeBrokenPlugins():
-    for plugin_name in plugin_dict.keys():
+    for plugin_name in api_plugin.plugin_dict.keys():
         
-        if 'i_error' in plugin_dict[plugin_name].info:
-            del plugin_dict[plugin_name]
+        if 'i_error' in api_plugin.plugin_dict[plugin_name].info:
+            del api_plugin.plugin_dict[plugin_name]
             continue
         
         i = 0
-        while i < len(plugin_dict[plugin_name].reverse_dependencies):
-            r_dependency = plugin_dict[plugin_name].reverse_dependencies[i]
+        while i < len(api_plugin.plugin_dict[plugin_name].reverse_dependencies):
+            r_dependency = api_plugin.plugin_dict[plugin_name].reverse_dependencies[i]
             
-            if not r_dependency in plugin_dict or 'i_error' in plugin_dict[r_dependency].info:
-                del plugin_dict[plugin_name].reverse_dependencies[i]
+            if not r_dependency in api_plugin.plugin_dict or 'i_error' in api_plugin.plugin_dict[r_dependency].info:
+                del api_plugin.plugin_dict[plugin_name].reverse_dependencies[i]
                 continue
             
             i += 1
@@ -362,8 +371,8 @@ def i_removeBrokenPlugins():
 def signal_handler(signal, frame):
     log.info("Terminate all active plugins...")
     
-    for plugin_name in reversed(dependency_list):
-        plugin = plugin_dict[plugin_name]
+    for plugin_name in reversed(api_plugin.dependency_list):
+        plugin = api_plugin.plugin_dict[plugin_name]
         if 'terminate' in plugin.events and not plugin.events['terminate']():
             log.error(plugin.name +" returned an error.")
             log.critical("Termination process failed!")
@@ -376,19 +385,21 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     
     # Read the config file
-    config = configparser.ConfigParser()
-    config.read('pythapi.ini')
+    api_plugin.config = configparser.ConfigParser()
+    api_plugin.config.read('pythapi.ini')
     
     # Apply default values
-    api_plugin.update(config_defaults, config)
-    config = config_defaults
+    api_plugin.update(config_defaults, api_plugin.config)
+    api_plugin.config = config_defaults
+    
+    api_plugin.translation_dict = translation_dict
 
     # Initialize fancy_logs
     log.init()
-    log.fancy_mode = 1 if config['core.general']['colored_logs'] == "true" else 0
+    log.fancy_mode = 1 if api_plugin.config['core.general']['colored_logs'] == "true" else 0
 
     # Only the user defined in the config should be able to execute this program
-    if(getpass.getuser() != config['core.general']['user']):
+    if(getpass.getuser() != api_plugin.config['core.general']['user']):
         log.critical("The user " +getpass.getuser() + " is not authorized to execute pythapi.")
         sys.exit(1)
 
@@ -417,7 +428,7 @@ if __name__ == "__main__":
             force_mode = True
             
         elif(p[i][:2] == "-v" or p[i] == "--verbosity"):
-            config['core.general']['loglevel'] = p[i+1]
+            api_plugin.config['core.general']['loglevel'] = p[i+1]
             del p[i+1]
             
         elif(p[i][:2] == "-h" or p[i] == "--help"):
@@ -436,7 +447,7 @@ if __name__ == "__main__":
         else:
             i += 1
 
-    log.loglevel = int(config['core.general']['loglevel'])
+    log.loglevel = int(api_plugin.config['core.general']['loglevel'])
 
     # Plugin loader
     log.header("Loading Plugins...")
@@ -452,12 +463,12 @@ if __name__ == "__main__":
         
         plugin = importlib.import_module("plugins." +module_name).plugin
         
-        plugin.init(config, plugin_dict, action_tree)
-        plugin_dict[plugin.name] = plugin
+        plugin.init()
+        api_plugin.plugin_dict[plugin.name] = plugin
         
-    for plugin_name in plugin_dict:
-        if not plugin_name in dependency_list and not 'i_error' in plugin_dict[plugin_name].info:
-            r_build_dependency_list(plugin_name, len(plugin_dict) )
+    for plugin_name in api_plugin.plugin_dict:
+        if not plugin_name in api_plugin.dependency_list and not 'i_error' in api_plugin.plugin_dict[plugin_name].info:
+            r_build_dependency_list(plugin_name, len(api_plugin.plugin_dict) )
     
     i_removeBrokenPlugins()
 
@@ -466,27 +477,27 @@ if __name__ == "__main__":
         
         # Fill plugin list based in instruction
         if 'param_plugin' in globals():
-            if not param_plugin in plugin_dict:
+            if not param_plugin in api_plugin.plugin_dict:
                 log.critical(param_plugin +' does not exist!')
                 sys.exit(1)
             
-            if 'i_error' in plugin_dict[param_plugin].info:
+            if 'i_error' in api_plugin.plugin_dict[param_plugin].info:
                 log.critical('Installation falied due to an error.')
                 sys.exit(1)
             
-            r_build_reverse_dependency_list(param_plugin, len(plugin_dict))
+            r_build_reverse_dependency_list(param_plugin, len(api_plugin.plugin_dict))
             
-            if len(reverse_dependency_list) > 1 and not 'force_mode' in globals():
+            if len(api_plugin.reverse_dependency_list) > 1 and not 'force_mode' in globals():
                 log.warning(param_plugin +' is used by other plugins.')
                 log.info('Use --force to ignpore this. This will also reinstall all plugins which use this plugin!')
                 log.critical('Execution stopped.')
                 sys.exit(1)
             
         else:
-            reverse_dependency_list = list(reversed(dependency_list))
+            api_plugin.reverse_dependency_list = list(reversed(api_plugin.dependency_list))
         
-        for plugin_name in reverse_dependency_list:
-            plugin = plugin_dict[plugin_name]
+        for plugin_name in api_plugin.reverse_dependency_list:
+            plugin = api_plugin.plugin_dict[plugin_name]
             
             log.info("Uninstall "+plugin.name)
             
@@ -504,32 +515,32 @@ if __name__ == "__main__":
         
         # Fill plugin list based in instruction
         if 'param_plugin' in globals():
-            if not param_plugin in plugin_dict:
+            if not param_plugin in api_plugin.plugin_dict:
                 log.critical(param_plugin +' does not exist!')
                 sys.exit(1)
             
-            if 'i_error' in plugin_dict[param_plugin].info:
+            if 'i_error' in api_plugin.plugin_dict[param_plugin].info:
                 log.critical('Installation falied due to an error.')
                 sys.exit(1)
             
-            dependency_list = []
-            r_build_dependency_list(param_plugin, len(plugin_dict) )
+            api_plugin.dependency_list = []
+            r_build_dependency_list(param_plugin, len(api_plugin.plugin_dict) )
             
             if 'reinstall' in globals():
-                for r_dependency in reversed(reverse_dependency_list):
-                    if not r_dependency in dependency_list:
-                        dependency_list.append(r_dependency)
+                for r_dependency in reversed(api_plugin.reverse_dependency_list):
+                    if not r_dependency in api_plugin.dependency_list:
+                        api_plugin.dependency_list.append(r_dependency)
         
-        for plugin_name in dependency_list:
-            if not 'i_error' in plugin_dict[plugin_name].info and not 'i_loaded' in plugin_dict[plugin_name].info:
-                r_check_dependencies(plugin_name, len(plugin_dict), 'install')
+        for plugin_name in api_plugin.dependency_list:
+            if not 'i_error' in api_plugin.plugin_dict[plugin_name].info and not 'i_loaded' in api_plugin.plugin_dict[plugin_name].info:
+                r_check_dependencies(plugin_name, len(api_plugin.plugin_dict), 'install')
     
     if mode == 'none':
         i_build_indices()
         
-        for plugin_name in dependency_list:
-            if not 'i_error' in plugin_dict[plugin_name].info and not 'i_loaded' in plugin_dict[plugin_name].info:
-                r_check_dependencies(plugin_name, len(plugin_dict), 'load')
+        for plugin_name in api_plugin.dependency_list:
+            if not 'i_error' in api_plugin.plugin_dict[plugin_name].info and not 'i_loaded' in api_plugin.plugin_dict[plugin_name].info:
+                r_check_dependencies(plugin_name, len(api_plugin.plugin_dict), 'load')
         
         i_removeBrokenPlugins()
         
@@ -540,20 +551,20 @@ if __name__ == "__main__":
             (r"/(.*)?", MainHandler)
         ])
         
-        http_ports = config['core.web']['http_port'].split(',')
+        http_ports = api_plugin.config['core.web']['http_port'].split(',')
         for port in http_ports:
-            app.listen(int(port),config['core.web']['bind_ip'])
+            app.listen(int(port),api_plugin.config['core.web']['bind_ip'])
         
-        if config['core.web']['https_enabled'] == 'true':
+        if api_plugin.config['core.web']['https_enabled'] == 'true':
             
             https_server = tornado.httpserver.HTTPServer(app, ssl_options={
-                "certfile": config['core.web']['ssl_cert_file'],
-                "keyfile": config['core.web']['ssl_key_file']
+                "certfile": api_plugin.config['core.web']['ssl_cert_file'],
+                "keyfile": api_plugin.config['core.web']['ssl_key_file']
             })
             
-            https_ports = config['core.web']['https_port'].split(',')
+            https_ports = api_plugin.config['core.web']['https_port'].split(',')
             for port in https_ports:
-                https_server.listen(int(port),config['core.web']['bind_ip'])
+                https_server.listen(int(port),api_plugin.config['core.web']['bind_ip'])
         
         hn = logging.NullHandler()
         hn.setLevel(logging.DEBUG)

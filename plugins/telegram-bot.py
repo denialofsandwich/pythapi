@@ -53,7 +53,39 @@ plugin.config_defaults = {
         'input_handler_enabled': 'true'
     }
 }
+
+plugin.translation_dict = {
+    'TELEGRAM_CHANNEL_NOT_FOUND': {
+        'EN': 'Channel not found.',
+        'DE': 'Channel nicht gefunden.'
+    },
     
+    'TELEGRAM_CHAT_IS_NOT_IN_CHANNEL': {
+        'EN': 'Chat ID is not a member of this channel.',
+        'DE': 'Chat ID ist kein ein Mitglied dieses Channels.'
+    },
+    
+    'TELEGRAM_CHAT_IS_IN_CHANNEL': {
+        'EN': 'Chat ID is already a member of this channel.',
+        'DE': 'Chat ID ist bereits ein Mitglied dieses Channels.'
+    },
+    
+    'TELEGRAM_CHAT_OR_CHANNEL_NOT_FOUND': {
+        'EN': 'Channel or chat ID not found.',
+        'DE': 'Channel oder Chat ID nicht gefunden.'
+    },
+    
+    'TELEGRAM_MESSAGE_MISSING': {
+        'EN': 'No message text specified.',
+        'DE': 'Nachrichtentext nicht gefunden.'
+    },
+    
+    'TELEGRAM_IMAGE_MISSING': {
+        'EN': 'No image specified.',
+        'DE': 'Bild nicht gefunden.'
+    }
+}
+
 used_tables = ["telegram_bot_channel"]
 
 bot = None
@@ -63,28 +95,29 @@ channel_dict = {}
 write_trough_cache_enabled = False
 
 def i_get_db_channel(channel_name):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     sql = """
-        SELECT * FROM """ +plugin.db_prefix +"""telegram_bot_channel WHERE channel_name = %s;
+        SELECT * FROM """ +db_prefix +"""telegram_bot_channel WHERE channel_name = %s;
     """
     
     try:
         dbc.execute(sql, [channel_name])
     
     except MySQLdb.IntegrityError as e:
-        log.error("i_get_db_channel: Unknown SQL error.")
-        raise WebRequestException(501,'error','i_get_db_channel: Unknown SQL error.')
+        log.error("i_get_db_channel: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if dbc.rowcount <= 0:
-        raise WebRequestException(400,'error','i_get_db_channel: Channel doesn\'t exist.')
+        raise WebRequestException(400, 'error', 'TELEGRAM_CHANNEL_NOT_FOUND')
     
     return dbc.fetchall()
 
 def i_get_local_channel(channel_name):
     if not channel_name in channel_dict:
-        raise WebRequestException(400,'error','i_get_local_channel: Channel doesn\'t exist.')
+        raise WebRequestException(400, 'error', 'TELEGRAM_CHANNEL_NOT_FOUND')
         
     return {
         'members': list(channel_dict[channel_name])
@@ -105,19 +138,20 @@ def e_get_channel(channel_name):
         return return_json
 
 def i_list_db_channels():
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     sql = """
-        SELECT * FROM """ +plugin.db_prefix +"""telegram_bot_channel;
+        SELECT * FROM """ +db_prefix +"""telegram_bot_channel;
     """
     
     try:
         dbc.execute(sql)
     
     except MySQLdb.IntegrityError as e:
-        log.error("i_get_db_channel: Unknown SQL error.")
-        raise WebRequestException(501,'error','i_get_db_channel: Unknown SQL error.')
+        log.error("i_list_db_channels: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     return dbc.fetchall()
 
@@ -159,12 +193,13 @@ def e_list_channels():
 
 @api_external_function(plugin)
 def e_add_reciever_to_channel(channel_name, t_chat_id):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            INSERT INTO """ +plugin.db_prefix +"""telegram_bot_channel (
+            INSERT INTO """ +db_prefix +"""telegram_bot_channel (
                     channel_name, chat_id
                 )
                 VALUES (%s, %s);
@@ -175,7 +210,7 @@ def e_add_reciever_to_channel(channel_name, t_chat_id):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400,'error','i_add_db_reciever_to_channel: chat_id is already in channel.')
+            raise WebRequestException(400, 'error', 'TELEGRAM_CHAT_IS_IN_CHANNEL')
     
     if write_trough_cache_enabled:
         if not channel_name in channel_dict:
@@ -185,26 +220,27 @@ def e_add_reciever_to_channel(channel_name, t_chat_id):
 
 @api_external_function(plugin)
 def e_remove_reciever_from_channel(channel_name, t_chat_id):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if write_trough_cache_enabled:
         if not channel_name in channel_dict:
-            raise WebRequestException(400,'error','e_remove_reciever_from_channel: Channel doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'TELEGRAM_CHANNEL_NOT_FOUND')
         
         if t_chat_id != '*' and not t_chat_id in channel_dict[channel_name]:
-            raise WebRequestException(400,'error','e_remove_reciever_from_channel: chat_id not found in this channel.')
+            raise WebRequestException(400, 'error', 'TELEGRAM_CHAT_IS_NOT_IN_CHANNEL')
     
     with db:
         if t_chat_id == '*':
             sql = """
-                DELETE FROM """ +plugin.db_prefix +"""telegram_bot_channel 
+                DELETE FROM """ +db_prefix +"""telegram_bot_channel 
                     WHERE channel_name = %s;
             """
         
         else:
             sql = """
-                DELETE FROM """ +plugin.db_prefix +"""telegram_bot_channel 
+                DELETE FROM """ +db_prefix +"""telegram_bot_channel 
                     WHERE channel_name = %s AND chat_id = %s;
             """
         
@@ -213,11 +249,11 @@ def e_remove_reciever_from_channel(channel_name, t_chat_id):
             db.commit()
             
             if dbc.rowcount == 0:
-                raise WebRequestException(400,'error','e_remove_reciever_from_channel: Channel or chat_id doesn\'t exist.')
+                raise WebRequestException(400, 'error', 'TELEGRAM_CHAT_OR_CHANNEL_NOT_FOUND')
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_remove_reciever_from_channel: Unknown SQL error.")
-            raise WebRequestException(501,'error','e_remove_reciever_from_channel: Unknown SQL error.')
+            log.error("e_remove_reciever_from_channel: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
         if t_chat_id == '*':
@@ -251,34 +287,36 @@ def e_send_image_to_channel(channel_name, image_path):
     image.close()
 
 def i_dump_db_table():
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
             SELECT *
-                FROM """ +plugin.db_prefix +"""telegram_bot_channel;
+                FROM """ +db_prefix +"""telegram_bot_channel;
         """
         
         try:
             dbc.execute(sql)
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_dump_db_table: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_dump_db_table: Unknown SQL error.')
+            log.error("i_dump_db_table: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
 
 @api_event(plugin, 'check')
 def check():
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         # Checks if all tables exist.
         result = 1
         for table in used_tables:
-            sql = "SHOW TABLES LIKE '" +plugin.db_prefix +table +"'"
+            sql = "SHOW TABLES LIKE '" +db_prefix +table +"'"
             result *= dbc.execute(sql)
     
     if(result == 0):
@@ -289,13 +327,14 @@ def check():
 @api_event(plugin, 'install')
 def install():
     
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     log.info("Create new Tables...")
     
     sql = """
-        CREATE TABLE """ +plugin.db_prefix +"""telegram_bot_channel (
+        CREATE TABLE """ +db_prefix +"""telegram_bot_channel (
             id INT NOT NULL AUTO_INCREMENT,
             channel_name VARCHAR(64) NOT NULL,
             chat_id VARCHAR(16) NOT NULL,
@@ -304,14 +343,14 @@ def install():
         ) ENGINE = InnoDB;
         """
     dbc.execute(sql)
-    log.debug("Table: '" +plugin.db_prefix +"telegram_bot_channel' created.")
+    log.debug("Table: '" +db_prefix +"telegram_bot_channel' created.")
 
     dbc.close()
     
-    if 'auth' in plugin.all_plugins:
+    if 'auth' in api_plugins():
         log.info('auth installed. Apply ruleset...')
         
-        auth = plugin.all_plugins['auth']
+        auth = api_plugins()['auth']
         
         auth.e_create_role('telegram_default', {
             'permissions':  [
@@ -338,12 +377,13 @@ def install():
 
 @api_event(plugin, 'uninstall')
 def uninstall():
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
-    if 'auth' in plugin.all_plugins and plugin.all_plugins['auth'].events['check']():
+    if 'auth' in api_plugins() and api_plugins()['auth'].events['check']():
         
-        auth = plugin.all_plugins['auth']
+        auth = api_plugins()['auth']
         
         ruleset = auth.e_get_role('default')['ruleset']
         
@@ -361,12 +401,12 @@ def uninstall():
     log.info("Delete old Tables...")
     
     for table in reversed(used_tables):
-        sql = "DROP TABLE " +plugin.db_prefix +table +";"
+        sql = "DROP TABLE " +db_prefix +table +";"
         
         try: dbc.execute(sql)
         except MySQLdb.Error: continue
     
-        log.debug("Table: '" +plugin.db_prefix +table +"' deleted.")
+        log.debug("Table: '" +db_prefix +table +"' deleted.")
     
     dbc.close()
     return 1
@@ -382,13 +422,13 @@ def load():
     global dispatcher
     global write_trough_cache_enabled
     
-    try: bot = telegram.Bot(plugin.config[plugin.name]['bot_token'])
+    try: bot = telegram.Bot(api_config()[plugin.name]['bot_token'])
     except:
         log.error('Invalid API token.')
         return 0
     
-    if plugin.config[plugin.name]['input_handler_enabled'] == 'true':
-        updater = Updater(token=plugin.config[plugin.name]['bot_token'])
+    if api_config()[plugin.name]['input_handler_enabled'] == 'true':
+        updater = Updater(token=api_config()[plugin.name]['bot_token'])
         dispatcher = updater.dispatcher
         
         start_handler = CommandHandler('start', tc_start)
@@ -410,7 +450,7 @@ def load():
 @api_event(plugin, 'terminate')
 def terminate():
     
-    if plugin.config[plugin.name]['input_handler_enabled'] == 'true':
+    if api_config()[plugin.name]['input_handler_enabled'] == 'true':
         log.info('Stopping telegam bot...')
         updater.stop()
         log.debug('Telegram bot stopped.')
@@ -478,7 +518,7 @@ def get_channel(reqHandler, p, args, body):
     'f_description': 'Returns all members of your channel.'
 })
 def get_personal_channel(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     return {
@@ -503,7 +543,7 @@ def add_reciever_to_channel(reqHandler, p, args, body):
     'f_description': 'Adds a new reciever to your channel'
 })
 def add_reciever(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     e_add_reciever_to_channel(current_user, p[0])
@@ -527,7 +567,7 @@ def remove_reciever_from_channel(reqHandler, p, args, body):
     'f_description': 'Removes a reciever from your channel.'
 })
 def remove_reciever(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     e_remove_reciever_from_channel(current_user, p[0])
@@ -542,7 +582,7 @@ def remove_reciever(reqHandler, p, args, body):
 def send_text_to_channel(reqHandler, p, args, body):
     
     if not 'message' in body:
-        raise WebRequestException(400,'error','send_text: No message text specified.')
+        raise WebRequestException(400, 'error', 'TELEGRAM_MESSAGE_MISSING')
     
     e_send_text_to_channel(p[0], body['message'])
     return {}
@@ -554,11 +594,11 @@ def send_text_to_channel(reqHandler, p, args, body):
     'f_description': 'Sends a text message to your channel.'
 })
 def send_text(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     if not 'message' in body:
-        raise WebRequestException(400,'error','send_text: No message text specified.')
+        raise WebRequestException(400, 'error', 'TELEGRAM_MESSAGE_MISSING')
     
     e_send_text_to_channel(current_user, body['message'])
     return {}
@@ -573,7 +613,7 @@ def send_text(reqHandler, p, args, body):
 def send_image_to_channel(reqHandler, p, args, body):
     
     if not 'image' in reqHandler.request.files:
-        raise WebRequestException(400,'error','send_image: No image in body.')
+        raise WebRequestException(400, 'error', 'TELEGRAM_IMAGE_MISSING')
     
     f = open('downloads/tmp_telegram.jpg', 'wb')
     f.write(reqHandler.request.files["image"][0]["body"])
@@ -590,11 +630,11 @@ def send_image_to_channel(reqHandler, p, args, body):
     'request_content_type': 'image/jpeg'
 })
 def send_image(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     if not 'image' in reqHandler.request.files:
-        raise WebRequestException(400,'error','send_image: No image in body.')
+        raise WebRequestException(400, 'error', 'TELEGRAM_IMAGE_MISSING')
     
     f = open('downloads/tmp_telegram.jpg', 'wb')
     f.write(reqHandler.request.files["image"][0]["body"])

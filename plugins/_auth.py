@@ -59,6 +59,118 @@ plugin.config_defaults = {
     }
 }
 
+plugin.translation_dict = {
+    'AUTH_USER_NOT_FOUND': {
+        'EN': 'User not found.',
+        'DE': 'Benutzer nicht gefunden.'
+    },
+    
+    'AUTH_USER_EXISTS': {
+        'EN': 'User already exists.',
+        'DE': 'Benutzer existiert bereits.'
+    },
+    
+    'AUTH_ROLE_NOT_FOUND': {
+        'EN': 'Role not found.',
+        'DE': 'Rolle nicht gefunden.'
+    },
+    
+    'AUTH_ROLE_EXISTS': {
+        'EN': 'Role already exists.',
+        'DE': 'Rolle existiert bereits.'
+    },
+    
+    'AUTH_SESSION_LIMIT_EXCEEDED': {
+        'EN': 'Session limit exceeded.',
+        'DE': 'Session Limit erreicht.'
+    },
+    
+    'AUTH_SESSION_ID_NOT_FOUND': {
+        'EN': 'Session ID doesn\'t exist.',
+        'DE': 'Session ID nicht gefunden.'
+    },
+    
+    'AUTH_TOKEN_NOT_FOUND': {
+        'EN': 'Token doesn\'t exist.',
+        'DE': 'Token nicht gefunden.'
+    },
+    
+    'AUTH_TOKEN_EXISTS': {
+        'EN': 'Token name already exists.',
+        'DE': 'Tokenname existiert bereits.'
+    },
+    
+    'AUTH_USER_IS_MEMBER': {
+        'EN': 'User is already a member of this Role.',
+        'DE': 'Benutzer ist bereits ein Mitglied dieser Rolle.'
+    },
+    
+    'AUTH_USER_IS_NOT_MEMBER': {
+        'EN': 'User is not a member of this Role.',
+        'DE': 'Benutzer ist kein Mitglied dieser Rolle.'
+    },
+    
+    'AUTH_PERMISSIONS_DENIED': {
+        'EN': 'Permissions denied.',
+        'DE': 'Zugriff verweigert.'
+    },
+    
+    'AUTH_TOO_MANY_LOGIN_FAILS': {
+        'EN': 'Too many failed login attempts.',
+        'DE': 'Zu viele fehlerhafte Loginversuche.'
+    },
+    
+    'AUTH_WRONG_PASSWORD_OR_USERNAME': {
+        'EN': 'Invalid username or password.',
+        'DE': 'Ungültiger Username oder Passwort.'
+    },
+    
+    'AUTH_INVALID_API_TOKEN': {
+        'EN': 'Invalid API token.',
+        'DE': 'Ungültiges API Token.'
+    },
+    
+    'AUTH_INVALID_CSRF_TOKEN': {
+        'EN': 'Invalid CSRF token.',
+        'DE': 'Ungültiges CSRF Token.'
+    },
+    
+    'AUTH_SESSION_EXPIRED': {
+        'EN': 'Session expired.',
+        'DE': 'Session abgelaufen.'
+    },
+    
+    'AUTH_PASSWORD_MISSING': {
+        'EN': 'Password missing.',
+        'DE': 'Passwort leer.'
+    },
+    
+    'AUTH_USERNAME_MISSING': {
+        'EN': 'Username missing.',
+        'DE': 'Username leer.'
+    },
+    
+    'AUTH_ROLE_MISSING': {
+        'EN': 'Role missing.',
+        'DE': 'Rollenname leer.'
+    },
+    
+    'AUTH_SYNTAX_ERROR_1': {
+        'EN': 'Auth: Syntax error in role {}: {}',
+        'DE': 'Auth: Syntaxfehler in der Rolle {}: {}'
+    },
+    
+    'AUTH_SYNTAX_ERROR_2': {
+        'EN': 'Auth: Syntax error in role {}: Plugin {} not found.',
+        'DE': 'Auth: Syntaxfehler in der Rolle {}: Plugin {} nicht gefunden.'
+    },
+    
+    'AUTH_SYNTAX_ERROR_3': {
+        'EN': 'Auth: Syntax error in role {}: Action {} not found.',
+        'DE': 'Auth: Syntaxfehler in der Rolle {}: Action {} nicht gefunden.'
+    }
+}
+
 current_user = "anonymous"
 used_tables = ["user","api_token","role","role_member"]
 users_dict = {}
@@ -80,7 +192,7 @@ def e_hash_password(username, password):
     h = SHA256.new()
     h.update(username.encode('utf-8'))
     h.update(password.encode('utf-8')) 
-    h.update(plugin.config[plugin.name]['sec_salt'].encode('utf-8'))
+    h.update(api_config()[plugin.name]['sec_salt'].encode('utf-8'))
     h_password = h.hexdigest()
     
     return h_password
@@ -94,7 +206,7 @@ def i_default_custom_permission_validator(ruleset, rule_section, target_rule):
 def ir_check_custom_permissions(role_name, rule_section, target_rule, f, depth = 0):
     
     if depth > len(roles_dict):
-        raise WebRequestException(400,'error','ir_check_custom_permissions: Recursive loop detected.')
+        raise WebRequestException(400, 'error', 'GENERAL_RECURSIVE_LOOP')
     
     if f(roles_dict[role_name]['ruleset'], rule_section, target_rule):
         return 1
@@ -111,7 +223,7 @@ def ir_check_custom_permissions(role_name, rule_section, target_rule, f, depth =
 def e_check_custom_permissions(username, rule_section, target_rule, f = i_default_custom_permission_validator):
     
     if not username in users_dict:
-        raise WebRequestException(400,'error','e_check_custom_permissions: User doesn\'t exist.')
+        raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
     
     for role_name in users_dict[username]['roles']:
         if ir_check_custom_permissions(role_name, rule_section, target_rule, f):
@@ -160,8 +272,8 @@ def e_create_session(reqHandler, username, options):
         if reqHandler.get_cookie("session_id") in session_dict:
             e_delete_session(reqHandler.get_cookie("session_id"))
     
-    if users_dict[username]['session_count'] >= int(plugin.config[plugin.name]['session_create_limit']):
-        raise WebRequestException(400,'error','e_create_session: Session limit exceeded.')
+    if users_dict[username]['session_count'] >= int(api_config()[plugin.name]['session_create_limit']):
+        raise WebRequestException(400, 'error', 'AUTH_SESSION_LIMIT_EXCEEDED')
     
     new_session_id = e_generate_random_string(cookie_length)
     
@@ -169,7 +281,7 @@ def e_create_session(reqHandler, username, options):
         'username': username,
         'remote_ip': i_get_client_ip(reqHandler),
         'creation_time': time.time(),
-        'expiration_time': time.time() +int(plugin.config[plugin.name]['session_expiration_time'])
+        'expiration_time': time.time() +int(api_config()[plugin.name]['session_expiration_time'])
     }
     
     session_counter += 1
@@ -190,7 +302,7 @@ def e_create_session(reqHandler, username, options):
 def e_delete_session(session_id):
     
     if not session_id in session_dict:
-        raise WebRequestException(400,'error','e_delete_session: Session ID doesn\'t exist.')
+        raise WebRequestException(400, 'error', 'AUTH_SESSION_ID_NOT_FOUND')
     
     username = session_dict[session_id]['username']
     users_dict[username]['sessions'].remove(session_id)
@@ -212,47 +324,49 @@ def e_delete_sessions_from_user(username):
         i += 1
 
 def i_get_db_user(username):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT * FROM """ +plugin.db_prefix +"""user WHERE name = %s;
+            SELECT * FROM """ +db_prefix +"""user WHERE name = %s;
         """
         
         try:
             dbc.execute(sql, [username])
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_user: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_get_db_user: Unknown SQL error.')
+            log.error("i_get_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
         if result == None:
-            raise WebRequestException(400,'error','i_get_db_user: User doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
         
         return result
 
 def i_list_db_user():
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT * FROM """ +plugin.db_prefix +"""user;
+            SELECT * FROM """ +db_prefix +"""user;
         """
         
         try:
             dbc.execute(sql)
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_user: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_list_db_user: Unknown SQL error.')
+            log.error("i_list_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
 
 def i_local_get_user(username):
     if not username in users_dict:
-        raise WebRequestException(400,'error','i_get_db_user: User doesn\'t exist.')
+        raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
     
     return_json = dict(users_dict[username])
     return_json['username'] = username
@@ -276,24 +390,25 @@ def i_list_local_users():
     return return_json
 
 def i_get_db_roles_from_user(username):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT """ +plugin.db_prefix +"""role.role_name
-                FROM """ +plugin.db_prefix +"""role_member
-                JOIN """ +plugin.db_prefix +"""role ON role_id = """ +plugin.db_prefix +"""role.id
-                JOIN """ +plugin.db_prefix +"""user ON user_id = """ +plugin.db_prefix +"""user.id
-                WHERE """ +plugin.db_prefix +"""user.name = %s;
+            SELECT """ +db_prefix +"""role.role_name
+                FROM """ +db_prefix +"""role_member
+                JOIN """ +db_prefix +"""role ON role_id = """ +db_prefix +"""role.id
+                JOIN """ +db_prefix +"""user ON user_id = """ +db_prefix +"""user.id
+                WHERE """ +db_prefix +"""user.name = %s;
         """
         
         try:
             dbc.execute(sql, [username])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_roles_from_user: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_get_db_roles_from_user: Unknown SQL error.')
+            log.error("i_get_db_roles_from_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
 
@@ -317,23 +432,24 @@ def e_get_user(username):
 
 @api_external_function(plugin)
 def e_get_db_user_by_id(user_id):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT * FROM """ +plugin.db_prefix +"""user WHERE id = %s;
+            SELECT * FROM """ +db_prefix +"""user WHERE id = %s;
         """
         
         try:
             dbc.execute(sql, [user_id])
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_user: Unknown SQL error.")
-            raise WebRequestException(501,'error','e_get_db_user_by_id: Unknown SQL error.')
+            log.error("e_get_db_user_by_id: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
         if result == None:
-            raise WebRequestException(400,'error','e_get_db_user_by_id: User doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
         
         return result
 
@@ -360,17 +476,18 @@ def e_list_users():
 
 @api_external_function(plugin)
 def e_create_user(username, data):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if not 'password' in data:
-        raise WebRequestException(400,'error','e_create_user: Password missing.')
+        raise WebRequestException(400, 'error', 'AUTH_PASSWORD_MISSING')
     
     h_password = e_hash_password(username, data['password'])
     
     with db:
         sql = """
-            INSERT INTO """ +plugin.db_prefix +"""user (
+            INSERT INTO """ +db_prefix +"""user (
                     name, password
                 )
                 VALUES (%s, %s);
@@ -381,7 +498,7 @@ def e_create_user(username, data):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400,'error','e_create_user: User already exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_EXISTS')
     
     user_id = i_get_db_user(username)[0]
     
@@ -405,17 +522,18 @@ def e_create_user(username, data):
 
 @api_external_function(plugin)
 def e_edit_user(username, data):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if not 'password' in data:
-        raise WebRequestException(400,'error','e_edit_user: Password missing.')
+        raise WebRequestException(400, 'error', 'AUTH_PASSWORD_MISSING')
     
     h_password = e_hash_password(username, data['password'])
     
     with db:
         sql = """
-            UPDATE """ +plugin.db_prefix +"""user
+            UPDATE """ +db_prefix +"""user
                 SET password = %s
                 WHERE name = %s;
         """
@@ -425,23 +543,25 @@ def e_edit_user(username, data):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_edit_user: Unknown SQL error.")
-            raise WebRequestException(501,'error','e_edit_user: Unknown SQL error.')
+            log.error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
         users_dict[username]['h_password'] = h_password
 
 @api_external_function(plugin)
 def e_delete_user(username):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
+    # TODO: Wenn write_trough_cache_enabled == false, wird nicht gecheckt ob User existiert.
     if write_trough_cache_enabled and not username in users_dict:
-        raise WebRequestException(400,'error','e_delete_user: User doesn\'t exist.')
+        raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
     
     with db:
         sql = """
-            DELETE FROM """ +plugin.db_prefix +"""user 
+            DELETE FROM """ +db_prefix +"""user 
                 WHERE name = %s;
         """
         
@@ -450,8 +570,8 @@ def e_delete_user(username):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_user: Unknown SQL error.")
-            raise WebRequestException(501,'error','e_delete_user: Unknown SQL error.')
+            log.error("e_delete_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
         for i in range(len(users_dict[username]['keys'])):
@@ -467,12 +587,13 @@ def e_delete_user(username):
         del users_dict[username]
 
 def i_get_db_user_token(username, token_name):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if write_trough_cache_enabled:
         if not username in users_dict:
-            raise WebRequestException(400,'error','i_get_db_user_token: User doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
         
         user_id = users_dict[username]['id']
     
@@ -481,32 +602,33 @@ def i_get_db_user_token(username, token_name):
     
     with db:
         sql = """
-            SELECT * FROM """ +plugin.db_prefix +"""api_token WHERE user_id = %s AND token_name = %s;
+            SELECT * FROM """ +db_prefix +"""api_token WHERE user_id = %s AND token_name = %s;
         """
         
         try:
             dbc.execute(sql, [user_id, token_name])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_user_token: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_get_db_user_token: Unknown SQL error.')
+            log.error("i_get_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
         if result == None:
-            raise WebRequestException(400,'error','i_get_db_user_token: Token doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
     
         return result
 
 def i_list_db_user_token(username):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT """ +plugin.db_prefix +"""api_token.id, name, token_name, user_key
-                FROM """ +plugin.db_prefix +"""api_token
-                JOIN """ +plugin.db_prefix +"""user
-                ON user_id = """ +plugin.db_prefix +"""user.id
+            SELECT """ +db_prefix +"""api_token.id, name, token_name, user_key
+                FROM """ +db_prefix +"""api_token
+                JOIN """ +db_prefix +"""user
+                ON user_id = """ +db_prefix +"""user.id
                 WHERE name = %s;
         """
         
@@ -514,29 +636,30 @@ def i_list_db_user_token(username):
             dbc.execute(sql, [username])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_user_token: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_list_db_user_token: Unknown SQL error.')
+            log.error("i_list_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
 
 def i_list_db_token():
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT """ +plugin.db_prefix +"""api_token.id, name, token_name, user_key
-                FROM """ +plugin.db_prefix +"""api_token
-                JOIN """ +plugin.db_prefix +"""user
-                ON user_id = """ +plugin.db_prefix +"""user.id;
+            SELECT """ +db_prefix +"""api_token.id, name, token_name, user_key
+                FROM """ +db_prefix +"""api_token
+                JOIN """ +db_prefix +"""user
+                ON user_id = """ +db_prefix +"""user.id;
         """
         
         try:
             dbc.execute(sql)
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_token: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_list_db_token: Unknown SQL error.')
+            log.error("i_list_db_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
 
@@ -549,7 +672,7 @@ def i_get_local_user_token(username, token_name):
             i_entry = dict(api_token_dict[key])
             return i_entry
     
-    raise WebRequestException(400,'error','i_get_local_user_token: Token doesn\'t exist.')
+    raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
 
 def i_list_local_user_token(username):
     return_json = []
@@ -593,12 +716,13 @@ def e_list_user_token(username):
 
 @api_external_function(plugin)
 def e_create_api_token(username, token_name):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if write_trough_cache_enabled:
         if not username in users_dict:
-            raise WebRequestException(400,'error','e_create_api_token: User doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
         
         user_id = users_dict[username]['id']
     
@@ -610,7 +734,7 @@ def e_create_api_token(username, token_name):
     
     with db:
         sql = """
-            INSERT INTO """ +plugin.db_prefix +"""api_token (
+            INSERT INTO """ +db_prefix +"""api_token (
                     token_name, user_key, user_id
                 )
                 VALUES (%s, %s, %s);
@@ -625,7 +749,7 @@ def e_create_api_token(username, token_name):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400,'error','e_create_api_token: token_name already exists.')
+            raise WebRequestException(400, 'error', 'AUTH_TOKEN_EXISTS')
     
     if write_trough_cache_enabled:
         api_token_dict[h_new_token] = {
@@ -638,12 +762,13 @@ def e_create_api_token(username, token_name):
 
 @api_external_function(plugin)
 def e_delete_api_token(username, token_name):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if write_trough_cache_enabled:
         if not username in users_dict:
-            raise WebRequestException(400,'error','e_delete_api_token: User doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
         
         
         user_id = users_dict[username]['id']
@@ -655,7 +780,7 @@ def e_delete_api_token(username, token_name):
     
     with db:
         sql = """
-            DELETE FROM """ +plugin.db_prefix +"""api_token 
+            DELETE FROM """ +db_prefix +"""api_token 
                 WHERE user_id = %s AND token_name = %s;
         """
             
@@ -664,8 +789,8 @@ def e_delete_api_token(username, token_name):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_api_token: Unknown SQL error.")
-            raise WebRequestException(501,'error','e_delete_api_token: Unknown SQL error.')
+            log.error("e_delete_api_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
         for i in range(len(users_dict[username]['keys'])):
@@ -676,48 +801,50 @@ def e_delete_api_token(username, token_name):
                 break
 
 def i_get_db_role(role_name):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT * FROM """ +plugin.db_prefix +"""role WHERE role_name = %s;
+            SELECT * FROM """ +db_prefix +"""role WHERE role_name = %s;
         """
         
         try:
             dbc.execute(sql, [role_name])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_role: Unknown SQL error. (role_name: " +role_name +")")
-            raise WebRequestException(501,'error','i_get_db_role: Unknown SQL error.')
+            log.error("i_get_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
         if result == None:
-            raise WebRequestException(400,'error','i_get_db_role: Role doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
         
         return result
 
 def i_list_db_roles():
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            SELECT * FROM """ +plugin.db_prefix +"""role;
+            SELECT * FROM """ +db_prefix +"""role;
         """
         
         try:
             dbc.execute(sql)
         
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_roles: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_list_db_roles: Unknown SQL error.')
+            log.error("i_list_db_roles: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501,'error','GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
 
 def i_get_local_role(role_name):
     if not role_name in roles_dict:
-        raise WebRequestException(400,'error','i_get_local_role: Role doesn\'t exist.')
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
 
     return dict(roles_dict[role_name])
 
@@ -765,7 +892,8 @@ def e_list_roles():
 
 @api_external_function(plugin)
 def e_create_role(role_name, ruleset):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if not 'inherit' in ruleset:
@@ -776,7 +904,7 @@ def e_create_role(role_name, ruleset):
     
     with db:
         sql = """
-            INSERT INTO """ +plugin.db_prefix +"""role (
+            INSERT INTO """ +db_prefix +"""role (
                     role_name, data
                 )
                 VALUES (%s, %s);
@@ -787,7 +915,7 @@ def e_create_role(role_name, ruleset):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400,'error','e_create_role: Role already exist.')
+            raise WebRequestException(400, 'error', 'AUTH_ROLE_EXISTS')
     
     role_id = i_get_db_role(role_name)[0]
     
@@ -802,12 +930,13 @@ def e_create_role(role_name, ruleset):
     return role_id
 
 def i_edit_db_role(role_name, ruleset):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            UPDATE """ +plugin.db_prefix +"""role
+            UPDATE """ +db_prefix +"""role
                 SET data = %s
                 WHERE role_name = %s;
         """
@@ -817,15 +946,15 @@ def i_edit_db_role(role_name, ruleset):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_edit_db_role: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_edit_db_role: Unknown SQL error.')
+            log.error("i_edit_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
 @api_external_function(plugin)
 def e_edit_role(role_name, ruleset):
 
     if write_trough_cache_enabled:
         if not role_name in roles_dict:
-            raise WebRequestException(400,'error','e_edit_role: Role doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
         
         for key in ruleset:
             if ruleset[key] == None and key in roles_dict[role_name]['ruleset']:
@@ -845,12 +974,13 @@ def e_edit_role(role_name, ruleset):
 
 @api_external_function(plugin)
 def e_delete_db_role(role_name):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         sql = """
-            DELETE FROM """ +plugin.db_prefix +"""role 
+            DELETE FROM """ +db_prefix +"""role 
                 WHERE role_name = %s;
         """
         
@@ -859,15 +989,15 @@ def e_delete_db_role(role_name):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_db_role: Unknown SQL error.")
-            raise WebRequestException(501,'error','e_delete_db_role: Unknown SQL error.')
+            log.error("e_delete_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
 @api_external_function(plugin)
 def e_delete_role(role_name):
     
     if write_trough_cache_enabled:
         if not role_name in roles_dict:
-            raise WebRequestException(400,'error','e_delete_role: Role doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
 
     else:
         i_get_db_role(role_name)
@@ -885,15 +1015,19 @@ def e_delete_role(role_name):
 
 @api_external_function(plugin)
 def e_add_member_to_role(role_name, username):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     if write_trough_cache_enabled:
         if not role_name in roles_dict:
-            raise WebRequestException(400,'error','e_add_member_to_role: Role doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
         
         if not username in users_dict:
-            raise WebRequestException(400,'error','e_add_member_to_role: User doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
+        
+        if role_name in users_dict[username]['roles']:
+            raise WebRequestException(400, 'error', 'AUTH_USER_IS_MEMBER')
         
         role_id = roles_dict[role_name]['id']
         user_id = users_dict[username]['id']
@@ -904,7 +1038,7 @@ def e_add_member_to_role(role_name, username):
     
     with db:
         sql = """
-            INSERT INTO """ +plugin.db_prefix +"""role_member (
+            INSERT INTO """ +db_prefix +"""role_member (
                     role_id, user_id
                 )
                 VALUES (%s, %s);
@@ -915,24 +1049,25 @@ def e_add_member_to_role(role_name, username):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400,'error','e_add_member_to_role: User is already member of this Role.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_IS_MEMBER')
     
     if write_trough_cache_enabled:
         users_dict[username]['roles'].append(role_name)
 
 @api_external_function(plugin)
 def e_remove_member_from_role(role_name, username):
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     
     if write_trough_cache_enabled:
         if not role_name in roles_dict:
-            raise WebRequestException(400,'error','e_remove_member_from_role: Role doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
         
         if not username in users_dict:
-            raise WebRequestException(400,'error','e_remove_member_from_role: User doesn\'t exist.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
         
         if not role_name in users_dict[username]['roles']:
-            raise WebRequestException(400,'error','e_remove_member_from_role: User is not a member of this role.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_IS_NOT_MEMBER')
     
         role_id = roles_dict[role_name]['id']
         user_id = users_dict[username]['id']
@@ -944,11 +1079,11 @@ def e_remove_member_from_role(role_name, username):
         user_id = user['id']
         
         if not role_name in user['roles']:
-            raise WebRequestException(400,'error','e_remove_member_from_role: User is not a member of this role.')
+            raise WebRequestException(400, 'error', 'AUTH_USER_IS_NOT_MEMBER')
     
     dbc = db.cursor()
     sql = """
-        DELETE FROM """ +plugin.db_prefix +"""role_member 
+        DELETE FROM """ +db_prefix +"""role_member 
             WHERE role_id = %s AND user_id = %s;
     """
         
@@ -957,7 +1092,8 @@ def e_remove_member_from_role(role_name, username):
         db.commit()
         
     except MySQLdb.IntegrityError as e:
-        raise WebRequestException(501,'error','e_remove_member_from_role: Unknown SQL error.')
+        log.error("e_remove_member_from_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     dbc.close()
     
@@ -966,9 +1102,9 @@ def e_remove_member_from_role(role_name, username):
 
 def i_apply_ruleset(role_name):
     
-    for plugin_name in plugin.action_tree:
-        for action_name in plugin.action_tree[plugin_name]:
-            try: plugin.action_tree[plugin_name][action_name]['roles'].remove(role_name)
+    for plugin_name in action_tree:
+        for action_name in action_tree[plugin_name]:
+            try: action_tree[plugin_name][action_name]['roles'].remove(role_name)
             except: pass
     
     if not role_name in roles_dict:
@@ -980,12 +1116,12 @@ def i_apply_ruleset(role_name):
         
         if rule_r[0] == '*':
             if len(rule_r) > 1:
-                log.warning("Auth: Syntax error in ruleset " +role_name +": " +p_rule)
+                log.warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
                 continue
             
-            for plugin_name in plugin.action_tree:
-                for action_name in plugin.action_tree[plugin_name]:
-                    role_list = plugin.action_tree[plugin_name][action_name]['roles']
+            for plugin_name in action_tree:
+                for action_name in action_tree[plugin_name]:
+                    role_list = action_tree[plugin_name][action_name]['roles']
                     
                     if role_name in role_list:
                         continue
@@ -993,12 +1129,12 @@ def i_apply_ruleset(role_name):
                     role_list.append(role_name)
         
         elif len(rule_r) == 1 or (rule_r[1] == '*' and len(rule_r) == 2):
-            if not rule_r[0] in plugin.action_tree:
-                log.warning("Auth: Error in ruleset " +role_name +": Plugin " +rule_r[0] +" not found.")
+            if not rule_r[0] in action_tree:
+                log.warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
                 continue
             
-            for action_name in plugin.action_tree[rule_r[0]]:
-                role_list = plugin.action_tree[rule_r[0]][action_name]['roles']
+            for action_name in action_tree[rule_r[0]]:
+                role_list = action_tree[rule_r[0]][action_name]['roles']
                 
                 if role_name in role_list:
                     continue
@@ -1006,15 +1142,15 @@ def i_apply_ruleset(role_name):
                 role_list.append(role_name)
                 
         elif len(rule_r) == 2:
-            if not rule_r[0] in plugin.action_tree:
-                log.warning("Auth: Error in ruleset " +role_name +": Plugin " +rule_r[0] +" not found.")
+            if not rule_r[0] in action_tree:
+                log.warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
                 continue
             
-            if not rule_r[1] in plugin.action_tree[rule_r[0]]:
-                log.warning("Auth: Error in ruleset " +role_name +": Action " +rule_r[1] +" not found.")
+            if not rule_r[1] in action_tree[rule_r[0]]:
+                log.warning(api_tr('AUTH_SYNTAX_ERROR_3').format(role_name, rule_r[1]))
                 continue
             
-            role_list = plugin.action_tree[rule_r[0]][rule_r[1]]['roles']
+            role_list = action_tree[rule_r[0]][rule_r[1]]['roles']
                 
             if role_name in role_list:
                 continue
@@ -1022,20 +1158,21 @@ def i_apply_ruleset(role_name):
             role_list.append(role_name)
             
         else:
-            log.warning("Auth: Error in ruleset " +role_name +": " +p_rule +": Too high depth.")
+            log.warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
             continue
 
 @api_event(plugin, 'check')
 def check():
     
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         # Checks if all tables exist.
         result = 1
         for table in used_tables:
-            sql = "SHOW TABLES LIKE '" +plugin.db_prefix +table +"'"
+            sql = "SHOW TABLES LIKE '" +db_prefix +table +"'"
             result *= dbc.execute(sql)
     
     if(result == 0):
@@ -1048,6 +1185,7 @@ def load():
     global write_trough_cache_enabled
     global bf_basic_auth_delay
     global bf_temporary_ban_enabled
+    #global config
     
     for row in i_list_db_user():
         users_dict[row[1]] = {
@@ -1078,8 +1216,8 @@ def load():
     for role_name in roles_dict:
         i_apply_ruleset(role_name)
     
-    bf_basic_auth_delay = float(plugin.config[plugin.name]['bf_basic_auth_delay'])
-    bf_temporary_ban_enabled = 1 if plugin.config[plugin.name]['bf_temporary_ban_enabled'] == "true" else 0
+    bf_basic_auth_delay = float(api_config()[plugin.name]['bf_basic_auth_delay'])
+    bf_temporary_ban_enabled = 1 if api_config()[plugin.name]['bf_temporary_ban_enabled'] == "true" else 0
     
     write_trough_cache_enabled = True
     return 1
@@ -1087,14 +1225,15 @@ def load():
 @api_event(plugin, 'install')
 def install():
     
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     log.info("Create new Tables...")
     
     with db:
         sql = """
-            CREATE TABLE """ +plugin.db_prefix +"""user (
+            CREATE TABLE """ +db_prefix +"""user (
                 id INT NOT NULL AUTO_INCREMENT,
                 name VARCHAR(32) NOT NULL,
                 password VARCHAR(64) NOT NULL,
@@ -1103,10 +1242,10 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +plugin.db_prefix +"user' created.")
+        log.debug("Table: '" +db_prefix +"user' created.")
 
         sql = """
-            CREATE TABLE """ +plugin.db_prefix +"""api_token (
+            CREATE TABLE """ +db_prefix +"""api_token (
                 id INT NOT NULL AUTO_INCREMENT,
                 token_name VARCHAR(32) NOT NULL,
                 user_key VARCHAR(64) NOT NULL,
@@ -1116,10 +1255,10 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +plugin.db_prefix +"api_token' created.")
+        log.debug("Table: '" +db_prefix +"api_token' created.")
         
         sql = """
-            CREATE TABLE """ +plugin.db_prefix +"""role (
+            CREATE TABLE """ +db_prefix +"""role (
                 id INT NOT NULL AUTO_INCREMENT,
                 role_name VARCHAR(32) NOT NULL,
                 data TEXT NOT NULL,
@@ -1128,10 +1267,10 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +plugin.db_prefix +"role' created.")
+        log.debug("Table: '" +db_prefix +"role' created.")
         
         sql = """
-            CREATE TABLE """ +plugin.db_prefix +"""role_member (
+            CREATE TABLE """ +db_prefix +"""role_member (
                 id INT NOT NULL AUTO_INCREMENT,
                 role_id INT NOT NULL,
                 user_id INT NOT NULL,
@@ -1140,33 +1279,33 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +plugin.db_prefix +"role_member' created.")
+        log.debug("Table: '" +db_prefix +"role_member' created.")
         
         sql = """
-            ALTER TABLE """ +plugin.db_prefix +"""api_token
-                ADD CONSTRAINT """ +plugin.db_prefix +"""api_token_to_user
+            ALTER TABLE """ +db_prefix +"""api_token
+                ADD CONSTRAINT """ +db_prefix +"""api_token_to_user
                 FOREIGN KEY ( user_id )
-                REFERENCES """ +plugin.db_prefix +"""user ( id )
+                REFERENCES """ +db_prefix +"""user ( id )
                 ON DELETE CASCADE
                 ON UPDATE CASCADE;
             """
         dbc.execute(sql)
         
         sql = """
-            ALTER TABLE """ +plugin.db_prefix +"""role_member
-                ADD CONSTRAINT """ +plugin.db_prefix +"""role_member_to_role
+            ALTER TABLE """ +db_prefix +"""role_member
+                ADD CONSTRAINT """ +db_prefix +"""role_member_to_role
                 FOREIGN KEY (role_id)
-                REFERENCES """ +plugin.db_prefix +"""role(id)
+                REFERENCES """ +db_prefix +"""role(id)
                 ON DELETE CASCADE
                 ON UPDATE CASCADE;
             """
         dbc.execute(sql)
         
         sql = """
-            ALTER TABLE """ +plugin.db_prefix +"""role_member
-                ADD CONSTRAINT """ +plugin.db_prefix +"""role_member_to_user
+            ALTER TABLE """ +db_prefix +"""role_member
+                ADD CONSTRAINT """ +db_prefix +"""role_member_to_user
                 FOREIGN KEY (user_id)
-                REFERENCES """ +plugin.db_prefix +"""user(id)
+                REFERENCES """ +db_prefix +"""user(id)
                 ON DELETE CASCADE
                 ON UPDATE CASCADE;
             """
@@ -1206,16 +1345,16 @@ def install():
         "permissions":  []
     })
     
-    e_create_user(plugin.config[plugin.name]['first_user_name'], {
-        'password': plugin.config[plugin.name]['first_user_password']
+    e_create_user(api_config()[plugin.name]['first_user_name'], {
+        'password': api_config()[plugin.name]['first_user_password']
     })
     
     e_create_user('anonymous', {
         'password': e_generate_random_string(cookie_length)
     })
     
-    e_remove_member_from_role('default', plugin.config[plugin.name]['first_user_name'])
-    e_add_member_to_role('admin', plugin.config[plugin.name]['first_user_name'])
+    e_remove_member_from_role('default', api_config()[plugin.name]['first_user_name'])
+    e_add_member_to_role('admin', api_config()[plugin.name]['first_user_name'])
     
     e_remove_member_from_role('default', 'anonymous')
     e_add_member_to_role('anonymous', 'anonymous')
@@ -1226,19 +1365,20 @@ def install():
 @api_event(plugin, 'uninstall')
 def uninstall():
     
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     log.info("Delete old Tables...")
     
     for table in reversed(used_tables):
-        sql = "DROP TABLE " +plugin.db_prefix +table +";"
+        sql = "DROP TABLE " +db_prefix +table +";"
         
         try: dbc.execute(sql)
         except MySQLdb.Error:
             continue
             
-        log.debug("Table: '" +plugin.db_prefix +table +"' deleted.")
+        log.debug("Table: '" +db_prefix +table +"' deleted.")
     
     dbc.close()
     return 1
@@ -1246,7 +1386,7 @@ def uninstall():
 def ir_check_permissions(role_name, target_list, depth = 0):
     
     if depth > len(roles_dict):
-        raise WebRequestException(400,'error','ir_check_permissions: Recursive loop detected.')
+        raise WebRequestException(400, 'error', 'GENERAL_RECURSIVE_LOOP')
     
     if role_name in target_list:
         return 1
@@ -1292,7 +1432,7 @@ def i_is_permited(username, action, remote_ip = "N/A"):
         if ir_check_permissions(role_name, action['roles']):
             return 1
     
-    unauthorized_error(401,'unauthorized','Permission denied.', remote_ip)
+    unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', remote_ip)
 
 @api_event(plugin, 'global_preexecution_hook')
 def global_preexecution_hook(reqHandler, action):
@@ -1302,7 +1442,7 @@ def global_preexecution_hook(reqHandler, action):
         remote_ip = i_get_client_ip(reqHandler)
         if remote_ip in bf_blacklist and bf_blacklist[remote_ip]['banned_until'] > time.time():
             reaming_time = math.ceil(bf_blacklist[remote_ip]['banned_until'] - time.time())
-            raise WebRequestException(401, 'unauthorized', 'Too many failed login attempts.', {'reaming_time': reaming_time})
+            raise WebRequestException(401, 'unauthorized', 'AUTH_TOO_MANY_LOGIN_FAILS', {'reaming_time': reaming_time})
     
     auth_header = reqHandler.request.headers.get('Authorization', None)
     if auth_header is not None:
@@ -1322,7 +1462,7 @@ def global_preexecution_hook(reqHandler, action):
                         return
                 
                 else:
-                    unauthorized_error(401,'unauthorized','Invalid username or password.', remote_ip)
+                    unauthorized_error(401, 'unauthorized', 'AUTH_WRONG_PASSWORD_OR_USERNAME', remote_ip)
         
         elif(r_auth_header[0] == "Bearer"):
             h_token = e_hash_password('', r_auth_header[1])
@@ -1334,7 +1474,7 @@ def global_preexecution_hook(reqHandler, action):
                     return
             
             else:
-                unauthorized_error(401,'unauthorized','Invalid token.', remote_ip)
+                unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_API_TOKEN', remote_ip)
       
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
@@ -1343,7 +1483,7 @@ def global_preexecution_hook(reqHandler, action):
             if 'last_csrf_token' in session_dict[session_id]:
                 csrf_token = reqHandler.request.headers.get('X-CSRF-TOKEN', None)
                 if csrf_token != session_dict[session_id]['last_csrf_token']:
-                    unauthorized_error(401,'unauthorized','Invalid CSRF-token.', remote_ip)
+                    unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_CSRF_TOKEN', remote_ip)
                 
                 csrf_token = e_generate_random_string(cookie_length)
                 session_dict[session_id]['last_csrf_token'] = csrf_token
@@ -1362,7 +1502,7 @@ def global_preexecution_hook(reqHandler, action):
     if i_is_permited(current_user, action, remote_ip):
         return
 
-    unauthorized_error(401,'unauthorized','Permission denied.', reqHandler)
+    unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
 
 @api_action(plugin, {
     'path': 'debug',
@@ -1387,8 +1527,8 @@ def auth_debug1(reqHandler, p, args, body):
 def auth_debug2(reqHandler, p, args, body):
     
     plist = {} 
-    for i_p in plugin.all_plugins:
-        i_pe = plugin.all_plugins[i_p]
+    for i_p in api_plugins():
+        i_pe = api_plugins()[i_p]
         i_actions = {} 
      
         for i_action in i_pe.actions:
@@ -1512,7 +1652,7 @@ def list_users(reqHandler, p, args, body):
 def change_password(reqHandler, p, args, body):
     
     if not 'password' in body:
-        raise WebRequestException(400,'error','change_password: Password missing.')
+        raise WebRequestException(400, 'error', 'AUTH_PASSWORD_MISSING')
     
     e_edit_user(current_user, {'password': body['password']})
     return {}
@@ -1537,7 +1677,7 @@ def get_user(reqHandler, p, args, body):
 def create_user(reqHandler, p, args, body):
         
     if (p[0] == ""):
-        raise WebRequestException(400,'error','create_user: Username missing.')
+        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
     
     return {
         'id': str(e_create_user(p[0], body))
@@ -1552,7 +1692,7 @@ def create_user(reqHandler, p, args, body):
 def edit_user(reqHandler, p, args, body):
         
     if (p[0] == ""):
-        raise WebRequestException(400,'error','edit_user: Username missing.')
+        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
     
     e_edit_user(p[0], body)
     return {}
@@ -1566,7 +1706,7 @@ def edit_user(reqHandler, p, args, body):
 def delete_user(reqHandler, p, args, body):
     
     if (p[0] == ""):
-        raise WebRequestException(400,'error','delete_user: User missing.')
+        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
     
     e_delete_user(p[0])
     return {}
@@ -1591,9 +1731,6 @@ def list_roles(reqHandler, p, args, body):
 def get_role(reqHandler, p, args, body):
     role_data = e_get_role(p[0])
     
-    if role_data == None:
-        raise WebRequestException(400,'error','get_role: Role not found.')
-    
     return {
         'data': role_data
     }
@@ -1607,7 +1744,7 @@ def get_role(reqHandler, p, args, body):
 def create_role(reqHandler, p, args, body):
         
     if (p[0] == ""):
-        raise WebRequestException(400,'error','create_role: Role missing.')
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_MISSING')
     
     return {
         'id': str(e_create_role(p[0], body))
@@ -1622,7 +1759,7 @@ def create_role(reqHandler, p, args, body):
 def edit_role(reqHandler, p, args, body):
         
     if (p[0] == ""):
-        raise WebRequestException(400,'error','edit_role: Role missing.')
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_MISSING')
     
     e_edit_role(p[0], body)
     return {}
@@ -1636,7 +1773,7 @@ def edit_role(reqHandler, p, args, body):
 def delete_role(reqHandler, p, args, body):
 
     if (p[0] == ""):
-        raise WebRequestException(400,'error','delete_role: Role missing.')
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_MISSING')
     
     e_delete_role(p[0])
     return {}
@@ -1650,10 +1787,10 @@ def delete_role(reqHandler, p, args, body):
 def add_member_to_role(reqHandler, p, args, body):
 
     if (p[0] == ""):
-        raise WebRequestException(400,'error','add_member_to_role: Role missing.')
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_MISSING')
 
     if (p[1] == ""):
-        raise WebRequestException(400,'error','add_member_to_role: User missing.')
+        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
 
     e_add_member_to_role(p[0], p[1])
     return {}
@@ -1667,10 +1804,10 @@ def add_member_to_role(reqHandler, p, args, body):
 def remove_member_from_role(reqHandler, p, args, body):
 
     if (p[0] == ""):
-        raise WebRequestException(400,'error','remove_member_from_role: Role missing.')
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_MISSING')
 
     if (p[1] == ""):
-        raise WebRequestException(400,'error','remove_member_from_role: User missing.')
+        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
 
     e_remove_member_from_role(p[0], p[1])
     return {}

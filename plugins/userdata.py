@@ -48,8 +48,9 @@ used_tables = ["user_data"]
 
 @api_external_function(plugin)
 def e_write_data(username, container_name, data, hidden = 0):
-    auth = plugin.all_plugins['auth']
-    db = plugin.mysql_connect()
+    auth = api_plugins()['auth']
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     user_id = auth.e_get_user(username)['id']
@@ -68,7 +69,7 @@ def e_write_data(username, container_name, data, hidden = 0):
     
     with db:
         sql = """
-            INSERT INTO """ +plugin.db_prefix +"""user_data (
+            INSERT INTO """ +db_prefix +"""user_data (
                     user_id, container, key_name, hidden, data
                 )
                 VALUES """ +values_skeleton +"""
@@ -81,14 +82,16 @@ def e_write_data(username, container_name, data, hidden = 0):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(501,'error','i_write_db_data: Unknown SQL error.')
+            log.error("e_write_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
         return dbc.rowcount
 
 @api_external_function(plugin)
 def e_delete_data(username, container_name, key_name, hidden = 0):
-    auth = plugin.all_plugins['auth']
-    db = plugin.mysql_connect()
+    auth = api_plugins()['auth']
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     key_name = key_name.replace('*', '%')
@@ -96,7 +99,7 @@ def e_delete_data(username, container_name, key_name, hidden = 0):
 
     with db:
         sql = """
-            DELETE FROM """ +plugin.db_prefix +"""user_data 
+            DELETE FROM """ +db_prefix +"""user_data 
                 WHERE user_id = %s AND container = %s AND key_name LIKE %s AND hidden = %s;
         """
         
@@ -105,14 +108,16 @@ def e_delete_data(username, container_name, key_name, hidden = 0):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            raise WebRequestException(501,'error','i_write_db_data: Unknown SQL error.')
+            log.error("e_delete_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.rowcount
 
 @api_external_function(plugin)
 def e_get_data(username, container_name, key_name, hidden = 0):
-    auth = plugin.all_plugins['auth']
-    db = plugin.mysql_connect()
+    auth = api_plugins()['auth']
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     key_name = key_name.replace('*', '%')
@@ -121,7 +126,7 @@ def e_get_data(username, container_name, key_name, hidden = 0):
     with db:
         sql = """
             SELECT * 
-                FROM """ +plugin.db_prefix +"""user_data
+                FROM """ +db_prefix +"""user_data
                 WHERE user_id = %s AND container = %s AND key_name LIKE %s AND hidden = %s;
         """
         
@@ -129,8 +134,8 @@ def e_get_data(username, container_name, key_name, hidden = 0):
             dbc.execute(sql, [user_id, container_name, key_name, hidden])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_data: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_get_db_data: Unknown SQL error.')
+            log.error("e_get_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
     return_array = {}
     for row in dbc.fetchall():
@@ -140,8 +145,9 @@ def e_get_data(username, container_name, key_name, hidden = 0):
 
 @api_external_function(plugin)
 def e_list_containers(username, hidden = 0):
-    auth = plugin.all_plugins['auth']
-    db = plugin.mysql_connect()
+    auth = api_plugins()['auth']
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     user_id = auth.e_get_user(username)['id']
@@ -158,8 +164,8 @@ def e_list_containers(username, hidden = 0):
             dbc.execute(sql, [user_id, hidden])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_containers: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_list_db_containers: Unknown SQL error.')
+            log.error("e_list_containers: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
     return_array = []
     for row in dbc.fetchall():
@@ -172,8 +178,9 @@ def e_list_containers(username, hidden = 0):
 
 @api_external_function(plugin)
 def e_list_keys_of_container(username, container_name, hidden = 0):
-    auth = plugin.all_plugins['auth']
-    db = plugin.mysql_connect()
+    auth = api_plugins()['auth']
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     user_id = auth.e_get_user(username)['id']
@@ -189,8 +196,8 @@ def e_list_keys_of_container(username, container_name, hidden = 0):
             dbc.execute(sql, [user_id, container_name, hidden])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_keys_of_container: Unknown SQL error.")
-            raise WebRequestException(501,'error','i_list_db_keys_of_container: Unknown SQL error.')
+            log.error("e_list_keys_of_container: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
     return_array = []
     for row in dbc.fetchall():
@@ -201,14 +208,15 @@ def e_list_keys_of_container(username, container_name, hidden = 0):
 @api_event(plugin, 'check')
 def check():
     
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     with db:
         # Checks if all tables exist.
         result = 1
         for table in used_tables:
-            sql = "SHOW TABLES LIKE '" +plugin.db_prefix +table +"'"
+            sql = "SHOW TABLES LIKE '" +db_prefix +table +"'"
             result *= dbc.execute(sql)
     
     if(result == 0):
@@ -219,13 +227,14 @@ def check():
 @api_event(plugin, 'install')
 def install():
     
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
     log.info("Create new Tables...")
     
     sql = """
-        CREATE TABLE """ +plugin.db_prefix +"""user_data (
+        CREATE TABLE """ +db_prefix +"""user_data (
             user_id INT NOT NULL,
             container VARCHAR(64) NOT NULL,
             key_name VARCHAR(64) NOT NULL,
@@ -235,20 +244,20 @@ def install():
         ) ENGINE = InnoDB;
         """
     dbc.execute(sql)
-    log.debug("Table: '" +plugin.db_prefix +"user_data' created.")
+    log.debug("Table: '" +db_prefix +"user_data' created.")
     
     sql = """
-        ALTER TABLE """ +plugin.db_prefix +"""user_data
-            ADD CONSTRAINT """ +plugin.db_prefix +"""user_data_to_user
+        ALTER TABLE """ +db_prefix +"""user_data
+            ADD CONSTRAINT """ +db_prefix +"""user_data_to_user
             FOREIGN KEY ( user_id )
-            REFERENCES """ +plugin.db_prefix +"""user ( id )
+            REFERENCES """ +db_prefix +"""user ( id )
             ON DELETE CASCADE
             ON UPDATE CASCADE;
         """
     dbc.execute(sql)
     dbc.close()
     
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     
     auth.e_create_role('userdata_default', {
         'permissions':  [
@@ -289,10 +298,11 @@ def install():
 @api_event(plugin, 'uninstall')
 def uninstall():
     
-    db = plugin.mysql_connect()
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
     dbc = db.cursor()
     
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     
     if auth.events['check']():
         ruleset = auth.e_get_role('default')['ruleset']
@@ -311,12 +321,12 @@ def uninstall():
     log.info("Delete old Tables...")
     
     for table in reversed(used_tables):
-        sql = "DROP TABLE " +plugin.db_prefix +table +";"
+        sql = "DROP TABLE " +db_prefix +table +";"
         
         try: dbc.execute(sql)
         except MySQLdb.Error: continue
     
-        log.debug("Table: '" +plugin.db_prefix +table +"' deleted.")
+        log.debug("Table: '" +db_prefix +table +"' deleted.")
     
     dbc.close()
     return 1
@@ -328,7 +338,7 @@ def uninstall():
     'f_description': 'Lists all available containers.'
 })
 def list_containers(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     hidden = 0
@@ -337,7 +347,7 @@ def list_containers(reqHandler, p, args, body):
             hidden = 1
         
         else:
-            raise WebRequestException(401,'unauthorized','list_containers: Permission denied.')
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
     
     return {
         'data': e_list_containers(current_user, hidden)
@@ -350,7 +360,7 @@ def list_containers(reqHandler, p, args, body):
     'f_description': 'Lists all available keys in a container.'
 })
 def list_keys_of_container(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     hidden = 0
@@ -359,7 +369,7 @@ def list_keys_of_container(reqHandler, p, args, body):
             hidden = 1
         
         else:
-            raise WebRequestException(401,'unauthorized','list_keys_of_container: Permission denied.')
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
     
     return {
         'data': e_list_keys_of_container(current_user, p[0], hidden)
@@ -372,7 +382,7 @@ def list_keys_of_container(reqHandler, p, args, body):
     'f_description': 'Read data in a container.'
 })
 def get_data(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     hidden = 0
@@ -381,7 +391,7 @@ def get_data(reqHandler, p, args, body):
             hidden = 1
         
         else:
-            raise WebRequestException(401,'unauthorized','get_data: Permission denied.')
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
     
     return {
         'data': e_get_data(current_user, p[0], p[1], hidden)
@@ -394,7 +404,7 @@ def get_data(reqHandler, p, args, body):
     'f_description': 'Write data in a container.'
 })
 def write_data(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     if body == {}:
@@ -406,7 +416,7 @@ def write_data(reqHandler, p, args, body):
             hidden = 1
         
         else:
-            raise WebRequestException(401,'unauthorized','write_data: Permission denied.')
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
     
     return {
         'affected_rows': e_write_data(current_user, p[0], body, hidden)
@@ -419,7 +429,7 @@ def write_data(reqHandler, p, args, body):
     'f_description': 'Deletes data in a container.'
 })
 def delete_data(reqHandler, p, args, body):
-    auth = plugin.all_plugins['auth']
+    auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     
     hidden = 0
@@ -428,7 +438,7 @@ def delete_data(reqHandler, p, args, body):
             hidden = 1
         
         else:
-            raise WebRequestException(401,'unauthorized','delete_data: Permission denied.')
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
     
     return {
         'affected_rows': e_delete_data(current_user, p[0], p[1], hidden)
