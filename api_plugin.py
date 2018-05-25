@@ -35,6 +35,7 @@ dependency_list = []
 reverse_dependency_list = []
 indices_generated = False
 translation_dict = {}
+environment_variables = {}
 
 def update(d, u):
     for k, v in u.items():
@@ -75,21 +76,29 @@ def api_action_tree():
 
 def api_action_call_dict():
     return action_call_dict
-    
-def api_tr(text_id):
-    try:
-        return translation_dict[text_id][config['core.general']['default_language']]
 
+def api_environment_variables():
+    return environment_variables
+
+def api_tr(text_id):
+    
+    try:
+        return translation_dict[text_id][environment_variables['language']]
+    
     except:
         try:
-            return translation_dict[text_id]['EN']
-        
+            return translation_dict[text_id][config['core.general']['default_language']]
+
         except:
             try:
-                return translation_dict['GENERAL_ERROR'][config['core.general']['default_language']]
+                return translation_dict[text_id]['EN']
             
             except:
-                return translation_dict['GENERAL_ERROR']['EN']
+                try:
+                    return translation_dict['GENERAL_ERROR'][config['core.general']['default_language']]
+                
+                except:
+                    return translation_dict['GENERAL_ERROR']['EN']
 
 class api_plugin():
 

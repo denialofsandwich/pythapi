@@ -73,14 +73,18 @@ plugin_property_blacklist = []
 def i_format_formatted_properties(return_json, property_name):
     
     try:
-        translated_text = return_json[property_name][api_config()['core.general']['default_language']]
-        
+        translated_text = return_json[property_name][api_environment_variables()['language']]
+    
     except:
         try:
-            translated_text = return_json[property_name]['EN']
-        
+            translated_text = return_json[property_name][api_config()['core.general']['default_language']]
+            
         except:
-            translated_text = 'N/A'
+            try:
+                translated_text = return_json[property_name]['EN']
+            
+            except:
+                translated_text = 'N/A'
     
     return_json[property_name] = translated_text
 

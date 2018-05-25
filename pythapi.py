@@ -32,7 +32,6 @@ import MySQLdb # apt
 import tools.fancy_logs as log
 import importlib
 from tornado import httpserver # apt
-from tornado import gen
 from tornado.ioloop import IOLoop
 import tornado.web
 import glob
@@ -119,7 +118,7 @@ class MainHandler(tornado.web.RequestHandler):
             match = action['c_regex'].match(path)
             if match:
                 try:
-                    transaction_variables = {}
+                    api_plugin.environment_variables = {}
                     
                     for hook in api_plugin.global_preexecution_hook_list:
                         hook(self, action)
