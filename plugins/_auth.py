@@ -42,8 +42,15 @@ plugin = api_plugin()
 plugin.name = "auth"
 plugin.version = "0.8"
 plugin.essential = True
-plugin.info['f_name'] = "Authentification"
-plugin.info['f_description'] = "This plugin implements authentification. You can create accounts and grant permissions to them."
+plugin.info['f_name'] = {
+    'EN': 'Authentification',
+    'DE': 'Authentifikation'
+}
+
+plugin.info['f_description'] = {
+    'EN': 'This plugin implements authentification. You can create accounts and grant permissions to them.',
+    'DE': 'Dieses Plugin implementiert Authentifikation. Es können Accounts erstellt und diesen Rechte zugewiesen werden.'
+}
 
 plugin.depends = []
 
@@ -1507,8 +1514,14 @@ def global_preexecution_hook(reqHandler, action):
 @api_action(plugin, {
     'path': 'debug',
     'method': 'POST',
-    'f_name': 'Debug 1',
-    'f_description': 'Dumps the write through cache.'
+    'f_name': {
+        'EN': 'Debug 1'
+    },
+
+    'f_description': {
+        'EN': 'Dumps the write-through-cache.',
+        'DE': 'Gibt den write-through-cache aus.'
+    }
 })
 def auth_debug1(reqHandler, p, args, body):
     return {
@@ -1548,8 +1561,15 @@ def auth_debug2(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'whoami',
     'method': 'GET',
-    'f_name': 'Get current user',
-    'f_description': 'Returns the current user.'
+    'f_name': {
+        'EN': 'Get current user',
+        'DE': 'Zeige momentaten Benutzer'
+    },
+
+    'f_description': {
+        'EN': 'Returns the current user.',
+        'DE': 'Gibt Informationen über den aktuellen Benutzer zurück.'
+    }
 })
 def get_current_user(reqHandler, p, args, body):
     return {
@@ -1559,8 +1579,15 @@ def get_current_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'session/list',
     'method': 'GET',
-    'f_name': 'List sessions',
-    'f_description': 'Lists all available sessions.'
+    'f_name': {
+        'EN': 'List sessions',
+        'DE': 'Sessions auflisten'
+    },
+
+    'f_description': {
+        'EN': 'Lists all available sessions of the current user.',
+        'DE': 'Listet alle offenen Sessions des aktuellen Benutzers auf.'
+    }
 })
 def list_sessions(reqHandler, p, args, body):
     return {
@@ -1570,30 +1597,49 @@ def list_sessions(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'session',
     'method': 'POST',
-    'f_name': 'Create session',
-    'f_description': 'Sets a cookie and creates a session.'
+    'f_name': {
+        'EN': 'Create session',
+        'DE': 'Session erstellen'
+    },
+
+    'f_description': {
+        'EN': 'Sets a cookie and creates a session.',
+        'DE': 'Setzt einen Cookie und öffnet eine Session.'
+    }
 })
 def create_session(reqHandler, p, args, body):
     e_create_session(reqHandler, current_user, body)
-    
     return {}
 
 @api_action(plugin, {
     'path': 'session',
     'method': 'DELETE',
-    'f_name': 'Delete session',
-    'f_description': 'Quits all active sessions.'
+    'f_name': {
+        'EN': 'Close sessions',
+        'DE': 'Sessions beenden'
+    },
+
+    'f_description': {
+        'EN': 'Quits all active sessions.',
+        'DE': 'Schließt alle aktiven Sessions.'
+    }
 })
 def delete_session(reqHandler, p, args, body):
-    
     e_delete_sessions_from_user(current_user)
     return {}
 
 @api_action(plugin, {
     'path': 'token/list',
     'method': 'GET',
-    'f_name': 'List API token',
-    'f_description': 'Lists all available API token.'
+    'f_name': {
+        'EN': 'List API token',
+        'DE': 'API Token auflisten'
+    },
+
+    'f_description': {
+        'EN': 'Lists all available API token.',
+        'DE': 'Listet alle erstellten API Token auf.'
+    }
 })
 def list_api_tokens(reqHandler, p, args, body):
     return {
@@ -1603,8 +1649,15 @@ def list_api_tokens(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'GET',
-    'f_name': 'Get API token',
-    'f_description': 'Returns a single API token.'
+    'f_name': {
+        'EN': 'Get API token',
+        'DE': 'Zeige API Token'
+    },
+
+    'f_description': {
+        'EN': 'Returns a single API token.',
+        'DE': 'Gibt ein einzelnes API Token zurück.'
+    }
 })
 def get_api_token(reqHandler, p, args, body):
     return {
@@ -1614,8 +1667,15 @@ def get_api_token(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'POST',
-    'f_name': 'Create API token',
-    'f_description': 'Creates a new API token.'
+    'f_name': {
+        'EN': 'Create API token',
+        'DE': 'API Token erstellen'
+    },
+
+    'f_description': {
+        'EN': 'Creates a new API token.',
+        'DE': 'Erstellt ein neuees API Token.'
+    }
 })
 def create_api_token(reqHandler, p, args, body):
     return {
@@ -1625,8 +1685,15 @@ def create_api_token(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'DELETE',
-    'f_name': 'Delete API token',
-    'f_description': 'Deletes an API token.'
+    'f_name': {
+        'EN': 'Delete API token',
+        'DE': 'API Token löschen'
+    },
+
+    'f_description': {
+        'EN': 'Deletes an API token.',
+        'DE': 'Löscht ein API Token.'
+    }
 })
 def delete_api_token(reqHandler, p, args, body):
     e_delete_api_token(current_user, p[0])
@@ -1635,8 +1702,15 @@ def delete_api_token(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/list',
     'method': 'GET',
-    'f_name': 'List users',
-    'f_description': 'Returns a list with all registered users.'
+    'f_name': {
+        'EN': 'List users',
+        'DE': 'Benutzer auflisten'
+    },
+
+    'f_description': {
+        'EN': 'Returns a list with all registered users.',
+        'DE': 'Gibt eine Liste mit allen registrierten Benutzern zurück.'
+    }
 })
 def list_users(reqHandler, p, args, body):
     return {
@@ -1646,8 +1720,15 @@ def list_users(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/change_password',
     'method': 'PUT',
-    'f_name': 'Change password',
-    'f_description': 'Changes the password of the current user.'
+    'f_name': {
+        'EN': 'Change password',
+        'DE': 'Passwort ändern'
+    },
+
+    'f_description': {
+        'EN': 'Changes the password of the current user.',
+        'DE': 'Ändert das Passwort des momentan angemeldeten Benutzers.'
+    }
 })
 def change_password(reqHandler, p, args, body):
     
@@ -1660,8 +1741,15 @@ def change_password(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/*',
     'method': 'GET',
-    'f_name': 'Get user',
-    'f_description': 'Returns a single user.'
+    'f_name': {
+        'EN': 'Get user',
+        'DE': 'Zeige Benutzer'
+    },
+
+    'f_description': {
+        'EN': 'Returns a single user.',
+        'DE': 'Gibt einen einzelnen Benutzer zurück.'
+    }
 })
 def get_user(reqHandler, p, args, body):
     return {
@@ -1671,8 +1759,15 @@ def get_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/*',
     'method': 'POST',
-    'f_name': 'Create user',
-    'f_description': 'Creates a single user.'
+    'f_name': {
+        'EN': 'Create user',
+        'DE': 'Benutzer erstellen'
+    },
+
+    'f_description': {
+        'EN': 'Creates a new user.',
+        'DE': 'Erstellt einen neuen Benutzer.'
+    }
 })
 def create_user(reqHandler, p, args, body):
         
@@ -1686,8 +1781,15 @@ def create_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/*',
     'method': 'PUT',
-    'f_name': 'Edit user',
-    'f_description': 'Edit the properties of a user.'
+    'f_name': {
+        'EN': 'Edit user',
+        'DE': 'Benutzer editieren'
+    },
+
+    'f_description': {
+        'EN': 'Edit the properties of a user.',
+        'DE': 'Editiert die Eigenschaften eines Benutzers.'
+    }
 })
 def edit_user(reqHandler, p, args, body):
         
@@ -1700,8 +1802,15 @@ def edit_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/*',
     'method': 'DELETE',
-    'f_name': 'Delete user',
-    'f_description': 'Deletes a user.'
+    'f_name': {
+        'EN': 'Delete user',
+        'DE': 'Benutzer löschen'
+    },
+
+    'f_description': {
+        'EN': 'Deletes a user.',
+        'DE': 'Löscht einen Benutzer.'
+    }
 })
 def delete_user(reqHandler, p, args, body):
     
@@ -1714,8 +1823,15 @@ def delete_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/list',
     'method': 'GET',
-    'f_name': 'List roles',
-    'f_description': 'Lists all available roles.'
+    'f_name': {
+        'EN': 'List roles',
+        'DE': 'Rollen auflisten'
+    },
+
+    'f_description': {
+        'EN': 'Lists all available roles.',
+        'DE': 'Listet alle verfügbaren Rollen auf.'
+    }
 })
 def list_roles(reqHandler, p, args, body):
     return {
@@ -1725,8 +1841,15 @@ def list_roles(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'GET',
-    'f_name': 'Get role',
-    'f_description': 'Returns a single role.'
+    'f_name': {
+        'EN': 'Get role',
+        'DE': 'Zeige Rolle'
+    },
+
+    'f_description': {
+        'EN': 'Returns a single role.',
+        'DE': 'Gibt eine einzelne Rolle zurück.'
+    }
 })
 def get_role(reqHandler, p, args, body):
     role_data = e_get_role(p[0])
@@ -1738,8 +1861,15 @@ def get_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'POST',
-    'f_name': 'Create role',
-    'f_description': 'Creates a new role.'
+    'f_name': {
+        'EN': 'Create role',
+        'DE': 'Rolle erstellen'
+    },
+
+    'f_description': {
+        'EN': 'Creates a new role.',
+        'DE': 'Erstellt eine neue Rolle.'
+    }
 })
 def create_role(reqHandler, p, args, body):
         
@@ -1753,8 +1883,15 @@ def create_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'PUT',
-    'f_name': 'Edit role',
-    'f_description': 'Edit a role and its properties.'
+    'f_name': {
+        'EN': 'Edit role',
+        'DE': 'Rolle editieren'
+    },
+
+    'f_description': {
+        'EN': 'Edits the properties of a role.',
+        'DE': 'Editiert die Eigenschaften einer Rolle.'
+    }
 })
 def edit_role(reqHandler, p, args, body):
         
@@ -1767,8 +1904,15 @@ def edit_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'DELETE',
-    'f_name': 'Delete role',
-    'f_description': 'Deletes a role.'
+    'f_name': {
+        'EN': 'Delete role',
+        'DE': 'Rolle löschen'
+    },
+
+    'f_description': {
+        'EN': 'Deletes a role.',
+        'DE': 'Löscht eine Rolle.'
+    }
 })
 def delete_role(reqHandler, p, args, body):
 
@@ -1781,8 +1925,15 @@ def delete_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*/*',
     'method': 'POST',
-    'f_name': 'Add member to role',
-    'f_description': 'Adds a new member to a role.'
+    'f_name': {
+        'EN': 'Add member to role',
+        'DE': 'Füge Mitglied zu Rolle hinzu'
+    },
+
+    'f_description': {
+        'EN': 'Adds a new member to a role.',
+        'DE': 'Fügt ein neues Mitglied zu einer Rolle hinzu.'
+    }
 })
 def add_member_to_role(reqHandler, p, args, body):
 
@@ -1798,8 +1949,15 @@ def add_member_to_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*/*',
     'method': 'DELETE',
-    'f_name': 'Remove member from role',
-    'f_description': 'Removes a member from a role.'
+    'f_name': {
+        'EN': 'Remove member from role',
+        'DE': 'Entferne Mitglied aus Rolle'
+    },
+
+    'f_description': {
+        'EN': 'Removes a member from a role.',
+        'DE': 'Entfernt ein Mitglied aus einer Rolle.'
+    }
 })
 def remove_member_from_role(reqHandler, p, args, body):
 

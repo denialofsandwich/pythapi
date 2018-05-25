@@ -31,8 +31,14 @@ plugin = api_plugin()
 plugin.name = "info"
 plugin.version = "1.0"
 plugin.essential = False
-plugin.info['f_name'] = "Information"
-plugin.info['f_description'] = "This plugin allows to view the description and meta-informations of an action and other plugins itself."
+plugin.info['f_name'] = {
+    'EN': 'Information'
+}
+
+plugin.info['f_description'] = {
+    'EN': 'This plugin allows to view the description and meta-informations of an action and plugins itself.',
+    'DE': 'Dieses Plugin erlaubt es die Beschreibung und Meta-Informationen von Actions und Plugins einzusehen.'
+}
 
 plugin.depends = [
     {
@@ -63,6 +69,20 @@ plugin.translation_dict = {
 action_property_blacklist = []
 plugin_property_blacklist = []
 
+def i_format_formatted_properties(return_json, property_name):
+    
+    try:
+        translated_text = return_json[property_name][api_config()['core.general']['default_language']]
+        
+    except:
+        try:
+            translated_text = return_json[property_name]['EN']
+        
+        except:
+            translated_text = 'N/A'
+    
+    return_json[property_name] = translated_text
+
 def i_format_action(action):
     
     return_json = dict(action)
@@ -72,6 +92,10 @@ def i_format_action(action):
     for property_name in action_property_blacklist:
         try: del return_json[property_name]
         except: pass
+    
+    for property_name in return_json:
+        if property_name[:2] == 'f_':
+            i_format_formatted_properties(return_json, property_name)
     
     return return_json
 
@@ -93,6 +117,10 @@ def i_get_plugin(plugin_name):
     for property_name in plugin_property_blacklist:
         try: del return_json[property_name]
         except: pass
+    
+    for property_name in return_json:
+        if property_name[:2] == 'f_':
+            i_format_formatted_properties(return_json, property_name)
     
     return return_json
 
@@ -198,8 +226,15 @@ def load():
 @api_action(plugin, {
     'path': 'list',
     'method': 'GET',
-    'f_name': 'List plugins',
-    'f_description': 'Returns a list of all enabled plugins.'
+    'f_name': {
+        'EN': 'List plugins',
+        'DE': 'Zeige alle Plugins'
+    },
+
+    'f_description': {
+        'EN': 'Returns a list of all enabled plugins.',
+        'DE': 'Gibt eine Liste mit allen Plugins zurück.'
+    }
 })
 def list_plugins(reqHandler, p, args, body):
     return {
@@ -209,8 +244,15 @@ def list_plugins(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*',
     'method': 'GET',
-    'f_name': 'Get plugins',
-    'f_description': 'Returns a single plugin.'
+    'f_name': {
+        'EN': 'Get plugin',
+        'DE': 'Zeige Plugin'
+    },
+
+    'f_description': {
+        'EN': 'Returns a single plugin.',
+        'DE': 'Gibt ein einzelnes Plugin zurück.'
+    }
 })
 def get_plugin(reqHandler, p, args, body):
     return {
@@ -220,8 +262,15 @@ def get_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/list',
     'method': 'GET',
-    'f_name': 'List actions of plugin',
-    'f_description': 'Returns a list of all actions from a specific plugin.'
+    'f_name': {
+        'EN': 'List actions of plugin',
+        'DE': 'Zeige alle Actions eines Plugin'
+    },
+
+    'f_description': {
+        'EN': 'Returns a list of all actions from a specific plugin.',
+        'DE': 'Gibt eine Liste mit allen Actions eines bestimmten Plugins zurück.'
+    }
 })
 def list_actions_of_plugin(reqHandler, p, args, body):
     return {
@@ -231,8 +280,15 @@ def list_actions_of_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/*',
     'method': 'GET',
-    'f_name': 'Get action of plugin',
-    'f_description': 'Returns a single action from a plugin.'
+    'f_name': {
+        'EN': 'Get action of plugin',
+        'DE': 'Zeige Action eines Plugin'
+    },
+
+    'f_description': {
+        'EN': 'Returns a single action from a plugin.',
+        'DE': 'Gibt eine einzelne Action eines Plugin zurück.'
+    }
 })
 def get_action_of_plugin(reqHandler, p, args, body):
     return {
@@ -242,8 +298,15 @@ def get_action_of_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'regex': '^' +plugin.name +'/search/([^/]*)/(.*)$',
     'method': 'GET',
-    'f_name': 'Search action by path',
-    'f_description': 'Search an action by path.'
+    'f_name': {
+        'EN': 'Search action by path',
+        'DE': 'Suche Action mittels Pfad'
+    },
+
+    'f_description': {
+        'EN': 'Search an action by path.',
+        'DE': 'Sucht eine Action anhand eines Pfades.'
+    }
 })
 def get_action_by_path(reqHandler, p, args, body):
     return {

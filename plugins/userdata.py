@@ -32,8 +32,15 @@ plugin = api_plugin()
 plugin.name = "userdata"
 plugin.version = "1.0"
 plugin.essential = False
-plugin.info['f_name'] = "User data"
-plugin.info['f_description'] = "This plugin allows to save userspecific data, based on a key-value store."
+plugin.info['f_name'] = {
+    'EN': 'Userdata',
+    'DE': 'Benutzerspeicher'
+}
+
+plugin.info['f_description'] = {
+    'EN': 'This plugin allows to save userspecific data, based on a key-value store.',
+    'DE': 'Dieses Plugin ermöglicht es benutzerspezifische Daten basierend auf einem Key-Value Speicher zu speichern.'
+}
 
 plugin.depends = [
     {
@@ -334,8 +341,15 @@ def uninstall():
 @api_action(plugin, {
     'path': 'list',
     'method': 'GET',
-    'f_name': 'List containers',
-    'f_description': 'Lists all available containers.'
+    'f_name': {
+        'EN': 'List containers',
+        'DE': 'Container auflisten'
+    },
+
+    'f_description': {
+        'EN': 'Lists all available containers.',
+        'DE': 'Listet alle verfügbaren Container auf.'
+    }
 })
 def list_containers(reqHandler, p, args, body):
     auth = api_plugins()['auth']
@@ -356,8 +370,15 @@ def list_containers(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/list',
     'method': 'GET',
-    'f_name': 'List keys of container',
-    'f_description': 'Lists all available keys in a container.'
+    'f_name': {
+        'EN': 'List keys of container',
+        'DE': 'Liste Schlüssel von Container auf'
+    },
+
+    'f_description': {
+        'EN': 'Lists all available keys in a container.',
+        'DE': 'Listet alle verfügbaren Schlüssel eines Containers auf.'
+    }
 })
 def list_keys_of_container(reqHandler, p, args, body):
     auth = api_plugins()['auth']
@@ -378,8 +399,15 @@ def list_keys_of_container(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/*',
     'method': 'GET',
-    'f_name': 'Get data',
-    'f_description': 'Read data in a container.'
+    'f_name': {
+        'EN': 'Get data',
+        'DE': 'Zeige Datensatz'
+    },
+
+    'f_description': {
+        'EN': 'Read data in a container.',
+        'DE': 'Liest Datensätze aus einem Container.'
+    }
 })
 def get_data(reqHandler, p, args, body):
     auth = api_plugins()['auth']
@@ -400,8 +428,15 @@ def get_data(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*',
     'method': 'POST',
-    'f_name': 'Write data',
-    'f_description': 'Write data in a container.'
+    'f_name': {
+        'EN': 'Write data',
+        'DE': 'Schreibe Daten'
+    },
+
+    'f_description': {
+        'EN': 'Write data in a container.',
+        'DE': 'Schreibt Daten in einen Container.'
+    }
 })
 def write_data(reqHandler, p, args, body):
     auth = api_plugins()['auth']
@@ -425,8 +460,15 @@ def write_data(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/*',
     'method': 'DELETE',
-    'f_name': 'Delete data',
-    'f_description': 'Deletes data in a container.'
+    'f_name': {
+        'EN': 'Delete data',
+        'DE': 'Lösche Daten'
+    },
+
+    'f_description': {
+        'EN': 'Deletes data in a container.',
+        'DE': 'Löscht Daten aus einem Container.'
+    }
 })
 def delete_data(reqHandler, p, args, body):
     auth = api_plugins()['auth']

@@ -119,6 +119,8 @@ class MainHandler(tornado.web.RequestHandler):
             match = action['c_regex'].match(path)
             if match:
                 try:
+                    transaction_variables = {}
+                    
                     for hook in api_plugin.global_preexecution_hook_list:
                         hook(self, action)
                     
@@ -154,7 +156,7 @@ class MainHandler(tornado.web.RequestHandler):
                     
                     return_json = {}
                     return_json['status'] = e.error_type
-                    return_json['f_message'] = api_plugin.api_tr(e.text_id)
+                    return_json['message'] = api_plugin.api_tr(e.text_id)
                     return_json['error_id'] = e.text_id
                     return_json.update(e.return_json)
                     
@@ -164,7 +166,11 @@ class MainHandler(tornado.web.RequestHandler):
         
         self.set_status(404)
         self.set_header("Content-Type", 'application/json')
-        return_json = {'status':'not found','message':'Request doesn\'t exist.'}
+        
+        return_json = {
+            'status':'not found',
+            'message':'Request doesn\'t exist.'
+        }
         
         return_value = json.dumps(return_json) + '\n'
         self.write(return_value)
