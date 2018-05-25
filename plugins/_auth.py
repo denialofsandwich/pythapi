@@ -204,8 +204,19 @@ def e_hash_password(username, password):
     
     return h_password
 
-def i_default_custom_permission_validator(ruleset, rule_section, target_rule):
-    if rule_section in ruleset and target_rule in ruleset[rule_section]:
+@api_external_function(plugin)
+def i_default_permission_validator(ruleset, rule_section, target_rule):
+    
+    if not rule_section in ruleset:
+        return 0
+    
+    if '*' in ruleset[rule_section]:
+        return 1
+    
+    if target_rule.split('.')[0] in ruleset[rule_section]:
+        return 1
+    
+    if target_rule in ruleset[rule_section]:
         return 1
     
     return 0
@@ -227,7 +238,7 @@ def ir_check_custom_permissions(role_name, rule_section, target_rule, f, depth =
     return 0
 
 @api_external_function(plugin)
-def e_check_custom_permissions(username, rule_section, target_rule, f = i_default_custom_permission_validator):
+def e_check_custom_permissions(username, rule_section, target_rule, f = i_default_permission_validator):
     
     if not username in users_dict:
         raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')

@@ -356,7 +356,7 @@ def list_containers(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0] == 'true':
+    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -385,7 +385,7 @@ def list_keys_of_container(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0] == 'true':
+    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -414,7 +414,7 @@ def get_data(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0] == 'true':
+    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -446,7 +446,7 @@ def write_data(reqHandler, p, args, body):
         raise WebRequestException(400,'error','write_data: Post body empty.')
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0] == 'true':
+    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -475,7 +475,7 @@ def delete_data(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0] == 'true':
+    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         

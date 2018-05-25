@@ -50,7 +50,8 @@ plugin.depends = [
 plugin.config_defaults = {
     plugin.name: {
         'action_property_blacklist': [],
-        'plugin_property_blacklist': []
+        'plugin_property_blacklist': [],
+        'hide_prohibited_actions': 'true'
     }
 }
 
@@ -88,6 +89,16 @@ def i_format_action(action):
     return_json = dict(action)
     del return_json['func']
     del return_json['c_regex']
+    
+    if 'auth' in api_plugins():
+        auth = api_plugins()['auth']
+        current_user = auth.e_get_current_user()
+        
+        if auth.e_check_custom_permissions(current_user, 'permissions', action['name']):
+            return_json['permitted'] = True
+        
+        else:
+            return_json['permitted'] = False
     
     for property_name in action_property_blacklist:
         try: del return_json[property_name]
@@ -139,6 +150,14 @@ def i_get_action_of_plugin(plugin_name, action_name):
     
     if not action_name in api_action_tree()[plugin_name]:
         raise WebRequestException(400, 'error', 'INFO_ACTION_NOT_FOUND')
+    
+    if 'auth' in api_plugins():
+        auth = api_plugins()['auth']
+        current_user = auth.e_get_current_user()
+        
+        if (api_config()[plugin.name]['hide_prohibited_actions'] == 'true' and
+            not auth.e_check_custom_permissions(current_user, 'permissions', plugin_name +'.' +action_name)):
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
     return i_format_action(api_action_tree()[plugin_name][action_name])
 
@@ -149,6 +168,15 @@ def i_list_actions_of_plugin(plugin_name):
     
     return_json = []
     for i_action in api_plugins()[plugin_name].actions:
+        
+        if 'auth' in api_plugins():
+            auth = api_plugins()['auth']
+            current_user = auth.e_get_current_user()
+            
+            if (api_config()[plugin.name]['hide_prohibited_actions'] == 'true' and
+                not auth.e_check_custom_permissions(current_user, 'permissions', i_action['name'])):
+                continue
+        
         return_json.append(i_format_action(i_action))
         
     return return_json
