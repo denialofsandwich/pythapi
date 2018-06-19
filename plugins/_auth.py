@@ -23,7 +23,6 @@
 
 import sys
 sys.path.append("..")
-import tools.fancy_logs as log # Logging
 import MySQLdb # MySQL
 from api_plugin import * # Essential Plugin
 import tornado # For POST Body decoding
@@ -123,7 +122,7 @@ plugin.translation_dict = {
     },
     
     'AUTH_TOO_MANY_LOGIN_FAILS': {
-        'EN': 'Too many failed login attempts.',
+        'EN': 'Too many failed api_log().n attempts.',
         'DE': 'Zu viele fehlerhafte Loginversuche.'
     },
     
@@ -354,7 +353,7 @@ def i_get_db_user(username):
         try:
             dbc.execute(sql, [username])
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_get_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
@@ -377,7 +376,7 @@ def i_list_db_user():
             dbc.execute(sql)
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_list_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
@@ -425,7 +424,7 @@ def i_get_db_roles_from_user(username):
             dbc.execute(sql, [username])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_roles_from_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_get_db_roles_from_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
@@ -462,7 +461,7 @@ def e_get_db_user_by_id(user_id):
         try:
             dbc.execute(sql, [user_id])
         except MySQLdb.IntegrityError as e:
-            log.error("e_get_db_user_by_id: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_get_db_user_by_id: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
@@ -561,7 +560,7 @@ def e_edit_user(username, data):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
@@ -588,7 +587,7 @@ def e_delete_user(username):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_delete_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
@@ -627,7 +626,7 @@ def i_get_db_user_token(username, token_name):
             dbc.execute(sql, [user_id, token_name])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_get_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
@@ -654,7 +653,7 @@ def i_list_db_user_token(username):
             dbc.execute(sql, [username])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_list_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
@@ -676,7 +675,7 @@ def i_list_db_token():
             dbc.execute(sql)
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_list_db_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
@@ -807,7 +806,7 @@ def e_delete_api_token(username, token_name):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_api_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_delete_api_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
@@ -832,7 +831,7 @@ def i_get_db_role(role_name):
             dbc.execute(sql, [role_name])
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_get_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_get_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         result = dbc.fetchone()
@@ -855,7 +854,7 @@ def i_list_db_roles():
             dbc.execute(sql)
         
         except MySQLdb.IntegrityError as e:
-            log.error("i_list_db_roles: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_list_db_roles: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501,'error','GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
@@ -964,7 +963,7 @@ def i_edit_db_role(role_name, ruleset):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_edit_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_edit_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
 @api_external_function(plugin)
@@ -1007,7 +1006,7 @@ def e_delete_db_role(role_name):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_delete_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
 @api_external_function(plugin)
@@ -1110,7 +1109,7 @@ def e_remove_member_from_role(role_name, username):
         db.commit()
         
     except MySQLdb.IntegrityError as e:
-        log.error("e_remove_member_from_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        api_log().error("e_remove_member_from_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
         raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     dbc.close()
@@ -1134,7 +1133,7 @@ def i_apply_ruleset(role_name):
         
         if rule_r[0] == '*':
             if len(rule_r) > 1:
-                log.warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
                 continue
             
             for plugin_name in action_tree:
@@ -1148,7 +1147,7 @@ def i_apply_ruleset(role_name):
         
         elif len(rule_r) == 1 or (rule_r[1] == '*' and len(rule_r) == 2):
             if not rule_r[0] in action_tree:
-                log.warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
                 continue
             
             for action_name in action_tree[rule_r[0]]:
@@ -1161,11 +1160,11 @@ def i_apply_ruleset(role_name):
                 
         elif len(rule_r) == 2:
             if not rule_r[0] in action_tree:
-                log.warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
                 continue
             
             if not rule_r[1] in action_tree[rule_r[0]]:
-                log.warning(api_tr('AUTH_SYNTAX_ERROR_3').format(role_name, rule_r[1]))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_3').format(role_name, rule_r[1]))
                 continue
             
             role_list = action_tree[rule_r[0]][rule_r[1]]['roles']
@@ -1176,7 +1175,7 @@ def i_apply_ruleset(role_name):
             role_list.append(role_name)
             
         else:
-            log.warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
+            api_log().warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
             continue
 
 @api_event(plugin, 'check')
@@ -1247,7 +1246,7 @@ def install():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    log.info("Create new Tables...")
+    api_log().info("Create new Tables...")
     
     with db:
         sql = """
@@ -1260,7 +1259,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +db_prefix +"user' created.")
+        api_log().debug("Table: '" +db_prefix +"user' created.")
 
         sql = """
             CREATE TABLE """ +db_prefix +"""api_token (
@@ -1273,7 +1272,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +db_prefix +"api_token' created.")
+        api_log().debug("Table: '" +db_prefix +"api_token' created.")
         
         sql = """
             CREATE TABLE """ +db_prefix +"""role (
@@ -1285,7 +1284,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +db_prefix +"role' created.")
+        api_log().debug("Table: '" +db_prefix +"role' created.")
         
         sql = """
             CREATE TABLE """ +db_prefix +"""role_member (
@@ -1297,7 +1296,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        log.debug("Table: '" +db_prefix +"role_member' created.")
+        api_log().debug("Table: '" +db_prefix +"role_member' created.")
         
         sql = """
             ALTER TABLE """ +db_prefix +"""api_token
@@ -1328,7 +1327,7 @@ def install():
                 ON UPDATE CASCADE;
             """
         dbc.execute(sql)
-        log.debug("Constraints created.")
+        api_log().debug("Constraints created.")
     
     e_create_role('admin', {
         "permissions":  [
@@ -1377,7 +1376,7 @@ def install():
     e_remove_member_from_role('default', 'anonymous')
     e_add_member_to_role('anonymous', 'anonymous')
     
-    log.debug("Initial data created.")
+    api_log().debug("Initial data created.")
     return 1
 
 @api_event(plugin, 'uninstall')
@@ -1387,7 +1386,7 @@ def uninstall():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    log.info("Delete old Tables...")
+    api_log().info("Delete old Tables...")
     
     for table in reversed(used_tables):
         sql = "DROP TABLE " +db_prefix +table +";"
@@ -1396,7 +1395,7 @@ def uninstall():
         except MySQLdb.Error:
             continue
             
-        log.debug("Table: '" +db_prefix +table +"' deleted.")
+        api_log().debug("Table: '" +db_prefix +table +"' deleted.")
     
     dbc.close()
     return 1

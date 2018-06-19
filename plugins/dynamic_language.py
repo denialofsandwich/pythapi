@@ -23,7 +23,6 @@
 
 import sys
 sys.path.append("..")
-import tools.fancy_logs as log # Logging
 from api_plugin import * # Essential Plugin
 import json
 

@@ -23,7 +23,6 @@
 
 import sys
 sys.path.append("..")
-import tools.fancy_logs as log # Logging
 import MySQLdb # MySQL
 from api_plugin import * # Essential Plugin
 import json
@@ -89,7 +88,7 @@ def e_write_data(username, container_name, data, hidden = 0):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_write_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_write_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
         return dbc.rowcount
@@ -115,7 +114,7 @@ def e_delete_data(username, container_name, key_name, hidden = 0):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_delete_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_delete_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.rowcount
@@ -141,7 +140,7 @@ def e_get_data(username, container_name, key_name, hidden = 0):
             dbc.execute(sql, [user_id, container_name, key_name, hidden])
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_get_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_get_data: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
     return_array = {}
@@ -171,7 +170,7 @@ def e_list_containers(username, hidden = 0):
             dbc.execute(sql, [user_id, hidden])
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_list_containers: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_list_containers: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
     return_array = []
@@ -203,7 +202,7 @@ def e_list_keys_of_container(username, container_name, hidden = 0):
             dbc.execute(sql, [user_id, container_name, hidden])
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_list_keys_of_container: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_list_keys_of_container: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
     return_array = []
@@ -238,7 +237,7 @@ def install():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    log.info("Create new Tables...")
+    api_log().info("Create new Tables...")
     
     sql = """
         CREATE TABLE """ +db_prefix +"""user_data (
@@ -251,7 +250,7 @@ def install():
         ) ENGINE = InnoDB;
         """
     dbc.execute(sql)
-    log.debug("Table: '" +db_prefix +"user_data' created.")
+    api_log().debug("Table: '" +db_prefix +"user_data' created.")
     
     sql = """
         ALTER TABLE """ +db_prefix +"""user_data
@@ -280,7 +279,7 @@ def install():
             
         auth.e_edit_role('default', ruleset)
     except WebRequestException as e:
-        log.error('Editing the default role failed!')
+        api_log().error('Editing the default role failed!')
         return 0
     
     auth.e_create_role('userdata_admin', {
@@ -297,7 +296,7 @@ def install():
             
         auth.e_edit_role('admin', ruleset)
     except WebRequestException as e:
-        log.error('Editing the admin role failed!')
+        api_log().error('Editing the admin role failed!')
         return 0
     
     return 1
@@ -323,9 +322,9 @@ def uninstall():
             auth.e_delete_role('userdata_default')
         except: pass
 
-        log.debug('Ruleset deleted.')
+        api_log().debug('Ruleset deleted.')
     
-    log.info("Delete old Tables...")
+    api_log().info("Delete old Tables...")
     
     for table in reversed(used_tables):
         sql = "DROP TABLE " +db_prefix +table +";"
@@ -333,7 +332,7 @@ def uninstall():
         try: dbc.execute(sql)
         except MySQLdb.Error: continue
     
-        log.debug("Table: '" +db_prefix +table +"' deleted.")
+        api_log().debug("Table: '" +db_prefix +table +"' deleted.")
     
     dbc.close()
     return 1

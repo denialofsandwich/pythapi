@@ -29,7 +29,7 @@ import getpass
 import signal
 import configparser # apt
 import MySQLdb # apt
-import tools.fancy_logs as log
+import tools.fancy_logs
 import importlib
 from tornado import httpserver # apt
 from tornado.ioloop import IOLoop
@@ -39,6 +39,7 @@ import re
 import json
 import api_plugin
 import logging
+import datetime
 
 usage_text = """
 Syntax:
@@ -68,13 +69,14 @@ Instructions:
     uninstall [plugin] [options]
                         Uninstall the pythapi. This deletes tables created by pythapi.
                         You can also specify a plugin.
-
 """
 
 config_defaults = {
     'core.general': {
         'loglevel': '4',
         'colored_logs': 'true',
+        'file_logging_enabled': 'true',
+        'logfile': 'pythapilog_[time].log',
         'user': 'root',
         'default_language': 'EN'
     },
@@ -393,16 +395,23 @@ if __name__ == "__main__":
     api_plugin.config = configparser.ConfigParser()
     api_plugin.config.read('pythapi.ini')
     
-    # Apply default values
+    # Apply default config values
     api_plugin.update(config_defaults, api_plugin.config)
     api_plugin.config = config_defaults
     
     api_plugin.translation_dict = translation_dict
 
     # Initialize fancy_logs
-    log.init()
-    log.fancy_mode = 1 if api_plugin.config['core.general']['colored_logs'] == "true" else 0
-
+    api_plugin.config['core.general']['logfile'] = api_plugin.config['core.general']['logfile'].replace('[time]', datetime.datetime.now().strftime('%m-%d-%Y'))
+    
+    api_plugin.log = tools.fancy_logs.fancy_logger(
+        1 if api_plugin.config['core.general']['colored_logs'] == "true" else 0,
+        int(api_plugin.config['core.general']['loglevel']),
+        1 if api_plugin.config['core.general']['file_logging_enabled'] == "true" else 0,
+        api_plugin.config['core.general']['logfile']
+    )
+    log = api_plugin.log
+    
     # Only the user defined in the config should be able to execute this program
     if(getpass.getuser() != api_plugin.config['core.general']['user']):
         log.critical("The user " +getpass.getuser() + " is not authorized to execute pythapi.")
@@ -455,7 +464,7 @@ if __name__ == "__main__":
     log.loglevel = int(api_plugin.config['core.general']['loglevel'])
 
     # Plugin loader
-    log.header("Loading Plugins...")
+    log.begin("Loading Plugins...")
 
     dir_r = glob.glob("plugins/*.py")
     log.debug("Plugins found: " +str(len(dir_r) -1) )
@@ -478,7 +487,7 @@ if __name__ == "__main__":
     i_removeBrokenPlugins()
 
     if mode == 'uninstall' or (mode == 'install' and 'reinstall' in globals()):
-        log.header('Start uninstallation process...')
+        log.begin('Start uninstallation process...')
         
         # Fill plugin list based in instruction
         if 'param_plugin' in globals():
@@ -516,7 +525,7 @@ if __name__ == "__main__":
             sys.exit(0)
 
     if mode == 'install':
-        log.header('Start installation process...')
+        log.begin('Start installation process...')
         
         # Fill plugin list based in instruction
         if 'param_plugin' in globals():

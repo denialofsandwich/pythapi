@@ -23,7 +23,6 @@
 
 import sys
 sys.path.append("..")
-import tools.fancy_logs as log # Logging
 import MySQLdb # MySQL
 from api_plugin import * # Essential Plugin
 import tornado # For POST Body decoding
@@ -116,7 +115,7 @@ def i_get_db_channel(channel_name):
         dbc.execute(sql, [channel_name])
     
     except MySQLdb.IntegrityError as e:
-        log.error("i_get_db_channel: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        api_log().error("i_get_db_channel: {}".format(api_tr('GENERAL_SQL_ERROR')))
         raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if dbc.rowcount <= 0:
@@ -159,7 +158,7 @@ def i_list_db_channels():
         dbc.execute(sql)
     
     except MySQLdb.IntegrityError as e:
-        log.error("i_list_db_channels: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        api_log().error("i_list_db_channels: {}".format(api_tr('GENERAL_SQL_ERROR')))
         raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     return dbc.fetchall()
@@ -261,7 +260,7 @@ def e_remove_reciever_from_channel(channel_name, t_chat_id):
                 raise WebRequestException(400, 'error', 'TELEGRAM_CHAT_OR_CHANNEL_NOT_FOUND')
             
         except MySQLdb.IntegrityError as e:
-            log.error("e_remove_reciever_from_channel: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_remove_reciever_from_channel: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
@@ -279,7 +278,7 @@ def e_send_text_to_channel(channel_name, message):
     for member in e_get_channel(channel_name)['members']:
         try: bot.send_message(member, message)
         except telegram.error.TimedOut:
-            log.warning("e_send_text_to_channel: Timed out.")
+            api_log().warning("e_send_text_to_channel: Timed out.")
             pass
 
 @api_external_function(plugin)
@@ -290,7 +289,7 @@ def e_send_image_to_channel(channel_name, image_path):
         image.seek(0)
         try: bot.send_photo(member, photo=image)
         except telegram.error.TimedOut:
-            log.warning("e_send_text_to_channel: Timed out.")
+            api_log().warning("e_send_text_to_channel: Timed out.")
             pass
     
     image.close()
@@ -310,7 +309,7 @@ def i_dump_db_table():
             dbc.execute(sql)
             
         except MySQLdb.IntegrityError as e:
-            log.error("i_dump_db_table: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("i_dump_db_table: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         return dbc.fetchall()
@@ -340,7 +339,7 @@ def install():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    log.info("Create new Tables...")
+    api_log().info("Create new Tables...")
     
     sql = """
         CREATE TABLE """ +db_prefix +"""telegram_bot_channel (
@@ -352,12 +351,12 @@ def install():
         ) ENGINE = InnoDB;
         """
     dbc.execute(sql)
-    log.debug("Table: '" +db_prefix +"telegram_bot_channel' created.")
+    api_log().debug("Table: '" +db_prefix +"telegram_bot_channel' created.")
 
     dbc.close()
     
     if 'auth' in api_plugins():
-        log.info('auth installed. Apply ruleset...')
+        api_log().info('auth installed. Apply ruleset...')
         
         auth = api_plugins()['auth']
         
@@ -379,7 +378,7 @@ def install():
                 
             auth.e_edit_role('default', ruleset)
         except WebRequestException as e:
-            log.error('Editing the default role failed!')
+            api_log().error('Editing the default role failed!')
             return 0
     
     return 1
@@ -405,9 +404,9 @@ def uninstall():
             auth.e_delete_role('telegram_default')
         except: pass
     
-        log.debug('Ruleset deleted.')
+        api_log().debug('Ruleset deleted.')
     
-    log.info("Delete old Tables...")
+    api_log().info("Delete old Tables...")
     
     for table in reversed(used_tables):
         sql = "DROP TABLE " +db_prefix +table +";"
@@ -415,13 +414,13 @@ def uninstall():
         try: dbc.execute(sql)
         except MySQLdb.Error: continue
     
-        log.debug("Table: '" +db_prefix +table +"' deleted.")
+        api_log().debug("Table: '" +db_prefix +table +"' deleted.")
     
     dbc.close()
     return 1
 
 def tc_start(bot, update):
-    log.debug("Discovered a new chat_id: {}".format(str(update.message.chat_id)))
+    api_log().debug("Discovered a new chat_id: {}".format(str(update.message.chat_id)))
     update.message.reply_text("Hello. This is your chat_id: {}".format(str(update.message.chat_id)))
 
 @api_event(plugin, 'load')
@@ -433,7 +432,7 @@ def load():
     
     try: bot = telegram.Bot(api_config()[plugin.name]['bot_token'])
     except:
-        log.error('Invalid API token.')
+        api_log().error('Invalid API token.')
         return 0
     
     if api_config()[plugin.name]['input_handler_enabled'] == 'true':
@@ -444,7 +443,7 @@ def load():
         dispatcher.add_handler(start_handler)
         
         updater.start_polling()
-        log.info('Telegam bot started.')
+        api_log().info('Telegam bot started.')
     
     for row in i_dump_db_table():
         if not row[1] in channel_dict:
@@ -460,9 +459,9 @@ def load():
 def terminate():
     
     if api_config()[plugin.name]['input_handler_enabled'] == 'true':
-        log.info('Stopping telegam bot...')
+        api_log().info('Stopping telegam bot...')
         updater.stop()
-        log.debug('Telegram bot stopped.')
+        api_log().debug('Telegram bot stopped.')
     
     return 1
 

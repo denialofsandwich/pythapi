@@ -3,8 +3,8 @@
 #
 # Name:        fancy_logs.py
 # Author:      Rene Fa
-# Date:        17.04.2018
-# Version:     0.6
+# Date:        10.06.2018
+# Version:     0.8
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -22,74 +22,73 @@
 #
 
 import os
+import sys
+import logging
 fancy_mode = False
 loglevel = 2
 
-def init():
-    global fancy_mode
-    if(os.name == "posix"): fancy_mode = True
+color_codes = {
+    'DEBUG':    '[\033[94m{}\033[0m]',
+    'INFO':     '[\033[92m{}\033[0m]',
+    'BEGIN':    '[\033[92m{}\033[0m]\033[92m   ',
+    'SUCCESS':  '\033[93m[\033[32m{}\033[0m\033[93m]\033[32m ',
+    'WARNING':  '[\033[93m{}\033[0m]',
+    'ERROR':    '[\033[31m{}\033[0m]',
+    'CRITICAL': '\033[93m[\033[31m{}\033[0m\033[93m]\033[31m'
+}
 
-class cc:
-    DEBUG    = '\033[94m'
-    INFO     = '\033[92m'
-    SUCCESS  = '\033[32m'
-    HEADER   = '\033[92m'
-    WARNING  = '\033[93m'
-    ERROR    = '\033[31m'
-    END      = '\033[0m'
+tr_loglevel = {
+    0: 50,
+    1: 40,
+    2: 30,
+    3: 25,
+    4: 20,
+    5: 10
+}
+
+class ColoredFormatter(logging.Formatter):
+    def __init__(self, msg, use_color = True):
+        logging.Formatter.__init__(self, msg)
+        self.use_color = use_color
+
+    def format(self, record):
+        levelname = record.levelname
+        if self.use_color and levelname in color_codes:
+            record.levelname = color_codes[levelname].format(levelname)
+            
+        return logging.Formatter.format(self, record)
+
+class fancy_logger(logging.Logger):
     
-def critical(message):
-    if(loglevel < 0): return
+    def __init__(self,
+                 color_enabled,
+                 loglevel,
+                 logging_enabled,
+                 logfile_path):
+        
+        logging.addLevelName(22, 'BEGIN')
+        logging.addLevelName(25, 'SUCCESS')
+        logging.Logger.__init__(self, 'pythapi')
+        
+        if loglevel > 5:
+            loglevel = 5
+        
+        loglevel = tr_loglevel[loglevel]
+        
+        self.setLevel(loglevel)
 
-    if(fancy_mode):
-        print(cc.ERROR +"[CRITICAL] " +str(message) +cc.END)
-    else:
-        print("[CRITICAL] " +str(message))
+        fout = logging.FileHandler(logfile_path)
+        fout.setLevel(loglevel)
+        fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+        self.addHandler(fout)
 
-def error(message):
-    if(loglevel < 1): return
+        sout = logging.StreamHandler(sys.stdout)
+        sout.setLevel(loglevel)
+        sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", use_color = color_enabled))
+        self.addHandler(sout)
     
-    if(fancy_mode):
-        print(cc.ERROR +"[ERROR]    " +cc.END +str(message))
-    else:
-        print("[ERROR] " +str(message))
+    def success(self, *args):
+        self.log(25, *args)
 
-def warning(message):
-    if(loglevel < 2): return
-    
-    if(fancy_mode):
-        print(cc.WARNING +"[WARNING]  " +cc.END +str(message))
-    else:
-        print("[WARNING] " +str(message))
-
-def success(message):
-    if(loglevel < 3): return
-    
-    if(fancy_mode):
-        print(cc.SUCCESS +"[SUCCESS]  " +str(message) +cc.END)
-    else:
-        print("[SUCCESS] " +str(message))
-
-def header(message):
-    if(loglevel < 3): return
-    
-    if(fancy_mode):
-        print(cc.HEADER +"[BEGIN]    " +str(message) +cc.END)
-    else:
-        print("[BEGIN] " +str(message))
-
-def info(message):
-    if(loglevel < 4): return
-    
-    if(fancy_mode):
-        print(cc.INFO +"[INFO]     " +cc.END +str(message))
-    else:
-        print("[INFO] " +str(message))
-
-def debug(message):
-    if(loglevel < 5): return
-    
-    if(fancy_mode):
-        print(cc.DEBUG +"[DEBUG]    " +cc.END +str(message))
-    else:
-        print("[DEBUG] " +str(message))
+    def begin(self, *args):
+        self.log(22, *args)

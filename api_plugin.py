@@ -36,6 +36,7 @@ reverse_dependency_list = []
 indices_generated = False
 translation_dict = {}
 environment_variables = {}
+log = None
 
 def update(d, u):
     for k, v in u.items():
@@ -79,6 +80,9 @@ def api_action_call_dict():
 
 def api_environment_variables():
     return environment_variables
+
+def api_log():
+    return log
 
 def api_tr(text_id):
     

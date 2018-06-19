@@ -23,7 +23,6 @@
 
 import sys
 sys.path.append("..")
-import tools.fancy_logs as log # Logging
 import MySQLdb # MySQL
 from api_plugin import * # Essential Plugin
 
@@ -202,7 +201,7 @@ def i_get_action_by_path(method, path):
 def install():
     
     if 'auth' in api_plugins():
-        log.info('auth installed. Apply ruleset...')
+        api_log().info('auth installed. Apply ruleset...')
         
         auth = api_plugins()['auth']
         
@@ -220,7 +219,7 @@ def install():
                 
             auth.e_edit_role('default', ruleset)
         except WebRequestException as e:
-            log.error('Editing the default role failed!')
+            api_log().error('Editing the default role failed!')
             return 0
     
     return 1
@@ -243,7 +242,7 @@ def uninstall():
             auth.e_delete_role('info_default')
         except: pass
     
-        log.debug('Ruleset deleted.')
+        api_log().debug('Ruleset deleted.')
     
     return 1
 
