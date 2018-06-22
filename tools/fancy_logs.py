@@ -80,10 +80,10 @@ class fancy_logger(logging.Logger):
         
         self.setLevel(loglevel)
 
-        self.fout = logging.FileHandler(logfile_path)
-        self.fout.setLevel(logging.DEBUG)
-        self.fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
         if logging_enabled:
+            self.fout = logging.FileHandler(logfile_path)
+            self.fout.setLevel(logging.DEBUG)
+            self.fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
             self.addHandler(self.fout)
 
         self.sout = logging.StreamHandler(sys.stdout)
