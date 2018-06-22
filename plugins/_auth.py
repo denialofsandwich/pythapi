@@ -1443,10 +1443,15 @@ def i_reset_ban_time(remote_ip = "N/A"):
         try: del bf_blacklist[remote_ip]
         except: pass
 
+def i_log_access(message):
+    if log.loglevel >= 5:
+        log.access('{} {}'.format(api_environment_variables()['transaction_id'], message))
+
 def i_is_permited(username, action, remote_ip = "N/A"):
 
     for role_name in users_dict[username]['roles']:
         if ir_check_permissions(role_name, action['roles']):
+            i_log_access('authorized as {}'.format(current_user))
             return 1
     
     unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', remote_ip)

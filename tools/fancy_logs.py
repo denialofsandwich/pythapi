@@ -4,7 +4,7 @@
 # Name:        fancy_logs.py
 # Author:      Rene Fa
 # Date:        22.06.2018
-# Version:     0.8
+# Version:     0.9
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -27,6 +27,7 @@ import logging
 
 color_codes = {
     'DEBUG':    '[\033[94m{}\033[0m]',
+    'ACCESS':   '[\033[95m{}\033[0m]',
     'INFO':     '[\033[92m{}\033[0m]',
     'BEGIN':    '[\033[92m{}\033[0m]\033[92m   ',
     'SUCCESS':  '\033[93m[\033[32m{}\033[0m\033[93m]\033[32m ',
@@ -41,7 +42,8 @@ tr_loglevel = {
     2: 30,
     3: 25,
     4: 20,
-    5: 10
+    5: 15,
+    6: 10
 }
 
 class ColoredFormatter(logging.Formatter):
@@ -64,24 +66,28 @@ class fancy_logger(logging.Logger):
                  logging_enabled,
                  logfile_path):
         
+        logging.addLevelName(15, 'ACCESS')
         logging.addLevelName(22, 'BEGIN')
         logging.addLevelName(25, 'SUCCESS')
         logging.Logger.__init__(self, 'pythapi')
         
-        if loglevel > 5:
-            loglevel = 5
+        self.loglevel = loglevel
+        
+        if loglevel > 6:
+            loglevel = 6
         
         loglevel = tr_loglevel[loglevel]
         
         self.setLevel(loglevel)
 
         self.fout = logging.FileHandler(logfile_path)
-        self.fout.setLevel(loglevel)
+        self.fout.setLevel(logging.DEBUG)
         self.fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
-        self.addHandler(self.fout)
+        if logging_enabled:
+            self.addHandler(self.fout)
 
         self.sout = logging.StreamHandler(sys.stdout)
-        self.sout.setLevel(loglevel)
+        self.sout.setLevel(logging.DEBUG)
 
         if fancy_mode:
             self.sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy = True))
@@ -97,6 +103,9 @@ class fancy_logger(logging.Logger):
     def begin(self, *args):
         self.log(22, *args)
 
+    def access(self, *args):
+        self.log(15, *args)
+
     def setFancy(self, flag):
         if flag:
             self.sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy = True))
@@ -104,3 +113,13 @@ class fancy_logger(logging.Logger):
         else:
             self.sout.setFormatter(ColoredFormatter('%(levelname)s %(message)s', fancy = False))
         
+    def setLoglevel(self, loglevel):
+        
+        self.loglevel = loglevel
+        
+        if loglevel > 6:
+            loglevel = 6
+        
+        loglevel = tr_loglevel[loglevel]
+        
+        self.setLevel(loglevel)

@@ -50,7 +50,7 @@ Syntax:
 
 Global options:
     --no-fancy
-                        Override the logging scheme. Uses a simple layout.
+                        Overrides the logging scheme. Uses a simple layout.
 
     -v ,--verbosity loglevel
                         Override the verbosity. 0 means only critical errors
@@ -120,13 +120,41 @@ translation_dict = {
     }
 }
 
+def i_get_client_ip(reqHandler):
+    
+    if reqHandler.request.remote_ip == "127.0.0.1":
+        x_real_ip = reqHandler.request.headers.get("X-Real-IP")
+        x_forwarded_for = reqHandler.request.headers.get("X-Forwarded-For")
+        return x_real_ip or x_forwarded_for or reqHandler.request.remote_ip
+    
+    else:
+        return reqHandler.request.remote_ip
+
+transaction_id = 0
 class MainHandler(tornado.web.RequestHandler):
+    
+    def log_access(self, method, path):
+        if log.loglevel >= 5:
+            log.access('{} {} {} {}'.format(api_plugin.environment_variables['transaction_id'], i_get_client_ip(self), method, path))
+    
+    def log_access_error(self, status, return_code, error_id):
+        if log.loglevel >= 5:
+            log.access('{} {} {} {}'.format(api_plugin.environment_variables['transaction_id'], status, return_code, error_id))
+    
     def executeRequest(self, method, path):
+        global transaction_id
+        
         for action in api_plugin.action_call_dict[method]:
             match = action['c_regex'].match(path)
             if match:
                 try:
                     api_plugin.environment_variables = {}
+                    api_plugin.environment_variables['transaction_id'] = transaction_id
+                    self.log_access(method, path)
+                    
+                    transaction_id += 1
+                    if transaction_id >= 65535:
+                        transaction_id = 0
                     
                     for hook in api_plugin.global_preexecution_hook_list:
                         hook(self, action)
@@ -160,12 +188,14 @@ class MainHandler(tornado.web.RequestHandler):
                 except api_plugin.WebRequestException as e:
                     self.set_status(e.error_code)
                     self.set_header("Content-Type", 'application/json')
+                    self.log_access_error(e.error_type, e.error_code, e.text_id)
                     
                     return_json = {}
                     return_json['status'] = e.error_type
                     return_json['message'] = api_plugin.api_tr(e.text_id)
                     return_json['error_id'] = e.text_id
                     return_json.update(e.return_json)
+                    
                     
                     return_value = json.dumps(return_json) + '\n'
                     self.write(return_value)
@@ -317,7 +347,7 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
             
             return 0
     
-    log.info('Checking ' +plugin_name)
+    log.debug('Checking ' +plugin_name)
     if 'check' in plugin.events and plugin.events['check']() == 0 and event_name != 'install':
         log.error(plugin_name +" returned an error.")
         plugin.info['i_error'] = 1
@@ -391,7 +421,7 @@ def signal_handler(signal, frame):
             log.critical("Termination process failed!")
             sys.exit(1)
         
-    log.debug("pythapi terminated.")
+    log.info("pythapi terminated.")
     sys.exit(0)
 
 if __name__ == "__main__":
@@ -454,6 +484,7 @@ if __name__ == "__main__":
             
         elif(p[i][:2] == "-v" or p[i] == "--verbosity"):
             api_plugin.config['core.general']['loglevel'] = p[i+1]
+            log.setLoglevel(int(p[i+1]))
             del p[i+1]
             
         elif(p[i][:2] == "-h" or p[i] == "--help"):
@@ -472,13 +503,11 @@ if __name__ == "__main__":
         else:
             i += 1
 
-    log.loglevel = int(api_plugin.config['core.general']['loglevel'])
-
     # Plugin loader
     log.begin("Loading Plugins...")
 
     dir_r = glob.glob("plugins/*.py")
-    log.debug("Plugins found: " +str(len(dir_r) -1) )
+    log.info("Plugins found: " +str(len(dir_r) -1) )
     
     # Import and initializing of the found plugins
     for i_dir in dir_r:
@@ -569,18 +598,19 @@ if __name__ == "__main__":
         
         i_removeBrokenPlugins()
         
-        log.success("pythapi successfully started.")
-        log.info("Entering main loop...")
-        
         app = tornado.web.Application([
             (r"/(.*)?", MainHandler)
         ])
         
         http_ports = api_plugin.config['core.web']['http_port'].split(',')
+        http_ip    = api_plugin.config['core.web']['bind_ip']
         for port in http_ports:
-            app.listen(int(port),api_plugin.config['core.web']['bind_ip'])
+            app.listen(int(port),http_ip)
+            log.debug('HTTP started at: {}:{}'.format(http_ip,port))
         
         if api_plugin.config['core.web']['https_enabled'] == 'true':
+            
+            log.debug('SSL enabled')
             
             https_server = tornado.httpserver.HTTPServer(app, ssl_options={
                 "certfile": api_plugin.config['core.web']['ssl_cert_file'],
@@ -589,11 +619,15 @@ if __name__ == "__main__":
             
             https_ports = api_plugin.config['core.web']['https_port'].split(',')
             for port in https_ports:
-                https_server.listen(int(port),api_plugin.config['core.web']['bind_ip'])
+                https_server.listen(int(port),http_ip)
+                log.debug('HTTPS started at: {}:{}'.format(http_ip,port))
         
         hn = logging.NullHandler()
         hn.setLevel(logging.DEBUG)
         logging.getLogger("tornado.access").addHandler(hn)
         logging.getLogger("tornado.access").propagate = False
+        
+        log.success("pythapi successfully started.")
+        log.info("Entering main loop...")
         
         IOLoop.instance().start()
