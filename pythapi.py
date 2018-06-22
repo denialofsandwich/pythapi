@@ -40,6 +40,9 @@ import json
 import api_plugin
 import logging
 import datetime
+import os
+
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 usage_text = """
 Syntax:
