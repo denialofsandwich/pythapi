@@ -122,7 +122,7 @@ plugin.translation_dict = {
     },
     
     'AUTH_TOO_MANY_LOGIN_FAILS': {
-        'EN': 'Too many failed api_log().n attempts.',
+        'EN': 'Too many failed login attempts.',
         'DE': 'Zu viele fehlerhafte Loginversuche.'
     },
     
