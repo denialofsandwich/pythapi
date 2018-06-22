@@ -46,8 +46,11 @@ Syntax:
     ./pythapi.py [instruction] [options]
 
 Global options:
+    --no-fancy
+                        Override the logging scheme. Uses a simple layout.
+
     -v ,--verbosity loglevel
-                        Changes the verbosity. 0 means only critical errors
+                        Override the verbosity. 0 means only critical errors
                         and 5 shows debugging information
 
     -f ,--force
@@ -74,7 +77,7 @@ Instructions:
 config_defaults = {
     'core.general': {
         'loglevel': '4',
-        'colored_logs': 'true',
+        'fancy_logs': 'true',
         'file_logging_enabled': 'true',
         'logfile': 'pythapilog_[time].log',
         'user': 'root',
@@ -393,6 +396,7 @@ if __name__ == "__main__":
     
     # Read the config file
     api_plugin.config = configparser.ConfigParser()
+    api_plugin.config.read('/etc/pythapi/pythapi.ini')
     api_plugin.config.read('pythapi.ini')
     
     # Apply default config values
@@ -405,7 +409,7 @@ if __name__ == "__main__":
     api_plugin.config['core.general']['logfile'] = api_plugin.config['core.general']['logfile'].replace('[time]', datetime.datetime.now().strftime('%m-%d-%Y'))
     
     api_plugin.log = tools.fancy_logs.fancy_logger(
-        1 if api_plugin.config['core.general']['colored_logs'] == "true" else 0,
+        1 if api_plugin.config['core.general']['fancy_logs'] == "true" else 0,
         int(api_plugin.config['core.general']['loglevel']),
         1 if api_plugin.config['core.general']['file_logging_enabled'] == "true" else 0,
         api_plugin.config['core.general']['logfile']
@@ -440,6 +444,10 @@ if __name__ == "__main__":
 
         elif(p[i][:2] == "-f" or p[i] == "--force"):
             force_mode = True
+            
+        elif(p[i] == "--no-fancy"):
+            api_plugin.config['core.general']['fancy_logs'] = "false"
+            log.setFancy(False)
             
         elif(p[i][:2] == "-v" or p[i] == "--verbosity"):
             api_plugin.config['core.general']['loglevel'] = p[i+1]

@@ -3,7 +3,7 @@
 #
 # Name:        fancy_logs.py
 # Author:      Rene Fa
-# Date:        10.06.2018
+# Date:        22.06.2018
 # Version:     0.8
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -24,8 +24,6 @@
 import os
 import sys
 import logging
-fancy_mode = False
-loglevel = 2
 
 color_codes = {
     'DEBUG':    '[\033[94m{}\033[0m]',
@@ -47,21 +45,21 @@ tr_loglevel = {
 }
 
 class ColoredFormatter(logging.Formatter):
-    def __init__(self, msg, use_color = True):
+    def __init__(self, msg, fancy = True):
         logging.Formatter.__init__(self, msg)
-        self.use_color = use_color
+        self.fancy = fancy
 
     def format(self, record):
         levelname = record.levelname
-        if self.use_color and levelname in color_codes:
+        if self.fancy and levelname in color_codes:
             record.levelname = color_codes[levelname].format(levelname)
             
         return logging.Formatter.format(self, record)
 
 class fancy_logger(logging.Logger):
-    
+
     def __init__(self,
-                 color_enabled,
+                 fancy_mode,
                  loglevel,
                  logging_enabled,
                  logfile_path):
@@ -77,18 +75,32 @@ class fancy_logger(logging.Logger):
         
         self.setLevel(loglevel)
 
-        fout = logging.FileHandler(logfile_path)
-        fout.setLevel(loglevel)
-        fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
-        self.addHandler(fout)
+        self.fout = logging.FileHandler(logfile_path)
+        self.fout.setLevel(loglevel)
+        self.fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+        self.addHandler(self.fout)
 
-        sout = logging.StreamHandler(sys.stdout)
-        sout.setLevel(loglevel)
-        sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", use_color = color_enabled))
-        self.addHandler(sout)
+        self.sout = logging.StreamHandler(sys.stdout)
+        self.sout.setLevel(loglevel)
+
+        if fancy_mode:
+            self.sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy = True))
+
+        else:
+            self.sout.setFormatter(ColoredFormatter('%(levelname)s %(message)s', fancy = False))
+
+        self.addHandler(self.sout)
     
     def success(self, *args):
         self.log(25, *args)
 
     def begin(self, *args):
         self.log(22, *args)
+
+    def setFancy(self, flag):
+        if flag:
+            self.sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy = True))
+
+        else:
+            self.sout.setFormatter(ColoredFormatter('%(levelname)s %(message)s', fancy = False))
+        
