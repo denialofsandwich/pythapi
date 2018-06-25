@@ -38,7 +38,7 @@ plugin.info['f_name'] = {
 
 plugin.info['f_description'] = {
     'EN': 'This plugin allows to save userspecific data, based on a key-value store.',
-    'DE': 'Dieses Plugin ermöglicht es benutzerspezifische Daten basierend auf einem Key-Value Speicher zu speichern.'
+    'DE': 'Dieses Plugin ermöglicht es benutzerspezifische Daten basierend in einem Key-Value Speicher zu speichern.'
 }
 
 plugin.depends = [

@@ -48,7 +48,7 @@ plugin.info['f_name'] = {
 
 plugin.info['f_description'] = {
     'EN': 'This plugin implements authentification. You can create accounts and grant permissions to them.',
-    'DE': 'Dieses Plugin implementiert Authentifikation. Es können Accounts erstellt und diesen Rechte zugewiesen werden.'
+    'DE': 'Dieses Plugin implementiert Authentifikation. Es können Accounts erstellt und diesem Rechte zugewiesen werden.'
 }
 
 plugin.depends = []
