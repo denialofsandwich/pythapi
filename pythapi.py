@@ -79,12 +79,13 @@ Instructions:
 
 config_defaults = {
     'core.general': {
-        'loglevel': '4',
+        'loglevel': '5',
         'fancy_logs': 'true',
         'file_logging_enabled': 'true',
         'logfile': 'pythapilog_[time].log',
         'user': 'root',
-        'default_language': 'EN'
+        'default_language': 'EN',
+        'enabled_plugins': '*'
     },
     'core.mysql': {
         'hostname': 'localhost',
@@ -119,6 +120,13 @@ translation_dict = {
         'DE': 'Rekursive Schleife entdeckt.'
     }
 }
+
+def trim_entries(l):
+    r = []
+    for e in l:
+        r.append(e.strip())
+    
+    return r
 
 def i_get_client_ip(reqHandler):
     
@@ -380,7 +388,6 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     return 1
 
 def i_build_indices():
-    #global api_plugin.indices_generated
     
     if api_plugin.indices_generated:
         return
@@ -522,6 +529,10 @@ if __name__ == "__main__":
     dir_r = glob.glob("plugins/*.py")
     log.info("Plugins found: " +str(len(dir_r) -1) )
     
+    plugin_whitelist = []
+    if api_plugin.config['core.general']['enabled_plugins'] != '*':
+        plugin_whitelist = trim_entries(api_plugin.config['core.general']['enabled_plugins'].split(','))
+    
     # Import and initializing of the found plugins
     for i_dir in dir_r:
         
@@ -529,6 +540,10 @@ if __name__ == "__main__":
         if(module_name == "__init__"): continue
         
         plugin = importlib.import_module("plugins." +module_name).plugin
+        
+        if len(plugin_whitelist) and not plugin.name in plugin_whitelist:
+            log.debug("{} is disabled.".format(plugin.name))
+            continue
         
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
@@ -615,7 +630,7 @@ if __name__ == "__main__":
             (r"/(.*)?", MainHandler)
         ])
         
-        http_ports = api_plugin.config['core.web']['http_port'].split(',')
+        http_ports = trim_entries(api_plugin.config['core.web']['http_port'].split(','))
         http_ip    = api_plugin.config['core.web']['bind_ip']
         for port in http_ports:
             app.listen(int(port),http_ip)
@@ -630,7 +645,7 @@ if __name__ == "__main__":
                 "keyfile": api_plugin.config['core.web']['ssl_key_file']
             })
             
-            https_ports = api_plugin.config['core.web']['https_port'].split(',')
+            https_ports = trim_entries(api_plugin.config['core.web']['https_port'].split(','))
             for port in https_ports:
                 https_server.listen(int(port),http_ip)
                 log.debug('HTTPS started at: {}:{}'.format(http_ip,port))

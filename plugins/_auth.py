@@ -167,13 +167,13 @@ plugin.translation_dict = {
     },
     
     'AUTH_SYNTAX_ERROR_2': {
-        'EN': 'Auth: Syntax error in role {}: Plugin {} not found.',
-        'DE': 'Auth: Syntaxfehler in der Rolle {}: Plugin {} nicht gefunden.'
+        'EN': 'Auth: Error in role {}: Plugin {} not found.',
+        'DE': 'Auth: Fehler in der Rolle {}: Plugin {} nicht gefunden.'
     },
     
     'AUTH_SYNTAX_ERROR_3': {
-        'EN': 'Auth: Syntax error in role {}: Action {} not found.',
-        'DE': 'Auth: Syntaxfehler in der Rolle {}: Action {} nicht gefunden.'
+        'EN': 'Auth: Error in role {}: Action {} not found.',
+        'DE': 'Auth: Fehler in der Rolle {}: Action {} nicht gefunden.'
     }
 }
 
