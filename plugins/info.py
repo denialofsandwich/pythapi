@@ -268,9 +268,16 @@ def load():
     }
 })
 def list_plugins(reqHandler, p, args, body):
-    return {
-        'data': i_list_plugins()
-    }
+    
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return {
+            'data': i_list_plugins()
+        }
+    
+    else:
+        return {
+            'data': list(api_plugins().keys())
+        }
 
 @api_action(plugin, {
     'path': '*',
@@ -304,9 +311,22 @@ def get_plugin(reqHandler, p, args, body):
     }
 })
 def list_actions_of_plugin(reqHandler, p, args, body):
-    return {
-        'data': i_list_actions_of_plugin(p[0])
-    }
+
+    full_action_list = i_list_actions_of_plugin(p[0])
+    
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return {
+            'data': full_action_list
+        }
+    
+    else:
+        action_name_list = []
+        for action_name in full_action_list:
+            action_name_list.append(action_name['name'])
+        
+        return {
+            'data': action_name_list
+        }
 
 @api_action(plugin, {
     'path': '*/*',

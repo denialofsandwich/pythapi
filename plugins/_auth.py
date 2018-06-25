@@ -57,7 +57,7 @@ plugin.config_defaults = {
     plugin.name: {
         'sec_salt': 'generatea64characterrandomstring',
         'first_user_name': 'admin',
-        'first_user_password': 'admin',
+        'first_user_password': 'password',
         'bf_basic_auth_delay': '0.5',
         'bf_temporary_ban_enabled': 'true',
         'session_expiration_time': '604800',
@@ -413,7 +413,7 @@ def i_get_db_roles_from_user(username):
     
     with db:
         sql = """
-            SELECT """ +db_prefix +"""role.role_name
+            SELECT """ +db_prefix +"""role.name
                 FROM """ +db_prefix +"""role_member
                 JOIN """ +db_prefix +"""role ON role_id = """ +db_prefix +"""role.id
                 JOIN """ +db_prefix +"""user ON user_id = """ +db_prefix +"""user.id
@@ -824,7 +824,7 @@ def i_get_db_role(role_name):
     
     with db:
         sql = """
-            SELECT * FROM """ +db_prefix +"""role WHERE role_name = %s;
+            SELECT * FROM """ +db_prefix +"""role WHERE name = %s;
         """
         
         try:
@@ -922,7 +922,7 @@ def e_create_role(role_name, ruleset):
     with db:
         sql = """
             INSERT INTO """ +db_prefix +"""role (
-                    role_name, data
+                    name, data
                 )
                 VALUES (%s, %s);
         """
@@ -955,7 +955,7 @@ def i_edit_db_role(role_name, ruleset):
         sql = """
             UPDATE """ +db_prefix +"""role
                 SET data = %s
-                WHERE role_name = %s;
+                WHERE name = %s;
         """
         
         try:
@@ -998,7 +998,7 @@ def e_delete_db_role(role_name):
     with db:
         sql = """
             DELETE FROM """ +db_prefix +"""role 
-                WHERE role_name = %s;
+                WHERE name = %s;
         """
         
         try:
@@ -1277,10 +1277,10 @@ def install():
         sql = """
             CREATE TABLE """ +db_prefix +"""role (
                 id INT NOT NULL AUTO_INCREMENT,
-                role_name VARCHAR(32) NOT NULL,
+                name VARCHAR(32) NOT NULL,
                 data TEXT NOT NULL,
                 PRIMARY KEY (id),
-                UNIQUE (role_name)
+                UNIQUE (name)
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
@@ -1657,9 +1657,21 @@ def delete_session(reqHandler, p, args, body):
     }
 })
 def list_api_tokens(reqHandler, p, args, body):
-    return {
-        'data': e_list_user_token(current_user)
-    }
+    full_token_list = e_list_user_token(current_user)
+    
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return {
+            'data': full_token_list
+        }
+    
+    else:
+        token_name_list = []
+        for token in full_token_list:
+            token_name_list.append(token['token_name'])
+        
+        return {
+            'data': token_name_list
+        }
 
 @api_action(plugin, {
     'path': 'token/*',
@@ -1728,9 +1740,16 @@ def delete_api_token(reqHandler, p, args, body):
     }
 })
 def list_users(reqHandler, p, args, body):
-    return {
-        'data': e_list_users()
-    }
+    
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return {
+            'data': e_list_users()
+        }
+    
+    else:
+        return {
+            'data': list(users_dict.keys())
+        }
 
 @api_action(plugin, {
     'path': 'user/change_password',
@@ -1849,9 +1868,16 @@ def delete_user(reqHandler, p, args, body):
     }
 })
 def list_roles(reqHandler, p, args, body):
-    return {
-        'data': e_list_roles()
-    }
+    
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return {
+            'data': e_list_roles()
+        }
+    
+    else:
+        return {
+            'data': list(roles_dict.keys())
+        }
 
 @api_action(plugin, {
     'path': 'role/*',

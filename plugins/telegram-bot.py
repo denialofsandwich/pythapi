@@ -519,10 +519,15 @@ def debug2(reqHandler, p, args, body):
     }
 })
 def list_channels(reqHandler, p, args, body):
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return {
+            'data': e_list_channels()
+        }
     
-    return {
-        'data': e_list_channels()
-    }
+    else:
+        return {
+            'data': list(channel_dict.keys())
+        }
 
 @api_action(plugin, {
     'path': 'channel/*',

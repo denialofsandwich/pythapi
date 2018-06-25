@@ -362,9 +362,21 @@ def list_containers(reqHandler, p, args, body):
         else:
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
     
-    return {
-        'data': e_list_containers(current_user, hidden)
-    }
+    full_container_list = e_list_containers(current_user, hidden)
+    
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return {
+            'data': full_container_list
+        }
+    
+    else:
+        container_name_list = []
+        for container_name in full_container_list:
+            container_name_list.append(container_name['name'])
+        
+        return {
+            'data': container_name_list
+        }
 
 @api_action(plugin, {
     'path': '*/list',
