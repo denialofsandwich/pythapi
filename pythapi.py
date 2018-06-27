@@ -415,7 +415,7 @@ def i_build_indices():
     api_plugin.indices_generated = True
 
 def i_removeBrokenPlugins():
-    for plugin_name in api_plugin.plugin_dict.keys():
+    for plugin_name in list(api_plugin.plugin_dict.keys()):
         
         if 'i_error' in api_plugin.plugin_dict[plugin_name].info:
             del api_plugin.plugin_dict[plugin_name]
@@ -539,11 +539,11 @@ if __name__ == "__main__":
         module_name = re.search('^plugins/(.*)\.py$', i_dir).group(1)
         if(module_name == "__init__"): continue
         
-        plugin = importlib.import_module("plugins." +module_name).plugin
-        
-        if len(plugin_whitelist) and not plugin.name in plugin_whitelist:
-            log.debug("{} is disabled.".format(plugin.name))
+        if len(plugin_whitelist) and not module_name in plugin_whitelist:
+            log.debug("{}.py is disabled.".format(module_name))
             continue
+        
+        plugin = importlib.import_module("plugins." +module_name).plugin
         
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
@@ -619,10 +619,13 @@ if __name__ == "__main__":
     
     if mode == 'none':
         i_build_indices()
-        
         for plugin_name in api_plugin.dependency_list:
             if not 'i_error' in api_plugin.plugin_dict[plugin_name].info and not 'i_loaded' in api_plugin.plugin_dict[plugin_name].info:
-                r_check_dependencies(plugin_name, len(api_plugin.plugin_dict), 'load')
+                if not r_check_dependencies(plugin_name, len(api_plugin.plugin_dict), 'load'):
+
+                    if api_plugin.plugin_dict[plugin_name].essential:
+                        log.critical(api_plugin.plugin_dict[plugin_name].name + " is marked as essential. Exiting...")
+                        sys.exit(1)
         
         i_removeBrokenPlugins()
         
@@ -640,6 +643,14 @@ if __name__ == "__main__":
             
             log.debug('SSL enabled')
             
+            if not os.path.isfile(api_plugin.config['core.web']['ssl_cert_file']):
+                log.critical('Certfile not found.')
+                sys.exit(1)
+
+            if not os.path.isfile(api_plugin.config['core.web']['ssl_key_file']):
+                log.critical('Keyfile not found.')
+                sys.exit(1)
+
             https_server = tornado.httpserver.HTTPServer(app, ssl_options={
                 "certfile": api_plugin.config['core.web']['ssl_cert_file'],
                 "keyfile": api_plugin.config['core.web']['ssl_key_file']
