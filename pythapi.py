@@ -118,6 +118,21 @@ translation_dict = {
     'GENERAL_RECURSIVE_LOOP': {
         'EN': 'Recursive loop detected.',
         'DE': 'Rekursive Schleife entdeckt.'
+    },
+
+    'GENERAL_VALUE_MISSING': {
+        'EN': 'Missing value.',
+        'DE': 'Fehlender Wert.'
+    },
+
+    'GENERAL_VALUE_TYPE_ERROR': {
+        'EN': 'Invalid value type.',
+        'DE': 'Unzulässiger Variablentyp.'
+    },
+
+    'GENERAL_VALUE_RANGE_EXCEEDED': {
+        'EN': 'Allowed value range exceeded.',
+        'DE': 'Erlaubter Wertebereich überschritten.'
     }
 }
 
