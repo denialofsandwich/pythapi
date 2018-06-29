@@ -205,20 +205,23 @@ class MainHandler(tornado.web.RequestHandler):
                     else:
                         body = {}
 
-                    return_value = action['func'](self, match.groups(), self.request.arguments, body)
+                    return_json = action['func'](self, match.groups(), self.request.arguments, body)
+                    
+                    for hook in api_plugin.global_postexecution_hook_list:
+                        hook(self, action, return_json)
                     
                     if action['content_type'] == "raw":
                         return
                     
                     elif action['content_type'] == "application/json":
 
-                        if not 'status' in return_value:
-                            return_value['status'] = 'success'
+                        if not 'status' in return_json:
+                            return_json['status'] = 'success'
                         
-                        return_value = json.dumps(return_value) + '\n'
+                        return_json = json.dumps(return_json) + '\n'
                     
                     self.set_header("Content-Type", action['content_type'])
-                    self.write(return_value)
+                    self.write(return_json)
                     return
                 
                 except api_plugin.WebRequestException as e:
@@ -412,6 +415,9 @@ def i_build_indices():
         
         if 'global_preexecution_hook' in plugin.events:
             api_plugin.global_preexecution_hook_list.append(plugin.events['global_preexecution_hook'])
+        
+        if 'global_postexecution_hook' in plugin.events:
+            api_plugin.global_postexecution_hook_list.append(plugin.events['global_postexecution_hook'])
         
         api_plugin.action_tree[plugin_name] = {}
         for action in plugin.actions:

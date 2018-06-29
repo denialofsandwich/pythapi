@@ -31,6 +31,7 @@ plugin_dict = {}
 action_call_dict = {}
 action_tree = {}
 global_preexecution_hook_list = []
+global_postexecution_hook_list = []
 dependency_list = []
 reverse_dependency_list = []
 indices_generated = False
