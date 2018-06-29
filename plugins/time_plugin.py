@@ -3,8 +3,8 @@
 #
 # Name:        pythapi: time-plugin.py
 # Author:      Rene Fa
-# Date:        27.06.2018
-# Version:     0.1
+# Date:        29.06.2018
+# Version:     0.2
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -27,7 +27,9 @@ from api_plugin import * # Essential Plugin
 import time
 import datetime
 from threading import Timer
-#import MySQLdb # MySQL
+import http.client
+from base64 import b64encode
+import json
 
 plugin = api_plugin()
 plugin.name = "time"
@@ -43,7 +45,16 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin steuert zeitgestuerte Events.'
 }
 
-plugin.depends = []
+plugin.depends = [
+    {
+        'name': 'auth',
+        'required': True
+    },
+    {
+        'name': 'userdata',
+        'required': True
+    }
+]
 
 plugin.config_defaults = {}
 plugin.translation_dict = {
@@ -95,7 +106,9 @@ class TimedIntervalEvent():
         else:
             del event_dict[self.name]
             self.enabled = 0
-    
+        
+        if log.loglevel >= 5:
+            log.access('t_event {}'.format(self.name))
         self.func(*self.func_args, **self.func_kwargs)
 
     def setEnabled(self, state):
@@ -219,11 +232,12 @@ def e_register_timed_interval_event(event_name,
                                     func_kwargs = {},
                                     repeat = 0,
                                     enabled = 1,
-                                    interval = 60):
+                                    interval = 60,
+                                    **kwargs):
     
     if event_name in event_dict:
         raise WebRequestException(400, 'error', 'TIME_EVENT_EXISTS')
-
+    
     event_dict[event_name] = TimedIntervalEvent(event_name, func, func_args, func_kwargs, repeat, enabled, interval)
 
 @api_external_function(plugin)
@@ -238,7 +252,8 @@ def e_register_timed_static_event(event_name,
                                   day_of_week = [-1],
                                   day_of_month = [-1],
                                   month = [-1],
-                                  year = [-1]):
+                                  year = [-1],
+                                  **kwargs):
     
     if event_name in event_dict:
         raise WebRequestException(400, 'error', 'TIME_EVENT_EXISTS')
@@ -254,6 +269,37 @@ def e_set_event_state(event_name, state):
 
 def test_func(text):
     log.debug("Text: {}".format(text))
+
+@api_external_function(plugin)
+def ev_action_requetst_template(current_user, method, path, body={}):
+    
+#    log.debug(current_user)
+#    log.debug(method)
+#    log.debug(path)
+#    log.debug(body)
+
+    auth = api_plugins()['auth']
+    userdata = api_plugins()['userdata']
+
+    try: 
+        auth.e_get_user_token(current_user, '_timer_key')
+        token = userdata.e_get_data(current_user, 'timer', 'user_token', 1)['user_token']
+
+    except WebRequestException:
+        token = auth.e_create_api_token(current_user, '_timer_key')
+        userdata.e_write_data(current_user, 'timer', {'user_token': token}, 1)
+
+    port = int(api_config()['core.web']['http_port'].split(',')[0])
+
+    c = http.client.HTTPConnection("127.0.0.1", port)
+
+    headers = { 'Authorization' : 'Bearer %s' %  token }
+
+    c.request(method, path, json.dumps(body), headers=headers)
+    res = c.getresponse()
+    data = res.read()
+
+    log.debug('{} {}'.format(api_environment_variables()['transaction_id'], data))
 
 #@api_event(plugin, 'install')
 #def install():
@@ -278,6 +324,7 @@ def terminate():
     return 1
 
 list_and_dividable = ['minute','hour','day_of_week','day_of_month','month','year']
+format_list = ['minute','hour','day_of_week','day_of_month','month','year','enabled','repeat','interval']
 
 def i_check_range(name, body, min_val, max_val):
     if not name in body:
@@ -312,36 +359,6 @@ def i_check_and_convert_value(name, body):
             raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
                 'value': name
             })
-
-@api_action(plugin, {
-    'path': 'event/interval/*',
-    'method': 'POST',
-    'f_name': {
-        'EN': 'Create interval event',
-        'DE': 'Intervall Event erstellen'
-    },
-
-    'f_description': {
-        'EN': 'Creates a new interval Event.',
-        'DE': 'Erstellt eine neues intervallbasiertes Event.'
-    }
-})
-def create_timed_interval_event(reqHandler, p, args, body):
-    
-    i_check_and_convert_value('interval', body)
-    i_check_and_convert_value('enabled', body)
-    i_check_and_convert_value('repeat', body)
-
-    i_check_range('interval', body, 1, 99999999)
-    i_check_range('enabled', body, 0, 1)
-    i_check_range('repeat', body, 0, 1)
-
-    for name in body:
-        if not name in list_and_dividable:
-            body[name] = body[name][0]
-
-    e_register_timed_interval_event(p[0],test_func, ['Hallo Welt!'], **body)
-    return {}
 
 @api_action(plugin, {
     'path': 'event/list',
@@ -388,6 +405,42 @@ def get_timed_event(reqHandler, p, args, body):
     }
 
 @api_action(plugin, {
+    'path': 'event/interval/*',
+    'method': 'POST',
+    'f_name': {
+        'EN': 'Create interval event',
+        'DE': 'Intervall Event erstellen'
+    },
+
+    'f_description': {
+        'EN': 'Creates a new interval Event.',
+        'DE': 'Erstellt eine neues intervallbasiertes Event.'
+    }
+})
+def create_timed_interval_event(reqHandler, p, args, body):
+    
+    auth = api_plugins()['auth']
+    current_user = auth.e_get_current_user()
+
+    i_check_and_convert_value('interval', body)
+    i_check_and_convert_value('enabled', body)
+    i_check_and_convert_value('repeat', body)
+
+    i_check_range('interval', body, 1, 99999999)
+    i_check_range('enabled', body, 0, 1)
+    i_check_range('repeat', body, 0, 1)
+
+    for name in body:
+        if name in format_list and not name in list_and_dividable:
+            body[name] = body[name][0]
+
+    if not 'body' in body:
+        body['body'] = {}
+
+    e_register_timed_interval_event(p[0], ev_action_requetst_template, [current_user, body['method'], body['path'], body['body']], **body)
+    return {}
+
+@api_action(plugin, {
     'path': 'event/static/*',
     'method': 'POST',
     'f_name': {
@@ -424,7 +477,10 @@ def create_timed_static_event(reqHandler, p, args, body):
         if not name in list_and_dividable:
             body[name] = body[name][0]
 
-    e_register_timed_static_event(p[0],test_func, ['Hallo Welt!'], **body)
+    if not 'body' in body:
+        body['body'] = {}
+    
+    e_register_timed_static_event(p[0], ev_action_requetst_template, [current_user, body['method'], body['path'], body['body']], **body)
     return {}
 
 @api_action(plugin, {
@@ -483,3 +539,24 @@ def set_timed_event_state(reqHandler, p, args, body):
 
     event.setEnabled(state)
     return {}
+
+
+@api_action(plugin, {
+    'path': 'debug',
+    'method': 'GET',
+    'f_name': {
+        'EN': 'Debug',
+        'DE': 'Debug'
+    },
+
+    'f_description': {
+        'EN': 'Debug',
+        'DE': 'Debug'
+    }
+})
+def debug1(reqHandler, p, args, body):
+    
+
+    return {
+        'data': data
+    }
