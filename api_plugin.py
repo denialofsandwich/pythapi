@@ -134,7 +134,7 @@ class api_plugin():
             config[self.name] = {}
         
         if 'essential' in config[self.name]:
-            self.essential = config[self.name]['essential']
+            self.essential = 1 if config[self.name]['essential'] == 'true' else 0
 
 def tr(plugin, plugin_name, text_id):
     return 0

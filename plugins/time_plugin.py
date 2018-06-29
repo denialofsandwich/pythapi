@@ -46,10 +46,10 @@ plugin.info['f_description'] = {
 }
 
 plugin.depends = [
-    {
-        'name': 'auth',
-        'required': True
-    },
+#    {
+#        'name': 'auth',
+#        'required': True
+#    },
     {
         'name': 'userdata',
         'required': True

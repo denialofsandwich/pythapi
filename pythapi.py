@@ -193,7 +193,7 @@ class MainHandler(tornado.web.RequestHandler):
                         transaction_id = 0
                     
                     for hook in api_plugin.global_preexecution_hook_list:
-                        hook(self, action)
+                        hook['func'](self, action)
                     
                     raw_body = self.request.body
                     if action['request_body_type'] == 'application/json':
@@ -364,19 +364,30 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     if 'i_loaded' in api_plugin.plugin_dict[plugin_name].info:
         return 1
     
+    if 'i_error' in api_plugin.plugin_dict[plugin_name].info:
+        return 0
+    
     plugin = api_plugin.plugin_dict[plugin_name]
     
     for dependency in plugin.depends:
         if 'i_error' in api_plugin.plugin_dict[dependency['name']].info:
-            return 0
+            
+            if dependency['required'] == True:
+                log.error(plugin.name + ": required plugin {} not loaded.".format(dependency['name']))
+                plugin.info['i_error'] = 1
+                return 0
+                
+            else:
+                log.warning(plugin.name + ": optional plugin {} not loaded.".format(dependency['name']))
+                continue
         
         if not r_check_dependencies(dependency['name'], max_depth, event_name, depth +1):
 
             if dependency['required'] == True:
-                log.error(plugin.name + ": could not load a required plugin.")
+                log.error(plugin.name + ": required plugin {} not loaded.".format(dependency['name']))
                 
             else:
-                log.warning(plugin.name + ": could not load a optional plugin.")
+                log.warning(plugin.name + ": optional plugin {} not loaded.".format(dependency['name']))
                 continue
 
             plugin.info['i_error'] = 1
@@ -412,12 +423,21 @@ def i_build_indices():
     
     for plugin_name in api_plugin.dependency_list:
         plugin = api_plugin.plugin_dict[plugin_name]
+
+        if 'i_error' in plugin.info:
+            continue
         
         if 'global_preexecution_hook' in plugin.events:
-            api_plugin.global_preexecution_hook_list.append(plugin.events['global_preexecution_hook'])
+            api_plugin.global_preexecution_hook_list.append({
+                'plugin': plugin.name,
+                'func': plugin.events['global_preexecution_hook']
+            })
         
         if 'global_postexecution_hook' in plugin.events:
-            api_plugin.global_postexecution_hook_list.append(plugin.events['global_postexecution_hook'])
+            api_plugin.global_postexecution_hook_list.append({
+                'plugin': plugin.name,
+                'func': plugin.events['global_postexecution_hook']
+            })
         
         api_plugin.action_tree[plugin_name] = {}
         for action in plugin.actions:
@@ -436,10 +456,20 @@ def i_build_indices():
     api_plugin.indices_generated = True
 
 def i_removeBrokenPlugins():
+    log.debug(api_plugin.global_preexecution_hook_list)
+    
+    # TODO: Irgendwo hier liegt der Hund begraben...
+    for hook in api_plugin.global_preexecution_hook_list:
+        if 'i_error' in api_plugin.plugin_dict[hook['plugin']].info:
+            api_plugin.global_preexecution_hook_list.remove(hook)
+
+    log.debug(api_plugin.global_preexecution_hook_list)
+
     for plugin_name in list(api_plugin.plugin_dict.keys()):
         
         if 'i_error' in api_plugin.plugin_dict[plugin_name].info:
             del api_plugin.plugin_dict[plugin_name]
+
             continue
         
         i = 0
