@@ -185,15 +185,8 @@ def i_list_actions_of_plugin(plugin_name):
     return return_json
 
 def i_get_action_by_path(method, path):
-    
-    for i_plugin in api_action_tree():
-        for i_action in api_action_tree()[i_plugin]:
-            
-            action = api_action_tree()[i_plugin][i_action]
-            
-            if not action['method'] == method.upper():
-                continue
-            
+
+    for action in api_action_call_dict()[method]:
             if action['c_regex'].match(path):
                 return i_format_action(action)
 
