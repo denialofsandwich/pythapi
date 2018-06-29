@@ -286,7 +286,7 @@ def ev_action_requetst_template(current_user, method, path, body={}):
         token = userdata.e_get_data(current_user, 'timer', 'user_token', 1)['user_token']
 
     except WebRequestException:
-        token = auth.e_create_api_token(current_user, '_timer_key')
+        token = auth.e_create_user_token(current_user, '_timer_key')
         userdata.e_write_data(current_user, 'timer', {'user_token': token}, 1)
 
     port = int(api_config()['core.web']['http_port'].split(',')[0])

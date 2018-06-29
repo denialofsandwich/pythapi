@@ -132,7 +132,7 @@ plugin.translation_dict = {
         'DE': 'Ungültiger Username oder Passwort.'
     },
     
-    'AUTH_INVALID_API_TOKEN': {
+    'AUTH_INVALID_user_token': {
         'EN': 'Invalid API token.',
         'DE': 'Ungültiges API Token.'
     },
@@ -179,9 +179,9 @@ plugin.translation_dict = {
 }
 
 current_user = "anonymous"
-used_tables = ["user","api_token","role","role_member"]
+used_tables = ["user","user_token","role","role_member"]
 users_dict = {}
-api_token_dict = {}
+user_token_dict = {}
 session_dict = {}
 roles_dict = {}
 write_trough_cache_enabled = False
@@ -594,7 +594,7 @@ def e_delete_user(username):
     if write_trough_cache_enabled:
         for i in range(len(users_dict[username]['keys'])):
             key = users_dict[username]['keys'][i]
-            del api_token_dict[key]
+            del user_token_dict[key]
             del users_dict[username]['keys'][i]
         
         for i in range(len(users_dict[username]['sessions'])):
@@ -620,7 +620,7 @@ def i_get_db_user_token(username, token_name):
     
     with db:
         sql = """
-            SELECT * FROM """ +db_prefix +"""api_token WHERE user_id = %s AND token_name = %s;
+            SELECT * FROM """ +db_prefix +"""user_token WHERE user_id = %s AND token_name = %s;
         """
         
         try:
@@ -643,8 +643,8 @@ def i_list_db_user_token(username):
     
     with db:
         sql = """
-            SELECT """ +db_prefix +"""api_token.id, name, token_name, user_key
-                FROM """ +db_prefix +"""api_token
+            SELECT """ +db_prefix +"""user_token.id, name, token_name, user_key
+                FROM """ +db_prefix +"""user_token
                 JOIN """ +db_prefix +"""user
                 ON user_id = """ +db_prefix +"""user.id
                 WHERE name = %s;
@@ -666,8 +666,8 @@ def i_list_db_token():
     
     with db:
         sql = """
-            SELECT """ +db_prefix +"""api_token.id, name, token_name, user_key
-                FROM """ +db_prefix +"""api_token
+            SELECT """ +db_prefix +"""user_token.id, name, token_name, user_key
+                FROM """ +db_prefix +"""user_token
                 JOIN """ +db_prefix +"""user
                 ON user_id = """ +db_prefix +"""user.id;
         """
@@ -683,11 +683,11 @@ def i_list_db_token():
 
 def i_get_local_user_token(username, token_name):
     for key in users_dict[username]['keys']:
-        if not 'token_name' in api_token_dict[key]:
+        if not 'token_name' in user_token_dict[key]:
             continue
         
-        if api_token_dict[key]['token_name'] == token_name:
-            i_entry = dict(api_token_dict[key])
+        if user_token_dict[key]['token_name'] == token_name:
+            i_entry = dict(user_token_dict[key])
             return i_entry
     
     raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
@@ -695,7 +695,7 @@ def i_get_local_user_token(username, token_name):
 def i_list_local_user_token(username):
     return_json = []
     for key in users_dict[username]['keys']:
-        i_entry = dict(api_token_dict[key])
+        i_entry = dict(user_token_dict[key])
         return_json.append(i_entry)
     
     return return_json
@@ -733,7 +733,7 @@ def e_list_user_token(username):
         return return_json
 
 @api_external_function(plugin)
-def e_create_api_token(username, token_name):
+def e_create_user_token(username, token_name):
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -752,7 +752,7 @@ def e_create_api_token(username, token_name):
     
     with db:
         sql = """
-            INSERT INTO """ +db_prefix +"""api_token (
+            INSERT INTO """ +db_prefix +"""user_token (
                     token_name, user_key, user_id
                 )
                 VALUES (%s, %s, %s);
@@ -770,7 +770,7 @@ def e_create_api_token(username, token_name):
             raise WebRequestException(400, 'error', 'AUTH_TOKEN_EXISTS')
     
     if write_trough_cache_enabled:
-        api_token_dict[h_new_token] = {
+        user_token_dict[h_new_token] = {
             'username': current_user,
             'token_name': token_name
         }
@@ -779,7 +779,7 @@ def e_create_api_token(username, token_name):
     return new_token
 
 @api_external_function(plugin)
-def e_delete_api_token(username, token_name):
+def e_delete_user_token(username, token_name):
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -798,7 +798,7 @@ def e_delete_api_token(username, token_name):
     
     with db:
         sql = """
-            DELETE FROM """ +db_prefix +"""api_token 
+            DELETE FROM """ +db_prefix +"""user_token 
                 WHERE user_id = %s AND token_name = %s;
         """
             
@@ -807,14 +807,14 @@ def e_delete_api_token(username, token_name):
             db.commit()
             
         except MySQLdb.IntegrityError as e:
-            api_log().error("e_delete_api_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            api_log().error("e_delete_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
     
     if write_trough_cache_enabled:
         for i in range(len(users_dict[username]['keys'])):
             key = users_dict[username]['keys'][i]
-            if api_token_dict[key]['token_name'] == token_name:
-                del api_token_dict[key]
+            if user_token_dict[key]['token_name'] == token_name:
+                del user_token_dict[key]
                 del users_dict[username]['keys'][i]
                 break
 
@@ -1219,7 +1219,7 @@ def load():
             users_dict[row[1]]['roles'].append(role[0])
     
     for row in i_list_db_token():
-        api_token_dict[row[3]] = {
+        user_token_dict[row[3]] = {
             'username': row[1],
             'token_name': row[2]
         }
@@ -1263,7 +1263,7 @@ def install():
         api_log().debug("Table: '" +db_prefix +"user' created.")
 
         sql = """
-            CREATE TABLE """ +db_prefix +"""api_token (
+            CREATE TABLE """ +db_prefix +"""user_token (
                 id INT NOT NULL AUTO_INCREMENT,
                 token_name VARCHAR(32) NOT NULL,
                 user_key VARCHAR(64) NOT NULL,
@@ -1273,7 +1273,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        api_log().debug("Table: '" +db_prefix +"api_token' created.")
+        api_log().debug("Table: '" +db_prefix +"user_token' created.")
         
         sql = """
             CREATE TABLE """ +db_prefix +"""role (
@@ -1300,8 +1300,8 @@ def install():
         api_log().debug("Table: '" +db_prefix +"role_member' created.")
         
         sql = """
-            ALTER TABLE """ +db_prefix +"""api_token
-                ADD CONSTRAINT """ +db_prefix +"""api_token_to_user
+            ALTER TABLE """ +db_prefix +"""user_token
+                ADD CONSTRAINT """ +db_prefix +"""user_token_to_user
                 FOREIGN KEY ( user_id )
                 REFERENCES """ +db_prefix +"""user ( id )
                 ON DELETE CASCADE
@@ -1342,10 +1342,10 @@ def install():
             "auth.create_session",
             "auth.delete_session",
             
-            "auth.get_api_token",
-            "auth.list_api_tokens",
-            "auth.create_api_token",
-            "auth.delete_api_token",
+            "auth.get_user_token",
+            "auth.list_user_tokens",
+            "auth.create_user_token",
+            "auth.delete_user_token",
             
             "auth.change_password",
             "auth.get_current_user"
@@ -1490,14 +1490,14 @@ def global_preexecution_hook(reqHandler, action):
         elif(r_auth_header[0] == "Bearer"):
             h_token = e_hash_password('', r_auth_header[1])
             
-            if h_token in api_token_dict:
-                current_user = api_token_dict[h_token]['username']
+            if h_token in user_token_dict:
+                current_user = user_token_dict[h_token]['username']
                 if i_is_permited(current_user, action, remote_ip):
                     i_reset_ban_time(remote_ip)
                     return
             
             else:
-                unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_API_TOKEN', remote_ip)
+                unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_user_token', remote_ip)
       
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
@@ -1542,7 +1542,7 @@ def global_preexecution_hook(reqHandler, action):
 def auth_debug1(reqHandler, p, args, body):
     return {
         'users_dict': users_dict,
-        'api_token_dict': api_token_dict,
+        'user_token_dict': user_token_dict,
         'session_dict': session_dict,
         'roles_dict': roles_dict,
         'bf_blacklist': bf_blacklist,
@@ -1657,7 +1657,7 @@ def delete_session(reqHandler, p, args, body):
         'DE': 'Listet alle erstellten API Token auf.'
     }
 })
-def list_api_tokens(reqHandler, p, args, body):
+def list_user_tokens(reqHandler, p, args, body):
     full_token_list = e_list_user_token(current_user)
     
     if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
@@ -1687,7 +1687,7 @@ def list_api_tokens(reqHandler, p, args, body):
         'DE': 'Gibt ein einzelnes API Token zurück.'
     }
 })
-def get_api_token(reqHandler, p, args, body):
+def get_user_token(reqHandler, p, args, body):
     return {
         'data': e_get_user_token(current_user, p[0])
     }
@@ -1705,9 +1705,9 @@ def get_api_token(reqHandler, p, args, body):
         'DE': 'Erstellt ein neuees API Token.'
     }
 })
-def create_api_token(reqHandler, p, args, body):
+def create_user_token(reqHandler, p, args, body):
     return {
-        'token': e_create_api_token(current_user, p[0])
+        'token': e_create_user_token(current_user, p[0])
     }
 
 @api_action(plugin, {
@@ -1723,8 +1723,8 @@ def create_api_token(reqHandler, p, args, body):
         'DE': 'Löscht ein API Token.'
     }
 })
-def delete_api_token(reqHandler, p, args, body):
-    e_delete_api_token(current_user, p[0])
+def delete_user_token(reqHandler, p, args, body):
+    e_delete_user_token(current_user, p[0])
     return {}
 
 @api_action(plugin, {
