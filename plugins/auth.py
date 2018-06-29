@@ -33,6 +33,7 @@ import json
 import string
 import random
 import math
+import getpass
 
 cookie_length = 64
 session_clean_threshold = 1000
@@ -1362,16 +1363,16 @@ def install():
         "permissions":  []
     })
     
-    e_create_user(api_config()[plugin.name]['first_user_name'], {
-        'password': api_config()[plugin.name]['first_user_password']
+    e_create_user('admin', {
+        'password': getpass.getpass('Enter new admin password: ')
     })
     
     e_create_user('anonymous', {
         'password': e_generate_random_string(cookie_length)
     })
     
-    e_remove_member_from_role('default', api_config()[plugin.name]['first_user_name'])
-    e_add_member_to_role('admin', api_config()[plugin.name]['first_user_name'])
+    e_remove_member_from_role('default', 'admin')
+    e_add_member_to_role('admin', 'admin')
     
     e_remove_member_from_role('default', 'anonymous')
     e_add_member_to_role('anonymous', 'anonymous')
