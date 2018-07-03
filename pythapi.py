@@ -456,14 +456,10 @@ def i_build_indices():
     api_plugin.indices_generated = True
 
 def i_removeBrokenPlugins():
-    log.debug(api_plugin.global_preexecution_hook_list)
     
-    # TODO: Irgendwo hier liegt der Hund begraben...
-    for hook in api_plugin.global_preexecution_hook_list:
+    for hook in list(api_plugin.global_preexecution_hook_list):
         if 'i_error' in api_plugin.plugin_dict[hook['plugin']].info:
             api_plugin.global_preexecution_hook_list.remove(hook)
-
-    log.debug(api_plugin.global_preexecution_hook_list)
 
     for plugin_name in list(api_plugin.plugin_dict.keys()):
         
