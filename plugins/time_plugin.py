@@ -3,8 +3,8 @@
 #
 # Name:        pythapi: time-plugin.py
 # Author:      Rene Fa
-# Date:        29.06.2018
-# Version:     0.2
+# Date:        06.07.2018
+# Version:     0.4
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -271,13 +271,8 @@ def test_func(text):
     log.debug("Text: {}".format(text))
 
 @api_external_function(plugin)
-def ev_action_requetst_template(current_user, method, path, body={}):
+def etv_action_request_template(current_user, method, path, body={}):
     
-#    log.debug(current_user)
-#    log.debug(method)
-#    log.debug(path)
-#    log.debug(body)
-
     auth = api_plugins()['auth']
     userdata = api_plugins()['userdata']
 
@@ -437,7 +432,7 @@ def create_timed_interval_event(reqHandler, p, args, body):
     if not 'body' in body:
         body['body'] = {}
 
-    e_register_timed_interval_event(p[0], ev_action_requetst_template, [current_user, body['method'], body['path'], body['body']], **body)
+    e_register_timed_interval_event(p[0], etv_action_request_template, [current_user, body['method'], body['path'], body['body']], **body)
     return {}
 
 @api_action(plugin, {
@@ -480,7 +475,7 @@ def create_timed_static_event(reqHandler, p, args, body):
     if not 'body' in body:
         body['body'] = {}
     
-    e_register_timed_static_event(p[0], ev_action_requetst_template, [current_user, body['method'], body['path'], body['body']], **body)
+    e_register_timed_static_event(p[0], etv_action_request_template, [current_user, body['method'], body['path'], body['body']], **body)
     return {}
 
 @api_action(plugin, {

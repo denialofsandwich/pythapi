@@ -3,7 +3,7 @@
 #
 # Name:        pythapi
 # Author:      Rene Fa
-# Date:        23.04.2018
+# Date:        06.07.2018
 # Version:     0.8
 #
 # Description: This is a RESTful API WebServer with focus on extensibility and performance.
@@ -43,6 +43,7 @@ import datetime
 import os
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
+version = 0.9
 
 usage_text = """
 Syntax:
@@ -220,13 +221,15 @@ class MainHandler(tornado.web.RequestHandler):
                         
                         return_json = json.dumps(return_json) + '\n'
                     
-                    self.set_header("Content-Type", action['content_type'])
+                    self.set_header('Server', "pythapi/{}".format(version))
+                    self.set_header('Content-Type', action['content_type'])
                     self.write(return_json)
                     return
                 
                 except api_plugin.WebRequestException as e:
                     self.set_status(e.error_code)
-                    self.set_header("Content-Type", 'application/json')
+                    self.set_header('Server', "pythapi/{}".format(version))
+                    self.set_header('Content-Type', "application/json")
                     self.log_access_error(e.error_type, e.error_code, e.text_id)
                     
                     return_json = {}
@@ -398,18 +401,24 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
             return 0
     
     log.debug('Checking ' +plugin_name)
-    if 'check' in plugin.events and plugin.events['check']() == 0 and event_name != 'install':
+    if not 'check' in plugin.events:
+        plugin.info['i_loaded'] = 1
+        return 1
+    
+    check_successful = plugin.events['check']()
+
+    if not check_successful and event_name != 'install':
         log.error(plugin_name +" returned an error.")
         plugin.info['i_error'] = 1
         return 0
     
-    elif 'check' in plugin.events and plugin.events['check']() == 1 and event_name == 'install':
+    elif check_successful and event_name == 'install':
         plugin.info['i_loaded'] = 1
         return 1
     
     log.info('Execute event "' +event_name +'" from ' +plugin_name)
     if event_name in plugin.events and not plugin.events[event_name]():
-        log.error('Event: ' +event_name +' of ' +plugin_name +" returned an error.")
+        log.error('Event: "' +event_name +'" of ' +plugin_name +" returned an error.")
         plugin.info['i_error'] = 1
         return 0
     
@@ -663,6 +672,9 @@ if __name__ == "__main__":
         for plugin_name in api_plugin.dependency_list:
             if not 'i_error' in api_plugin.plugin_dict[plugin_name].info and not 'i_loaded' in api_plugin.plugin_dict[plugin_name].info:
                 r_check_dependencies(plugin_name, len(api_plugin.plugin_dict), 'install')
+
+        log.success("pythapi successfully installed.")
+        sys.exit(0)
     
     if mode == 'none':
         i_build_indices()

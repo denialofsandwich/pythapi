@@ -9,7 +9,6 @@ plugins/h_*.py
 commitandpush.sh
 downloads/tmp_telegram.jpg
 pythapilog_*
-lets_encrypt/
 
 # C extensions
 *.so
