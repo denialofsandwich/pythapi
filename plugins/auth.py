@@ -1258,7 +1258,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        api_log().debug("Table: '" +db_prefix +"user' created.")
+        api_log().debug("Table '" +db_prefix +"user' created.")
 
         sql = """
             CREATE TABLE """ +db_prefix +"""user_token (
@@ -1271,7 +1271,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        api_log().debug("Table: '" +db_prefix +"user_token' created.")
+        api_log().debug("Table '" +db_prefix +"user_token' created.")
         
         sql = """
             CREATE TABLE """ +db_prefix +"""role (
@@ -1283,7 +1283,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        api_log().debug("Table: '" +db_prefix +"role' created.")
+        api_log().debug("Table '" +db_prefix +"role' created.")
         
         sql = """
             CREATE TABLE """ +db_prefix +"""role_member (
@@ -1295,7 +1295,7 @@ def install():
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        api_log().debug("Table: '" +db_prefix +"role_member' created.")
+        api_log().debug("Table '" +db_prefix +"role_member' created.")
         
         sql = """
             ALTER TABLE """ +db_prefix +"""user_token
@@ -1394,7 +1394,7 @@ def uninstall():
         except MySQLdb.Error:
             continue
             
-        api_log().debug("Table: '" +db_prefix +table +"' deleted.")
+        api_log().debug("Table '" +db_prefix +table +"' deleted.")
     
     dbc.close()
     return 1
