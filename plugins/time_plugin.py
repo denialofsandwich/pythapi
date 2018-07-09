@@ -57,6 +57,7 @@ plugin.depends = [
 ]
 
 plugin.config_defaults = {}
+
 plugin.translation_dict = {
     'TIME_EVENT_NOT_FOUND': {
         'EN': 'Event not found.',

@@ -57,8 +57,6 @@ plugin.depends = []
 plugin.config_defaults = {
     plugin.name: {
         'sec_salt': 'generatea64characterrandomstring',
-        'first_user_name': 'admin',
-        'first_user_password': 'password',
         'bf_basic_auth_delay': '0.5',
         'bf_temporary_ban_enabled': 'true',
         'session_expiration_time': '604800',
