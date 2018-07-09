@@ -88,6 +88,10 @@ plugin.translation_dict = {
     'LE_CERT_EXIST': {
         'EN': "Certificate already exists.",
         'DE': "Zertifikat existiert bereits."
+    },
+    'LE_CERT_NOT_FOUND': {
+        'EN': "Certificate not found.",
+        'DE': "Zertifikat nicht gefunden."
     }
 }
 
@@ -99,6 +103,15 @@ joseheaders = None
 
 def _b64(b):
     return base64.urlsafe_b64encode(b).decode("utf8").rstrip("=")
+
+def i_delete_directory_tree(path):
+    for root, dirs, files in os.walk(path, topdown=False):
+        for name in files:
+            os.remove(os.path.join(root, name))
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))
+    try: os.rmdir(path)
+    except: pass
 
 def _send_signed_request(url, payload):
     global jws_nonce
@@ -130,15 +143,6 @@ def _send_signed_request(url, payload):
             return resp.status_code, resp.json(), resp.headers
         else:
             return resp.status_code, json.dumps({}), resp.headers
-
-def i_delete_directory_tree(path):
-    for root, dirs, files in os.walk(path, topdown=False):
-        for name in files:
-            os.remove(os.path.join(root, name))
-        for name in dirs:
-            os.rmdir(os.path.join(root, name))
-    try: os.rmdir(path)
-    except: pass
 
 def i_init_lets_encrypt():
     global adtheaders
@@ -199,6 +203,57 @@ def i_exec_openssl(parameter, communicate = None):
     return sysout
 
 @api_external_function(plugin)
+def e_list_certificates():
+    config = api_config()[plugin.name]
+    
+    certdir_path = os.path.join(config['base_key_directory'], 'certs')
+    certpath_list = glob.glob(certdir_path +'/*')
+
+    certname_list = []
+    for cert_path in certpath_list:
+        cert_name = re.search(r'^.*\/([^\/]+)$', cert_path).group(1)
+        certname_list.append(cert_name)
+
+    return certname_list
+
+@api_external_function(plugin)
+def e_get_certificate(cert_name):
+    config = api_config()[plugin.name]
+
+    cert_path = os.path.join(config['base_key_directory'], 'certs', cert_name)
+
+    domain_path = os.path.join(config['base_key_directory'], 'certs', cert_name)
+    if not os.path.isdir(domain_path):
+        raise WebRequestException(400, 'error', 'LE_CERT_NOT_FOUND')
+
+    return_json = {}
+    
+    with open(os.path.join(cert_path, 'domains.txt'), 'r') as domain_file:
+        return_json['alternative_names'] = json.loads(domain_file.read())
+
+    certfile_path = os.path.join(cert_path, 'certfile.pem')
+    if os.path.isfile(os.path.join(certfile_path)):
+        with open(certfile_path, 'r') as certfile:
+            cert = certfile.read()
+    
+        datestr = re.search(r'Not After \: (.*) GMT\n', cert).group(1)
+        date = datetime.datetime.strptime(datestr, '%b %d %H:%M:%S %Y')
+        delta = date - datetime.datetime.now()
+    
+        return_json['valid_until'] = date.strftime('%H:%M:%S %d.%m.%Y')
+
+        if delta.days < 0:
+            return_json['status'] = 'expired'
+        
+        else:
+            return_json['status'] = 'valid'
+
+    else:
+        return_json['status'] = 'not found'
+
+    return return_json
+
+@api_external_function(plugin)
 def e_renew_certificate(certificate_name):
     api_log().debug("I would renew this certificate now.")
     pass
@@ -225,11 +280,11 @@ def et_check_certificates():
             with open(certfile_path, 'r') as certfile:
                 cert = certfile.read()
 
-            datestr =  re.search(r'Not After \: (.*) GMT\n', cert).group(1)
+            datestr = re.search(r'Not After \: (.*) GMT\n', cert).group(1)
             date = datetime.datetime.strptime(datestr, '%b %d %H:%M:%S %Y')
-            delta =  date - datetime.datetime.now()
+            delta = date - datetime.datetime.now()
 
-            if delta.days == int(config['autorefresh_mindaysreaming']):
+            if delta.days < int(config['autorefresh_mindaysreaming']):
                 e_renew_certificate(cert_name)
 
     api_log().debug("Done checking certificates.")
@@ -304,8 +359,14 @@ def e_add_certificate(domain_list):
     e_renew_certificate(domain_list[0])
 
 @api_external_function(plugin)
-def e_list_available_certificates():
-    return 1
+def e_delete_certificate(cert_name):
+    config = api_config()[plugin.name]
+
+    domain_path = os.path.join(config['base_key_directory'], 'certs', cert_name)
+    if not os.path.isdir(domain_path):
+        raise WebRequestException(400, 'error', 'LE_CERT_NOT_FOUND')
+
+    i_delete_directory_tree(domain_path)
 
 @api_event(plugin, 'check')
 def check():
@@ -441,21 +502,53 @@ def load():
     return 1
 
 @api_action(plugin, {
-    'path': 'check',
-    'method': 'POST',
+    'path': 'cert/list',
+    'method': 'GET',
     'f_name': {
-        'EN': 'Check certificates',
-        'DE': 'Prüfe Zertifikate'
+        'EN': 'List certificates',
+        'DE': 'Liste Zertifikate auf'
     },
 
     'f_description': {
-        'EN': 'Checks all certificates and renew them if necessary.',
-        'DE': 'Prüft alle Zertifikate und erneuert sie wenn nötig.'
+        'EN': 'Returns a list of all certificates.',
+        'DE': 'Gibt eine Liste mit allen Zertifiaten zurück.'
     }
 })
-def check_certificates(reqHandler, p, args, body):
-    et_check_certificates()
-    return {}
+def list_certificates(reqHandler, p, args, body):
+    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+        return_json = []
+        for cert_name in e_list_certificates():
+            i_entry = {}
+            i_entry['name'] = cert_name
+            i_entry.update(e_get_certificate(cert_name))
+            return_json.append(i_entry)
+
+        return {
+            'data': return_json
+        }
+    
+    else:
+        return {
+            'data': e_list_certificates()
+        }
+
+@api_action(plugin, {
+    'path': 'cert/*',
+    'method': 'GET',
+    'f_name': {
+        'EN': 'Get certificate',
+        'DE': 'Zeige Zertifikat'
+    },
+
+    'f_description': {
+        'EN': 'Returns informations about a single certificate.',
+        'DE': 'Gibt Informationen über ein einzelnes Zertifikat zurück.'
+    }
+})
+def get_certificate(reqHandler, p, args, body):
+    return {
+        'data': e_get_certificate(p[0])
+    }
 
 @api_action(plugin, {
     'path': 'cert',
@@ -475,19 +568,35 @@ def add_certificate(reqHandler, p, args, body):
     return {}
 
 @api_action(plugin, {
-    'path': 'cert/list',
-    'method': 'GET',
+    'path': 'cert/*',
+    'method': 'DELETE',
     'f_name': {
-        'EN': 'List available certificates',
-        'DE': 'Zeige verfügbare Zertifikate'
+        'EN': 'Delete certificate',
+        'DE': 'Zertifikat löschen'
     },
 
     'f_description': {
-        'EN': 'Returns a list of all currently available certificates.',
-        'DE': 'Gibt eine Liste mit allen zurzeit verfügbaren Zertifiaten zurück.'
+        'EN': 'Deletes a certificate and it linked domains.',
+        'DE': 'Löscht ein Zertifikat und die verlinkten Domains..'
     }
 })
-def list_available_certificates(reqHandler, p, args, body):
-    return {
-        'data': "Nothing there."
+def delete_certificate(reqHandler, p, args, body):
+    e_delete_certificate(p[0])
+    return {}
+
+@api_action(plugin, {
+    'path': 'check',
+    'method': 'POST',
+    'f_name': {
+        'EN': 'Check certificates',
+        'DE': 'Prüfe Zertifikate'
+    },
+
+    'f_description': {
+        'EN': 'Checks all certificates and renew them if necessary.',
+        'DE': 'Prüft alle Zertifikate und erneuert sie wenn nötig.'
     }
+})
+def check_certificates(reqHandler, p, args, body):
+    et_check_certificates()
+    return {}
