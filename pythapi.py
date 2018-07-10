@@ -41,42 +41,10 @@ import api_plugin
 import logging
 import datetime
 import os
+import argparse
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 version = 0.9
-
-usage_text = """
-Syntax:
-    ./pythapi.py [instruction] [options]
-
-Global options:
-    --no-fancy
-                        Overrides the logging scheme. Uses a simple layout.
-
-    -v ,--verbosity loglevel
-                        Override the verbosity. 0 means only critical errors
-                        and 5 shows debugging information
-
-    -f ,--force
-                        Force an instruction to execute.
-
-    -h ,--help
-                        Shows this help message.
-
-Instructions:
-    help [options]
-                        Shows this help message.
-
-    install [plugin] [options]
-                        Install the pythapi. You can also specify a plugin.
-        
-        -r, --reinstall
-                        Try to delete a old installation before installing.
-                        
-    uninstall [plugin] [options]
-                        Uninstall the pythapi. This deletes tables created by pythapi.
-                        You can also specify a plugin.
-"""
 
 config_defaults = {
     'core.general': {
@@ -488,6 +456,7 @@ def i_removeBrokenPlugins():
             i += 1
 
 def signal_handler(signal, frame):
+    print()
     log.info("Terminate all active plugins...")
     
     for plugin_name in reversed(api_plugin.dependency_list):
@@ -505,12 +474,9 @@ if __name__ == "__main__":
     
     # Read the config file
     api_plugin.config = configparser.ConfigParser()
-    api_plugin.config.read('/etc/pythapi/pythapi.ini')
+    api_plugin.config.read_dict(config_defaults)
     api_plugin.config.read('pythapi.ini')
-    
-    # Apply default config values
-    api_plugin.update(config_defaults, api_plugin.config)
-    api_plugin.config = config_defaults
+    api_plugin.config.read('/etc/pythapi/pythapi.ini')
     
     api_plugin.translation_dict = translation_dict
 
@@ -530,54 +496,23 @@ if __name__ == "__main__":
         log.critical("The user " +getpass.getuser() + " is not authorized to execute pythapi.")
         sys.exit(1)
 
-    # Parameter interpreter
-    i = 1
-    mode="none"
-    p = sys.argv
-    bp = 0 # Base parameters without explicit parameter tag
-    while(i < len(p)):
-        if(p[i] == "install" and bp == 0):
-            mode = "install"
-            bp += 1
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
+    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
+    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
+    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
+    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
+    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
 
-        elif(p[i] == "uninstall" and bp == 0):
-            mode = "uninstall"
-            bp += 1
-            
-        elif(p[i][0] != "-" and (mode == "install" or mode == "uninstall") and bp == 1):
-            param_plugin = p[i]
-            bp += 1
-            
-        elif(p[i][:2] == "-r" or p[i] == "--reinstall" and mode == "install"):
-            reinstall = True
+    args = parser.parse_args()
 
-        elif(p[i][:2] == "-f" or p[i] == "--force"):
-            force_mode = True
-            
-        elif(p[i] == "--no-fancy"):
-            api_plugin.config['core.general']['fancy_logs'] = "false"
-            log.setFancy(False)
-            
-        elif(p[i][:2] == "-v" or p[i] == "--verbosity"):
-            api_plugin.config['core.general']['loglevel'] = p[i+1]
-            log.setLoglevel(int(p[i+1]))
-            del p[i+1]
-            
-        elif(p[i][:2] == "-h" or p[i] == "--help"):
-            print(usage_text)
-            sys.exit(0)
-            
-        else:
-            log.error("Parameter Error at: " +p[i])
-            log.info("Execute: 'pythapi help' for more information.")
-            log.critical("Some errors make it impossiple to continue the programm.")
-            sys.exit(1)
+    if args.no_fancy:
+        api_plugin.config['core.general']['fancy_logs'] = "false"
+        log.setFancy(False)
 
-        if(p[i][0] == "-" and p[i][1] != "-" and len(p[i]) > 2):
-            p[i] = p[i][:1] + p[i][2:]
-            
-        else:
-            i += 1
+    if args.verbosity != None:
+        api_plugin.config['core.general']['loglevel'] = args['verbosity']
+        log.setLoglevel(args['verbosity'])
 
     # Plugin loader
     log.begin("Loading Plugins...")
@@ -610,23 +545,23 @@ if __name__ == "__main__":
     
     i_removeBrokenPlugins()
 
-    if mode == 'uninstall' or (mode == 'install' and 'reinstall' in globals()):
+    if args.mode == 'uninstall' or (args.mode == 'install' and args.reinstall):
         log.begin('Start uninstallation process...')
         
         # Fill plugin list based in instruction
-        if 'param_plugin' in globals():
-            if not param_plugin in api_plugin.plugin_dict:
-                log.critical(param_plugin +' does not exist!')
+        if args.plugin != "":
+            if not args.plugin in api_plugin.plugin_dict:
+                log.critical(args.plugin +' does not exist!')
                 sys.exit(1)
             
-            if 'i_error' in api_plugin.plugin_dict[param_plugin].info:
+            if 'i_error' in api_plugin.plugin_dict[args.plugin].info:
                 log.critical('Installation falied due to an error.')
                 sys.exit(1)
             
-            r_build_reverse_dependency_list(param_plugin, len(api_plugin.plugin_dict))
+            r_build_reverse_dependency_list(args.plugin, len(api_plugin.plugin_dict))
             
-            if len(api_plugin.reverse_dependency_list) > 1 and not 'force_mode' in globals():
-                log.warning(param_plugin +' is used by other plugins.')
+            if len(api_plugin.reverse_dependency_list) > 1 and not args.force:
+                log.warning(args.plugin +' is used by other plugins.')
                 log.info('Use --force to ignpore this. This will also reinstall all plugins which use this plugin!')
                 log.critical('Execution stopped.')
                 sys.exit(1)
@@ -644,27 +579,27 @@ if __name__ == "__main__":
                 log.critical("Unistallation failed!")
                 sys.exit(1)
                 
-        if mode == 'uninstall':
+        if args.mode == 'uninstall':
             log.success("pythapi successfully uninstalled.")
             sys.exit(0)
 
-    if mode == 'install':
+    if args.mode == 'install':
         log.begin('Start installation process...')
         
         # Fill plugin list based in instruction
-        if 'param_plugin' in globals():
-            if not param_plugin in api_plugin.plugin_dict:
-                log.critical(param_plugin +' does not exist!')
+        if args.plugin:
+            if not args.plugin in api_plugin.plugin_dict:
+                log.critical(args['plugin'] +' does not exist!')
                 sys.exit(1)
             
-            if 'i_error' in api_plugin.plugin_dict[param_plugin].info:
+            if 'i_error' in api_plugin.plugin_dict[args.plugin].info:
                 log.critical('Installation falied due to an error.')
                 sys.exit(1)
             
             api_plugin.dependency_list = []
-            r_build_dependency_list(param_plugin, len(api_plugin.plugin_dict) )
+            r_build_dependency_list(args.plugin, len(api_plugin.plugin_dict) )
             
-            if 'reinstall' in globals():
+            if args.reinstall:
                 for r_dependency in reversed(api_plugin.reverse_dependency_list):
                     if not r_dependency in api_plugin.dependency_list:
                         api_plugin.dependency_list.append(r_dependency)
@@ -676,7 +611,7 @@ if __name__ == "__main__":
         log.success("pythapi successfully installed.")
         sys.exit(0)
     
-    if mode == 'none':
+    if args.mode == 'run':
         i_build_indices()
         for plugin_name in api_plugin.dependency_list:
             if not 'i_error' in api_plugin.plugin_dict[plugin_name].info and not 'i_loaded' in api_plugin.plugin_dict[plugin_name].info:

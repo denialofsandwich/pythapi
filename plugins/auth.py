@@ -26,7 +26,7 @@ sys.path.append("..")
 import MySQLdb # MySQL
 from api_plugin import * # Essential Plugin
 import tornado # For POST Body decoding
-from Crypto.Hash import SHA256
+import hashlib
 import base64
 import time
 import json
@@ -194,12 +194,11 @@ def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digit
 
 @api_external_function(plugin)
 def e_hash_password(username, password):
-    h = SHA256.new()
+    h = hashlib.sha256()
     h.update(username.encode('utf-8'))
     h.update(password.encode('utf-8')) 
     h.update(api_config()[plugin.name]['sec_salt'].encode('utf-8'))
     h_password = h.hexdigest()
-    
     return h_password
 
 @api_external_function(plugin)

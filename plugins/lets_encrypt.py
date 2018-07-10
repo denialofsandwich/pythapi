@@ -598,5 +598,6 @@ def delete_certificate(reqHandler, p, args, body):
     }
 })
 def check_certificates(reqHandler, p, args, body):
-    et_check_certificates()
+    #et_check_certificates()
+    0/0
     return {}
