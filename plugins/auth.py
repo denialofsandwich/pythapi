@@ -3,7 +3,7 @@
 #
 # Name:        pythapi: _auth.py
 # Author:      Rene Fa
-# Date:        23.04.2018
+# Date:        10.07.2018
 # Version:     0.8
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -57,10 +57,10 @@ plugin.depends = []
 plugin.config_defaults = {
     plugin.name: {
         'sec_salt': 'generatea64characterrandomstring',
-        'bf_basic_auth_delay': '0.5',
-        'bf_temporary_ban_enabled': 'true',
-        'session_expiration_time': '604800',
-        'session_create_limit': '1000'
+        'bf_basic_auth_delay': 0.5,
+        'bf_temporary_ban_enabled': True,
+        'session_expiration_time': 604800,
+        'session_create_limit': 1000
     }
 }
 
@@ -287,7 +287,7 @@ def e_create_session(reqHandler, username, options):
         if reqHandler.get_cookie("session_id") in session_dict:
             e_delete_session(reqHandler.get_cookie("session_id"))
     
-    if users_dict[username]['session_count'] >= int(api_config()[plugin.name]['session_create_limit']):
+    if users_dict[username]['session_count'] >= api_config()[plugin.name]['session_create_limit']:
         raise WebRequestException(400, 'error', 'AUTH_SESSION_LIMIT_EXCEEDED')
     
     new_session_id = e_generate_random_string(cookie_length)
@@ -296,7 +296,7 @@ def e_create_session(reqHandler, username, options):
         'username': username,
         'remote_ip': i_get_client_ip(reqHandler),
         'creation_time': time.time(),
-        'expiration_time': time.time() +int(api_config()[plugin.name]['session_expiration_time'])
+        'expiration_time': time.time() +api_config()[plugin.name]['session_expiration_time']
     }
     
     session_counter += 1
@@ -1231,8 +1231,8 @@ def load():
     for role_name in roles_dict:
         i_apply_ruleset(role_name)
     
-    bf_basic_auth_delay = float(api_config()[plugin.name]['bf_basic_auth_delay'])
-    bf_temporary_ban_enabled = 1 if api_config()[plugin.name]['bf_temporary_ban_enabled'] == "true" else 0
+    bf_basic_auth_delay = api_config()[plugin.name]['bf_basic_auth_delay']
+    bf_temporary_ban_enabled = api_config()[plugin.name]['bf_temporary_ban_enabled']
     
     write_trough_cache_enabled = True
     return 1

@@ -3,7 +3,7 @@
 #
 # Name:        pythapi
 # Author:      Rene Fa
-# Date:        06.07.2018
+# Date:        10.07.2018
 # Version:     0.8
 #
 # Description: This is a RESTful API WebServer with focus on extensibility and performance.
@@ -46,15 +46,42 @@ import argparse
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 version = 0.9
 
+#config_defaults = {
+#    'core.general': {
+#        'loglevel': '5',
+#        'fancy_logs': 'true',
+#        'file_logging_enabled': 'true',
+#        'logfile': 'pythapilog_[time].log',
+#        'user': 'root',
+#        'default_language': 'EN',
+#        'enabled_plugins': '*'
+#    },
+#    'core.mysql': {
+#        'hostname': 'localhost',
+#        'username': 'pythapi',
+#        'password': 'pythapi',
+#        'database': 'pythapi',
+#        'prefix': 'pa_'
+#    },
+#    'core.web': {
+#        'bind_ip': '0.0.0.0',
+#        'https_enabled': 'false',
+#        'http_port': '8123',
+#        'https_port': '8124',
+#        'ssl_cert_file': 'certfile_missing',
+#        'ssl_key_file': 'keyfile_missing'
+#    }
+#}
+
 config_defaults = {
     'core.general': {
-        'loglevel': '5',
-        'fancy_logs': 'true',
-        'file_logging_enabled': 'true',
+        'loglevel': 5,
+        'fancy_logs': True,
+        'file_logging_enabled': True,
         'logfile': 'pythapilog_[time].log',
         'user': 'root',
         'default_language': 'EN',
-        'enabled_plugins': '*'
+        'enabled_plugins': ['*']
     },
     'core.mysql': {
         'hostname': 'localhost',
@@ -65,9 +92,9 @@ config_defaults = {
     },
     'core.web': {
         'bind_ip': '0.0.0.0',
-        'https_enabled': 'false',
-        'http_port': '8123',
-        'https_port': '8124',
+        'https_enabled': False,
+        'http_port': [8123],
+        'https_port': [8124],
         'ssl_cert_file': 'certfile_missing',
         'ssl_key_file': 'keyfile_missing'
     }
@@ -104,13 +131,6 @@ translation_dict = {
         'DE': 'Erlaubter Wertebereich überschritten.'
     }
 }
-
-def trim_entries(l):
-    r = []
-    for e in l:
-        r.append(e.strip())
-    
-    return r
 
 def i_get_client_ip(reqHandler):
     
@@ -469,24 +489,34 @@ def signal_handler(signal, frame):
     log.info("pythapi terminated.")
     sys.exit(0)
 
-if __name__ == "__main__":
+class ConvertableConfigParser(configparser.ConfigParser):
+    def as_dict(self):
+        d = dict(self._sections)
+        for k in d:
+            d[k] = dict(self._defaults, **d[k])
+            d[k].pop('__name__', None)
+        return d
+
+def main():
+    global log
     signal.signal(signal.SIGINT, signal_handler)
     
     # Read the config file
-    api_plugin.config = configparser.ConfigParser()
-    api_plugin.config.read_dict(config_defaults)
+    api_plugin.config = ConvertableConfigParser()
     api_plugin.config.read('pythapi.ini')
     api_plugin.config.read('/etc/pythapi/pythapi.ini')
-    
+    api_plugin.config = api_plugin.config.as_dict()    
+    api_plugin.add_config_defaults_and_convert(config_defaults)
+
     api_plugin.translation_dict = translation_dict
 
     # Initialize fancy_logs
     api_plugin.config['core.general']['logfile'] = api_plugin.config['core.general']['logfile'].replace('[time]', datetime.datetime.now().strftime('%m-%d-%Y'))
     
     api_plugin.log = tools.fancy_logs.fancy_logger(
-        1 if api_plugin.config['core.general']['fancy_logs'] == "true" else 0,
-        int(api_plugin.config['core.general']['loglevel']),
-        1 if api_plugin.config['core.general']['file_logging_enabled'] == "true" else 0,
+        api_plugin.config['core.general']['fancy_logs'],
+        api_plugin.config['core.general']['loglevel'],
+        api_plugin.config['core.general']['file_logging_enabled'],
         api_plugin.config['core.general']['logfile']
     )
     log = api_plugin.log
@@ -507,7 +537,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.no_fancy:
-        api_plugin.config['core.general']['fancy_logs'] = "false"
+        api_plugin.config['core.general']['fancy_logs'] = False
         log.setFancy(False)
 
     if args.verbosity != None:
@@ -522,7 +552,7 @@ if __name__ == "__main__":
     
     plugin_whitelist = []
     if api_plugin.config['core.general']['enabled_plugins'] != '*':
-        plugin_whitelist = trim_entries(api_plugin.config['core.general']['enabled_plugins'].split(','))
+        plugin_whitelist = api_plugin.config['core.general']['enabled_plugins']
     
     # Import and initializing of the found plugins
     for i_dir in dir_r:
@@ -538,7 +568,7 @@ if __name__ == "__main__":
         
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
-        
+     
     for plugin_name in api_plugin.plugin_dict:
         if not plugin_name in api_plugin.dependency_list and not 'i_error' in api_plugin.plugin_dict[plugin_name].info:
             r_build_dependency_list(plugin_name, len(api_plugin.plugin_dict) )
@@ -627,13 +657,13 @@ if __name__ == "__main__":
             (r"/(.*)?", MainHandler)
         ])
         
-        http_ports = trim_entries(api_plugin.config['core.web']['http_port'].split(','))
+        http_ports = api_plugin.config['core.web']['http_port']
         http_ip    = api_plugin.config['core.web']['bind_ip']
         for port in http_ports:
-            app.listen(int(port),http_ip)
+            app.listen(port,http_ip)
             log.debug('HTTP started at: {}:{}'.format(http_ip,port))
         
-        if api_plugin.config['core.web']['https_enabled'] == 'true':
+        if api_plugin.config['core.web']['https_enabled']:
             
             log.debug('SSL enabled')
             
@@ -650,9 +680,9 @@ if __name__ == "__main__":
                 "keyfile": api_plugin.config['core.web']['ssl_key_file']
             })
             
-            https_ports = trim_entries(api_plugin.config['core.web']['https_port'].split(','))
+            https_ports = api_plugin.config['core.web']['https_port']
             for port in https_ports:
-                https_server.listen(int(port),http_ip)
+                https_server.listen(port,http_ip)
                 log.debug('HTTPS started at: {}:{}'.format(http_ip,port))
         
         hn = logging.NullHandler()
@@ -664,3 +694,6 @@ if __name__ == "__main__":
         log.info("Entering main loop...")
         
         IOLoop.instance().start()
+
+if __name__ == "__main__":
+    main()

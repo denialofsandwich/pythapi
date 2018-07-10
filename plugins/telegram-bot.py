@@ -3,7 +3,7 @@
 #
 # Name:        pythapi: telegram.py
 # Author:      Rene Fa
-# Date:        28.04.2018
+# Date:        10.07.2018
 # Version:     0.5
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -58,7 +58,7 @@ plugin.depends = [
 plugin.config_defaults = {
     plugin.name: {
         'bot_token': 'no_string_given',
-        'input_handler_enabled': 'true'
+        'input_handler_enabled': True
     }
 }
 
@@ -435,7 +435,7 @@ def load():
         api_log().error('Invalid API token.')
         return 0
     
-    if api_config()[plugin.name]['input_handler_enabled'] == 'true':
+    if api_config()[plugin.name]['input_handler_enabled']:
         updater = Updater(token=api_config()[plugin.name]['bot_token'])
         dispatcher = updater.dispatcher
         
@@ -458,7 +458,7 @@ def load():
 @api_event(plugin, 'terminate')
 def terminate():
     
-    if api_config()[plugin.name]['input_handler_enabled'] == 'true':
+    if api_config()[plugin.name]['input_handler_enabled']:
         api_log().info('Stopping telegam bot...')
         updater.stop()
         api_log().debug('Telegram bot stopped.')

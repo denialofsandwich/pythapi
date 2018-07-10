@@ -3,7 +3,7 @@
 #
 # Name:        pythapi: info.py
 # Author:      Rene Fa
-# Date:        11.04.2018
+# Date:        10.07.2018
 # Version:     0.9
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -50,7 +50,7 @@ plugin.config_defaults = {
     plugin.name: {
         'action_property_blacklist': [],
         'plugin_property_blacklist': [],
-        'hide_prohibited_actions': 'true'
+        'hide_prohibited_actions': True
     }
 }
 
@@ -158,7 +158,7 @@ def i_get_action_of_plugin(plugin_name, action_name):
         auth = api_plugins()['auth']
         current_user = auth.e_get_current_user()
         
-        if (api_config()[plugin.name]['hide_prohibited_actions'] == 'true' and
+        if (api_config()[plugin.name]['hide_prohibited_actions'] and
             not auth.e_check_custom_permissions(current_user, 'permissions', plugin_name +'.' +action_name)):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
@@ -176,7 +176,7 @@ def i_list_actions_of_plugin(plugin_name):
             auth = api_plugins()['auth']
             current_user = auth.e_get_current_user()
             
-            if (api_config()[plugin.name]['hide_prohibited_actions'] == 'true' and
+            if (api_config()[plugin.name]['hide_prohibited_actions'] and
                 not auth.e_check_custom_permissions(current_user, 'permissions', i_action['name'])):
                 continue
         
@@ -242,8 +242,8 @@ def uninstall():
 @api_event(plugin, 'load')
 def load():
     
-    action_property_blacklist.extend(api_config()[plugin.name]['action_property_blacklist'].split(','))
-    plugin_property_blacklist.extend(api_config()[plugin.name]['plugin_property_blacklist'].split(','))
+    action_property_blacklist.extend(api_config()[plugin.name]['action_property_blacklist'])
+    plugin_property_blacklist.extend(api_config()[plugin.name]['plugin_property_blacklist'])
     
     return 1
 

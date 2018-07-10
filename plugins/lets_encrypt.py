@@ -3,7 +3,7 @@
 #
 # Name:        pythapi: lets_encrypt.py
 # Author:      Rene Fa
-# Date:        06.07.2018
+# Date:        10.07.2018
 # Version:     0.1
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -67,8 +67,8 @@ plugin.config_defaults = {
     plugin.name: {
         'acme_directory': "https://acme-staging-v02.api.letsencrypt.org/directory",
         'base_key_directory': "/etc/pythapi/lets_encrypt",
-        'termsOfUse_accepted': 'false',
-        'rsa_keysize': "4096",
+        'termsOfUse_accepted': False,
+        'rsa_keysize': 4096,
         'contact_data': "",
         'cert_country_name': "",
         'cert_state_name': "",
@@ -284,7 +284,7 @@ def et_check_certificates():
             date = datetime.datetime.strptime(datestr, '%b %d %H:%M:%S %Y')
             delta = date - datetime.datetime.now()
 
-            if delta.days < int(config['autorefresh_mindaysreaming']):
+            if delta.days < config['autorefresh_mindaysreaming']:
                 e_renew_certificate(cert_name)
 
     api_log().debug("Done checking certificates.")
@@ -410,7 +410,7 @@ def install():
     acme_config = directory.json()
     terms_service = acme_config.get('meta', {}).get('termsOfService', '')
     
-    if str.lower(config.get('termsofuse_accepted', 'true')) == 'true':
+    if str.lower(config['termsofuse_accepted']):
         api_log().info("Terms of use accepted in configuration file.")
 
     else:
@@ -437,7 +437,7 @@ def install():
     account_request = {}
     if 'termsOfService' in acme_config.get('meta', {}):
         account_request["termsOfServiceAgreed"] = True
-    account_request["contact"] = config['contact_data'].split(';')
+    account_request["contact"] = config['contact_data']
     if account_request["contact"] == "":
         del account_request["contact"]
 

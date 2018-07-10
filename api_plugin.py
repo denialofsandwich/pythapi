@@ -23,6 +23,7 @@
 import re
 import MySQLdb
 import collections
+import sys
 
 import tools.fancy_logs as log # Logging
 
@@ -105,6 +106,43 @@ def api_tr(text_id):
                 except:
                     return translation_dict['GENERAL_ERROR']['EN']
 
+def add_config_defaults_and_convert(config_defaults):
+    for section_name in config_defaults:
+        if not section_name in config:
+            config[section_name] = {}
+
+        for k in config_defaults[section_name]:
+            v = config_defaults[section_name][k]
+            try:
+                
+                if type(v) == bool:
+                    config[section_name][k] = True if config[section_name][k].lower() == 'true' else False
+
+                elif type(v) == list:
+                    str_val = config[section_name][k]
+                    config[section_name][k] = []
+
+                    e_type = str
+                    try:
+                        e_type = type(v[0])
+                    except IndexError:
+                        pass
+
+                    for entry in str_val.split(','):
+                        config[section_name][k].append(e_type(entry))
+
+                else:
+                    config[section_name][k] = type(v)(config[section_name][k])
+
+            except (TypeError, ValueError) as e:
+                print("ERROR in configuration. {}.{}: {} expected.".format(section_name, k, type(v).__name__))
+                sys.exit(1)
+            except KeyError as e:
+                config[section_name][k] = v
+
+    #update(config_defaults, config)
+    #config = config_defaults
+
 class api_plugin():
 
     def __init__(self):
@@ -125,8 +163,9 @@ class api_plugin():
         global config
         global translation_dict
         
-        update(self.config_defaults, config)
-        config = self.config_defaults
+        #update(self.config_defaults, config)
+        #config = self.config_defaults
+        add_config_defaults_and_convert(self.config_defaults)
         
         update(translation_dict, self.translation_dict)
         
