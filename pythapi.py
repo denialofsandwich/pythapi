@@ -46,33 +46,6 @@ import argparse
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 version = 0.9
 
-#config_defaults = {
-#    'core.general': {
-#        'loglevel': '5',
-#        'fancy_logs': 'true',
-#        'file_logging_enabled': 'true',
-#        'logfile': 'pythapilog_[time].log',
-#        'user': 'root',
-#        'default_language': 'EN',
-#        'enabled_plugins': '*'
-#    },
-#    'core.mysql': {
-#        'hostname': 'localhost',
-#        'username': 'pythapi',
-#        'password': 'pythapi',
-#        'database': 'pythapi',
-#        'prefix': 'pa_'
-#    },
-#    'core.web': {
-#        'bind_ip': '0.0.0.0',
-#        'https_enabled': 'false',
-#        'http_port': '8123',
-#        'https_port': '8124',
-#        'ssl_cert_file': 'certfile_missing',
-#        'ssl_key_file': 'keyfile_missing'
-#    }
-#}
-
 config_defaults = {
     'core.general': {
         'loglevel': 5,
@@ -193,8 +166,25 @@ class MainHandler(tornado.web.RequestHandler):
                         
                     else:
                         body = {}
+                    
+                    params = []
+                    i = 0
+                    if 'params' in action:
+                        for arg, skel in zip(match.groups(), action['params']):
+                            params.append(api_plugin.try_convert_value('params', i, arg, skel))
+                            i += 1
 
-                    return_json = action['func'](self, match.groups(), self.request.arguments, body)
+#                    args = {}
+#                    if 'args' in action:
+#                        for key, value in self.request.arguments.items():
+#                            args[key] = api_plugin.try_convert_value('args', key, value, action['args'][key])
+
+                    if 'body' in action:
+                        for key in action['body'].keys():
+                            body[key] = api_plugin.try_convert_value('body', key, body.get(key, None), action['body'][key])
+
+                    # Execution of action
+                    return_json = action['func'](self, params, {}, body)
                     
                     for hook in api_plugin.global_postexecution_hook_list:
                         hook(self, action, return_json)
@@ -554,7 +544,7 @@ def main():
     if api_plugin.config['core.general']['enabled_plugins'] != '*':
         plugin_whitelist = api_plugin.config['core.general']['enabled_plugins']
     
-    # Import and initializing of the found plugins
+    log.debug("Importing and initializing plugins...")
     for i_dir in dir_r:
         
         module_name = re.search('^plugins/(.*)\.py$', i_dir).group(1)
@@ -568,7 +558,7 @@ def main():
         
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
-     
+    
     for plugin_name in api_plugin.plugin_dict:
         if not plugin_name in api_plugin.dependency_list and not 'i_error' in api_plugin.plugin_dict[plugin_name].info:
             r_build_dependency_list(plugin_name, len(api_plugin.plugin_dict) )

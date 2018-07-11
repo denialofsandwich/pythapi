@@ -87,6 +87,22 @@ def i_format_formatted_properties(return_json, property_name):
     
     return_json[property_name] = translated_text
 
+def ir_format_properties(return_json):
+    for property_name in return_json:
+        if type(return_json[property_name]) == dict:
+            ir_format_properties(return_json[property_name])
+            
+        elif type(return_json[property_name]) == list:
+            for item in return_json[property_name]:
+                if type(item) == dict:
+                    ir_format_properties(item)
+
+        elif type(return_json[property_name]) == type:
+            return_json[property_name] = type(return_json[property_name]).__name__
+
+        if property_name[:2] == 'f_':
+            i_format_formatted_properties(return_json, property_name)
+
 def i_format_action(action):
     
     return_json = dict(action)
@@ -106,11 +122,9 @@ def i_format_action(action):
     for property_name in action_property_blacklist:
         try: del return_json[property_name]
         except: pass
-    
-    for property_name in return_json:
-        if property_name[:2] == 'f_':
-            i_format_formatted_properties(return_json, property_name)
-    
+
+    ir_format_properties(return_json)
+
     return return_json
 
 def i_get_plugin(plugin_name):

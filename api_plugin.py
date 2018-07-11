@@ -106,6 +106,63 @@ def api_tr(text_id):
                 except:
                     return translation_dict['GENERAL_ERROR']['EN']
 
+def try_convert_value(section, key, value, skel):
+    desired_type = skel['type']
+
+    if section == 'body' or section == 'args':
+        if value == None:
+            if 'default' in skel:
+                value = skel['default']
+            else:
+                raise WebRequestException(400, 'error', 'GENERAL_VALUE_MISSING', {
+                    'section': section,
+                    'value': key
+                })
+
+    if skel['type'] == bool and (section == 'params' or section == 'args'):
+        if value.lower() == 'true' or value == '1':
+            value = True
+        elif value.lower() == 'false' or value == '0':
+            value = False
+        else:
+            raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
+                'section': 'param',
+                'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                'expect': skel['type'].__name__
+            })
+
+    try:
+#        if section == 'body':
+#            if type(value) == list and desired_type == list:
+#                for i, item in enumerate(value):
+#                    try_convert_value(section, i, item, skel)
+#                return value
+        
+        value = desired_type(value)
+
+        if desired_type == int:
+            if 'min' in skel and value < skel['min']:
+                raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
+                    'section': section,
+                    'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                    'min': skel['min']
+                })
+            elif 'max' in skel and value > skel['max']:
+                raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
+                    'section': section,
+                    'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                    'max': skel['max']
+                })
+
+    except (TypeError, ValueError) as e:
+        raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
+            'section': section,
+            'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+            'expect': skel['type'].__name__
+        })
+    
+    return value
+
 def add_config_defaults_and_convert(config_defaults):
     for section_name in config_defaults:
         if not section_name in config:
@@ -129,7 +186,7 @@ def add_config_defaults_and_convert(config_defaults):
                         pass
 
                     for entry in str_val.split(','):
-                        config[section_name][k].append(e_type(entry))
+                        config[section_name][k].append(e_type(entry.strip()))
 
                 else:
                     config[section_name][k] = type(v)(config[section_name][k])
@@ -139,9 +196,6 @@ def add_config_defaults_and_convert(config_defaults):
                 sys.exit(1)
             except KeyError as e:
                 config[section_name][k] = v
-
-    #update(config_defaults, config)
-    #config = config_defaults
 
 class api_plugin():
 
@@ -163,8 +217,6 @@ class api_plugin():
         global config
         global translation_dict
         
-        #update(self.config_defaults, config)
-        #config = self.config_defaults
         add_config_defaults_and_convert(self.config_defaults)
         
         update(translation_dict, self.translation_dict)
