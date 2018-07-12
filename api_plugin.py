@@ -108,6 +108,9 @@ def api_tr(text_id):
 
 def try_convert_value(section, key, value, skel):
     desired_type = skel['type']
+    
+    if section == 'args' and type(value) == bytes:
+        value = value.decode('utf8')
 
     if section == 'body' or section == 'args':
         if value == None:
@@ -120,9 +123,9 @@ def try_convert_value(section, key, value, skel):
                 })
 
     if skel['type'] == bool and (section == 'params' or section == 'args'):
-        if value.lower() == 'true' or value == '1':
+        if (type(value) == bool and value) or type(value) != bool and (value.lower() == 'true' or value == '1'):
             value = True
-        elif value.lower() == 'false' or value == '0':
+        elif (type(value) == bool and not value) or type(value) != bool and (value.lower() == 'false' or value == '0'):
             value = False
         else:
             raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
@@ -132,11 +135,28 @@ def try_convert_value(section, key, value, skel):
             })
 
     try:
-#        if section == 'body':
-#            if type(value) == list and desired_type == list:
-#                for i, item in enumerate(value):
-#                    try_convert_value(section, i, item, skel)
-#                return value
+        if section == 'body' or section == 'args':
+            if desired_type == list:
+                if type(value) == list:
+                    if 'childs' in skel:
+                        for i, item in enumerate(value):
+                            value[i] = try_convert_value(section, "{}.{}".format(key, i+1), item, skel['childs'])
+
+                    return value
+
+                else:
+                    raise TypeError()
+
+            if desired_type == dict:
+                if type(value) == dict:
+                    if 'childs' in skel:
+                        for sub_key, sub_value in skel['childs'].items():
+                            value[sub_key] = try_convert_value(section, "{}.{}".format(key, sub_key), value.get(sub_key, None), skel['childs'][sub_key])
+
+                    return value
+
+                else:
+                    raise TypeError()
         
         value = desired_type(value)
 

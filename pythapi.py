@@ -173,18 +173,41 @@ class MainHandler(tornado.web.RequestHandler):
                         for arg, skel in zip(match.groups(), action['params']):
                             params.append(api_plugin.try_convert_value('params', i, arg, skel))
                             i += 1
+                    else:
+                        params = match.groups()
 
-#                    args = {}
-#                    if 'args' in action:
-#                        for key, value in self.request.arguments.items():
-#                            args[key] = api_plugin.try_convert_value('args', key, value, action['args'][key])
+                    args = {}
+                    if 'args' in action:
+                        for key in action['args'].keys():
+                            
+                            value = self.request.arguments.get(key, None)
+                            if action['args'][key]['type'] == list:
+                                pass
+                                #value = self.request.arguments.get(key, None)
+                                #if value:
+                                #    args[key] = []
 
+                                    #for i, sub_value in enumerate(value):
+                                    #    args[key].append(api_plugin.try_convert_value('args', "{}.{}".format(key, i+1), sub_value.decode('utf8'), action['args'][key]))
+
+                                    #continue
+
+                            else:
+                                #value = self.request.arguments.get(key, None)
+                                if value:
+                                    value = value[0].decode('utf8')
+
+                            args[key] = api_plugin.try_convert_value('args', key, value, action['args'][key])
+
+                    else:
+                        args = self.request.arguments
+                    
                     if 'body' in action:
                         for key in action['body'].keys():
                             body[key] = api_plugin.try_convert_value('body', key, body.get(key, None), action['body'][key])
 
                     # Execution of action
-                    return_json = action['func'](self, params, {}, body)
+                    return_json = action['func'](self, params, args, body)
                     
                     for hook in api_plugin.global_postexecution_hook_list:
                         hook(self, action, return_json)
