@@ -255,15 +255,23 @@ def uninstall():
 
 @api_event(plugin, 'load')
 def load():
-    
     action_property_blacklist.extend(api_config()[plugin.name]['action_property_blacklist'])
     plugin_property_blacklist.extend(api_config()[plugin.name]['plugin_property_blacklist'])
-    
     return 1
 
 @api_action(plugin, {
     'path': 'list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List plugins',
         'DE': 'Zeige alle Plugins'
@@ -276,7 +284,7 @@ def load():
 })
 def list_plugins(reqHandler, p, args, body):
     
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': i_list_plugins()
         }
@@ -289,6 +297,16 @@ def list_plugins(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*',
     'method': 'GET',
+    'params': [
+        {
+            'name': "plugin_name",
+            'type': str,
+            'f_name': {
+                'EN': "Plugin name",
+                'DE': "Plugin Name"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Get plugin',
         'DE': 'Zeige Plugin'
@@ -307,6 +325,16 @@ def get_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/list',
     'method': 'GET',
+    'params': [
+        {
+            'name': "plugin_name",
+            'type': str,
+            'f_name': {
+                'EN': "Plugin name",
+                'DE': "Plugin Name"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'List actions of plugin',
         'DE': 'Zeige alle Actions eines Plugin'
@@ -338,6 +366,24 @@ def list_actions_of_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/*',
     'method': 'GET',
+    'params': [
+        {
+            'name': "plugin_name",
+            'type': str,
+            'f_name': {
+                'EN': "Plugin name",
+                'DE': "Plugin Name"
+            }
+        },
+        {
+            'name': "action_name",
+            'type': str,
+            'f_name': {
+                'EN': "Action name",
+                'DE': "Action Name"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Get action of plugin',
         'DE': 'Zeige Action eines Plugin'
@@ -356,6 +402,24 @@ def get_action_of_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'regex': '^' +plugin.name +'/search/([^/]*)/(.*)$',
     'method': 'GET',
+    'params': [
+        {
+            'name': "method",
+            'type': str,
+            'f_name': {
+                'EN': "Method",
+                'DE': "Methode"
+            }
+        },
+        {
+            'name': "path",
+            'type': str,
+            'f_name': {
+                'EN': "Path",
+                'DE': "Pfad"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Search action by path',
         'DE': 'Suche Action mittels Pfad'

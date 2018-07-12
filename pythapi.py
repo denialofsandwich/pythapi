@@ -181,21 +181,8 @@ class MainHandler(tornado.web.RequestHandler):
                         for key in action['args'].keys():
                             
                             value = self.request.arguments.get(key, None)
-                            if action['args'][key]['type'] == list:
-                                pass
-                                #value = self.request.arguments.get(key, None)
-                                #if value:
-                                #    args[key] = []
-
-                                    #for i, sub_value in enumerate(value):
-                                    #    args[key].append(api_plugin.try_convert_value('args', "{}.{}".format(key, i+1), sub_value.decode('utf8'), action['args'][key]))
-
-                                    #continue
-
-                            else:
-                                #value = self.request.arguments.get(key, None)
-                                if value:
-                                    value = value[0].decode('utf8')
+                            if action['args'][key]['type'] != list and value != None:
+                                value = value[0].decode('utf8')
 
                             args[key] = api_plugin.try_convert_value('args', key, value, action['args'][key])
 
@@ -401,12 +388,12 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
             
             return 0
     
-    log.debug('Checking ' +plugin_name)
+    log.info('Checking ' +plugin_name)
     if not 'check' in plugin.events:
         plugin.info['i_loaded'] = 1
-        return 1
-    
-    check_successful = plugin.events['check']()
+        check_successful = 1
+    else:
+        check_successful = plugin.events['check']()
 
     if not check_successful and event_name != 'install':
         log.error(plugin_name +" returned an error.")
@@ -416,12 +403,13 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     elif check_successful and event_name == 'install':
         plugin.info['i_loaded'] = 1
         return 1
-    
-    log.info('Execute event "' +event_name +'" from ' +plugin_name)
-    if event_name in plugin.events and not plugin.events[event_name]():
-        log.error('Event: "' +event_name +'" of ' +plugin_name +" returned an error.")
-        plugin.info['i_error'] = 1
-        return 0
+    if event_name in plugin.events:
+        log.debug('Execute event "' +event_name +'" from ' +plugin_name)
+
+        if not plugin.events[event_name]():
+            log.error('Event: "' +event_name +'" of ' +plugin_name +" returned an error.")
+            plugin.info['i_error'] = 1
+            return 0
     
     plugin.info['i_loaded'] = 1
     return 1

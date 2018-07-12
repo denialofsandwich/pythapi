@@ -340,6 +340,24 @@ def uninstall():
 @api_action(plugin, {
     'path': 'list',
     'method': 'GET',
+    'args': {
+        'hidden': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Hidden data",
+                'DE': "Versteckte Daten"
+            }
+        },
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List containers',
         'DE': 'Container auflisten'
@@ -355,7 +373,7 @@ def list_containers(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
+    if args['hidden']:
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -364,7 +382,7 @@ def list_containers(reqHandler, p, args, body):
     
     full_container_list = e_list_containers(current_user, hidden)
     
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': full_container_list
         }
@@ -381,6 +399,16 @@ def list_containers(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/list',
     'method': 'GET',
+    'args': {
+        'hidden': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Hidden data",
+                'DE': "Versteckte Daten"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List keys of container',
         'DE': 'Liste Schlüssel von Container auf'
@@ -396,7 +424,7 @@ def list_keys_of_container(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
+    if args['hidden']:
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -410,6 +438,16 @@ def list_keys_of_container(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/*',
     'method': 'GET',
+    'args': {
+        'hidden': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Hidden data",
+                'DE': "Versteckte Daten"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Get data',
         'DE': 'Zeige Datensatz'
@@ -425,7 +463,7 @@ def get_data(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
+    if args['hidden']:
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -439,6 +477,16 @@ def get_data(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*',
     'method': 'POST',
+    'args': {
+        'hidden': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Hidden data",
+                'DE': "Versteckte Daten"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Write data',
         'DE': 'Schreibe Daten'
@@ -457,7 +505,7 @@ def write_data(reqHandler, p, args, body):
         raise WebRequestException(400,'error','write_data: Post body empty.')
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
+    if args['hidden']:
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         
@@ -471,6 +519,16 @@ def write_data(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/*',
     'method': 'DELETE',
+    'args': {
+        'hidden': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Hidden data",
+                'DE': "Versteckte Daten"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Delete data',
         'DE': 'Lösche Daten'
@@ -486,7 +544,7 @@ def delete_data(reqHandler, p, args, body):
     current_user = auth.e_get_current_user()
     
     hidden = 0
-    if 'hidden' in args and args['hidden'][0].decode("utf-8") == 'true':
+    if args['hidden']:
         if auth.e_check_custom_permissions(current_user, plugin.name +'_permissions', 'hidden_access'):
             hidden = 1
         

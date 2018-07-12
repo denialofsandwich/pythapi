@@ -1610,6 +1610,16 @@ def list_sessions(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'session',
     'method': 'POST',
+    'body': {
+        'csrf_token': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "CSRF-token",
+                'DE': "CSRF-Token"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Create session',
         'DE': 'Session erstellen'
@@ -1644,6 +1654,16 @@ def delete_session(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List API token',
         'DE': 'API Token auflisten'
@@ -1657,7 +1677,7 @@ def delete_session(reqHandler, p, args, body):
 def list_user_tokens(reqHandler, p, args, body):
     full_token_list = e_list_user_token(current_user)
     
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': full_token_list
         }
@@ -1674,6 +1694,16 @@ def list_user_tokens(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'GET',
+    'params': [
+        {
+            'name': "token_name",
+            'type': str,
+            'f_name': {
+                'EN': "Token name",
+                'DE': "Tokenname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Get API token',
         'DE': 'Zeige API Token'
@@ -1692,6 +1722,16 @@ def get_user_token(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "token_name",
+            'type': str,
+            'f_name': {
+                'EN': "Token name",
+                'DE': "Tokenname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Create API token',
         'DE': 'API Token erstellen'
@@ -1710,6 +1750,16 @@ def create_user_token(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "token_name",
+            'type': str,
+            'f_name': {
+                'EN': "Token name",
+                'DE': "Tokenname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Delete API token',
         'DE': 'API Token löschen'
@@ -1727,6 +1777,16 @@ def delete_user_token(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List users',
         'DE': 'Benutzer auflisten'
@@ -1739,7 +1799,7 @@ def delete_user_token(reqHandler, p, args, body):
 })
 def list_users(reqHandler, p, args, body):
     
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': e_list_users()
         }
@@ -1752,6 +1812,15 @@ def list_users(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/change_password',
     'method': 'PUT',
+    'body': {
+        'password': {
+            'type': str,
+            'f_name': {
+                'EN': "Password",
+                'DE': "Passwort"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Change password',
         'DE': 'Passwort ändern'
@@ -1776,14 +1845,13 @@ def change_password(reqHandler, p, args, body):
     'params': [
         {
             'name': "username",
-            'type': 'str',
+            'type': str,
             'f_name': {
                 'EN': "Username",
                 'DE': "Benutzername"
             }
         }
     ],
-    'body': {},
     'f_name': {
         'EN': 'Get user',
         'DE': 'Zeige Benutzer'
@@ -1801,6 +1869,36 @@ def get_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
+    'body': {
+        'password': {
+            'type': str,
+            'f_name': {
+                'EN': "Password",
+                'DE': "Passwort"
+            }
+        },
+        'roles': {
+            'type': list,
+            'f_name': {
+                'EN': "Roles",
+                'DE': "Rollen"
+            },
+            'default': [],
+            'childs': {
+                'type': str
+            }
+        }
+    },
     'f_name': {
         'EN': 'Create user',
         'DE': 'Benutzer erstellen'
@@ -1823,6 +1921,25 @@ def create_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/*',
     'method': 'PUT',
+    'params': [
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
+    'body': {
+        'password': {
+            'type': str,
+            'f_name': {
+                'EN': "Password",
+                'DE': "Passwort"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Edit user',
         'DE': 'Benutzer editieren'
@@ -1844,6 +1961,16 @@ def edit_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'user/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Delete user',
         'DE': 'Benutzer löschen'
@@ -1865,6 +1992,16 @@ def delete_user(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List roles',
         'DE': 'Rollen auflisten'
@@ -1877,7 +2014,7 @@ def delete_user(reqHandler, p, args, body):
 })
 def list_roles(reqHandler, p, args, body):
     
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': e_list_roles()
         }
@@ -1890,6 +2027,16 @@ def list_roles(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'GET',
+    'params': [
+        {
+            'name': "role_name",
+            'type': str,
+            'f_name': {
+                'EN': "Role name",
+                'DE': "Rollenname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Get role',
         'DE': 'Zeige Rolle'
@@ -1910,6 +2057,40 @@ def get_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "role_name",
+            'type': str,
+            'f_name': {
+                'EN': "Role name",
+                'DE': "Rollenname"
+            }
+        },
+    ],
+    'body': {
+        'inherit': {
+            'type': list,
+            'default': [],
+            'f_name': {
+                'EN': "Parent groups",
+                'DE': "Übergeordnete Gruppen"
+            },
+            'childs': {
+                'type': str
+            }
+        },
+        'permissions': {
+            'type': list,
+            'default': [],
+            'f_name': {
+                'EN': "Permissions",
+                'DE': "Berechtigungen"
+            },
+            'childs': {
+                'type': str
+            }
+        }
+    },
     'f_name': {
         'EN': 'Create role',
         'DE': 'Rolle erstellen'
@@ -1932,6 +2113,16 @@ def create_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'PUT',
+    'params': [
+        {
+            'name': "role_name",
+            'type': str,
+            'f_name': {
+                'EN': "Role name",
+                'DE': "Rollenname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Edit role',
         'DE': 'Rolle editieren'
@@ -1953,6 +2144,16 @@ def edit_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "role_name",
+            'type': str,
+            'f_name': {
+                'EN': "Role name",
+                'DE': "Rollenname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Delete role',
         'DE': 'Rolle löschen'
@@ -1974,6 +2175,24 @@ def delete_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "role_name",
+            'type': str,
+            'f_name': {
+                'EN': "Role name",
+                'DE': "Rollenname"
+            }
+        },
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Add member to role',
         'DE': 'Füge Mitglied zu Rolle hinzu'
@@ -1998,6 +2217,24 @@ def add_member_to_role(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'role/*/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "role_name",
+            'type': str,
+            'f_name': {
+                'EN': "Role name",
+                'DE': "Rollenname"
+            }
+        },
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Remove member from role',
         'DE': 'Entferne Mitglied aus Rolle'

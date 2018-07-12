@@ -285,7 +285,7 @@ def etv_action_request_template(current_user, method, path, body={}):
         token = auth.e_create_user_token(current_user, '_timer_key')
         userdata.e_write_data(current_user, 'timer', {'user_token': token}, 1)
 
-    port = int(api_config()['core.web']['http_port'].split(',')[0])
+    port = api_config()['core.web']['http_port'][0]
 
     c = http.client.HTTPConnection("127.0.0.1", port)
 
@@ -319,46 +319,56 @@ def terminate():
 
     return 1
 
-list_and_dividable = ['minute','hour','day_of_week','day_of_month','month','year']
-format_list = ['minute','hour','day_of_week','day_of_month','month','year','enabled','repeat','interval']
-
-def i_check_range(name, body, min_val, max_val):
-    if not name in body:
-        return
-
-    if len(body[name]) > 1 and not name in list_and_dividable:
-        raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
-            'value': name
-        })
-        
-    for value in body[name]:
-        if value > max_val or value < min_val:
-            raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
-                'value': name,
-                'min': min_val,
-                'max': max_val
-            })
-
-def i_check_and_convert_value(name, body):
-    
-    if name in body:
-        try:
-            if body[name] == '*':
-                body[name] = [-1]
-            
-            tmp_list = []
-            for value in body[name].split(','):
-                tmp_list.append(int(value))
-
-            body[name] = tmp_list
-        except:
-            raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
-                'value': name
-            })
+#list_and_dividable = ['minute','hour','day_of_week','day_of_month','month','year']
+#format_list = ['minute','hour','day_of_week','day_of_month','month','year','enabled','repeat','interval']
+#
+#def i_check_range(name, body, min_val, max_val):
+#    if not name in body:
+#        return
+#
+#    if len(body[name]) > 1 and not name in list_and_dividable:
+#        raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
+#            'value': name
+#        })
+#        
+#    for value in body[name]:
+#        if value > max_val or value < min_val:
+#            raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
+#                'value': name,
+#                'min': min_val,
+#                'max': max_val
+#            })
+#
+#def i_check_and_convert_value(name, body):
+#    
+#    if name in body:
+#        try:
+#            if body[name] == '*':
+#                body[name] = [-1]
+#            
+#            tmp_list = []
+#            for value in body[name].split(','):
+#                tmp_list.append(int(value))
+#
+#            body[name] = tmp_list
+#        except:
+#            raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
+#                'value': name
+#            })
 
 @api_action(plugin, {
     'path': 'event/list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List events',
         'DE': 'Events auflisten'
@@ -371,7 +381,7 @@ def i_check_and_convert_value(name, body):
 })
 def list_timed_events(reqHandler, p, args, body):
     
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': e_list_timed_events()
         }
@@ -384,6 +394,16 @@ def list_timed_events(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'event/*',
     'method': 'GET',
+    'params': [
+        {
+            'name': "event_name",
+            'type': str,
+            'f_name': {
+                'EN': "Event name",
+                'DE': "Eventname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Get event',
         'DE': 'Zeige Event'
@@ -403,6 +423,64 @@ def get_timed_event(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'event/interval/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "event_name",
+            'type': str,
+            'f_name': {
+                'EN': "Event name",
+                'DE': "Eventname"
+            }
+        }
+    ],
+    'body': {
+        'interval': {
+            'type': int,
+            'f_name': {
+                'EN': "Interval",
+                'DE': "Intervall"
+            },
+            'min': 1
+        },
+        'enabled': {
+            'type': bool,
+            'f_name': {
+                'EN': "Enabled",
+                'DE': "Aktiviert"
+            },
+            'default': 1
+        },
+        'repeat': {
+            'type': bool,
+            'f_name': {
+                'EN': "Repeat",
+                'DE': "Wiederholen"
+            },
+            'default': 0
+        },
+        'method': {
+            'type': str,
+            'f_name': {
+                'EN': "Method",
+                'DE': "Methode"
+            }
+        },
+        'path': {
+            'type': str,
+            'f_name': {
+                'EN': "Path",
+                'DE': "Pfad"
+            }
+        },
+        'body': {
+            'type': dict,
+            'f_name': {
+                'EN': "Body",
+                'DE': "Body"
+            },
+            'default': {}
+        }
+    },
     'f_name': {
         'EN': 'Create interval event',
         'DE': 'Intervall Event erstellen'
@@ -414,31 +492,161 @@ def get_timed_event(reqHandler, p, args, body):
     }
 })
 def create_timed_interval_event(reqHandler, p, args, body):
-    
     auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
-
-    i_check_and_convert_value('interval', body)
-    i_check_and_convert_value('enabled', body)
-    i_check_and_convert_value('repeat', body)
-
-    i_check_range('interval', body, 1, 99999999)
-    i_check_range('enabled', body, 0, 1)
-    i_check_range('repeat', body, 0, 1)
-
-    for name in body:
-        if name in format_list and not name in list_and_dividable:
-            body[name] = body[name][0]
-
-    if not 'body' in body:
-        body['body'] = {}
 
     e_register_timed_interval_event(p[0], etv_action_request_template, [current_user, body['method'], body['path'], body['body']], **body)
     return {}
 
+def i_format_static_params(key, value):
+    static_format_dict = {
+        'minute': {
+            'type': list,
+            'childs': {
+                'type': int
+            }
+        },
+        'hour': {
+            'type': list,
+            'childs': {
+                'type': int
+            }
+        },
+        'day_of_week': {
+            'type': list,
+            'childs': {
+                'type': int
+            }
+        },
+        'day_of_month': {
+            'type': list,
+            'childs': {
+                'type': int
+            }
+        },
+        'month': {
+            'type': list,
+            'childs': {
+                'type': int
+            }
+        },
+        'year': {
+            'type': list,
+            'childs': {
+                'type': int
+            }
+        }
+    }
+    
+    tmp_list = []
+    for i, sub_val in enumerate(value.split(',')):
+        tmp_list.append(sub_val.strip())
+
+    value = try_convert_value('body', "{}.{}".format(key, i), tmp_list, static_format_dict[key])
+
+    return value
+
 @api_action(plugin, {
     'path': 'event/static/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "event_name",
+            'type': str,
+            'f_name': {
+                'EN': "Event name",
+                'DE': "Eventname"
+            }
+        }
+    ],
+    'body': {
+        'minute': {
+            'type': str,
+            'f_name': {
+                'EN': "Minute",
+                'DE': "Minute"
+            },
+            'default': "*"
+        },
+        'hour': {
+            'type': str,
+            'f_name': {
+                'EN': "Hour",
+                'DE': "Stunde"
+            },
+            'default': "*"
+        },
+        'day_of_week': {
+            'type': str,
+            'f_name': {
+                'EN': "Day of week",
+                'DE': "Tag der Woche"
+            },
+            'default': "*"
+        },
+        'day_of_month': {
+            'type': str,
+            'f_name': {
+                'EN': "Day of Month",
+                'DE': "Tag des Monats"
+            },
+            'default': "*"
+        },
+        'month': {
+            'type': str,
+            'f_name': {
+                'EN': "Month",
+                'DE': "Monat"
+            },
+            'default': "*"
+        },
+        'year': {
+            'type': str,
+            'f_name': {
+                'EN': "Year",
+                'DE': "Jahr"
+            },
+            'default': "*"
+        },
+        'enabled': {
+            'type': bool,
+            'f_name': {
+                'EN': "Enabled",
+                'DE': "Aktiviert"
+            },
+            'default': 1
+        },
+        'repeat': {
+            'type': bool,
+            'f_name': {
+                'EN': "Repeat",
+                'DE': "Wiederholen"
+            },
+            'default': 0
+        },
+        'method': {
+            'type': str,
+            'f_name': {
+                'EN': "Method",
+                'DE': "Methode"
+            }
+        },
+        'path': {
+            'type': str,
+            'f_name': {
+                'EN': "Path",
+                'DE': "Pfad"
+            }
+        },
+        'body': {
+            'type': dict,
+            'f_name': {
+                'EN': "Body",
+                'DE': "Body"
+            },
+            'default': {}
+        }
+    },
     'f_name': {
         'EN': 'Create static event',
         'DE': 'Statisches Event erstellen'
@@ -450,38 +658,57 @@ def create_timed_interval_event(reqHandler, p, args, body):
     }
 })
 def create_timed_static_event(reqHandler, p, args, body):
+    auth = api_plugins()['auth']
+    current_user = auth.e_get_current_user()
     
-    i_check_and_convert_value('minute', body)
-    i_check_and_convert_value('hour', body)
-    i_check_and_convert_value('day_of_week', body)
-    i_check_and_convert_value('day_of_month', body)
-    i_check_and_convert_value('month', body)
-    i_check_and_convert_value('year', body)
-    i_check_and_convert_value('enabled', body)
-    i_check_and_convert_value('repeat', body)
+    if body['minute'][0] == '*':
+        body['minute'] = [-1]
+    else:
+        body['minute'] = i_format_static_params('minute', body['minute'])
+        
+    if body['hour'][0] == '*':
+        body['hour'] = [-1]
+    else:
+        body['hour'] = i_format_static_params('hour', body['hour'])
 
-    i_check_range('minute', body, -1, 59)
-    i_check_range('hour', body, -1, 23)
-    i_check_range('day_of_week', body, -1, 7)
-    i_check_range('day_of_month', body, -1, 31)
-    i_check_range('month', body, -1, 12)
-    i_check_range('year', body, -1, 4000)
-    i_check_range('enabled', body, 0, 1)
-    i_check_range('repeat', body, 0, 1)
-    
-    for name in body:
-        if not name in list_and_dividable:
-            body[name] = body[name][0]
+    if body['day_of_week'][0] == '*':
+        body['day_of_week'] = [-1]
+    else:
+        body['day_of_week'] = i_format_static_params('day_of_week', body['day_of_week'])
 
-    if not 'body' in body:
-        body['body'] = {}
+    if body['day_of_month'][0] == '*':
+        body['day_of_month'] = [-1]
+    else:
+        body['day_of_month'] = i_format_static_params('day_of_month', body['day_of_month'])
+
+    if body['month'][0] == '*':
+        body['month'] = [-1]
+    else:
+        body['month'] = i_format_static_params('month', body['month'])
+
+    if body['year'][0] == '*':
+        body['year'] = [-1]
+    else:
+        body['year'] = i_format_static_params('year', body['year'])
+
+    #args[key] = api_plugin.try_convert_value('args', key, value, action['args'][key])
     
-    e_register_timed_static_event(p[0], etv_action_request_template, [current_user, body['method'], body['path'], body['body']], **body)
+    e_register_timed_static_event(p[0], etv_action_request_template, [current_user, body['method'].upper(), body['path'], body['body']], **body)
     return {}
 
 @api_action(plugin, {
     'path': 'event/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "event_name",
+            'type': str,
+            'f_name': {
+                'EN': "Event name",
+                'DE': "Eventname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Delete event',
         'DE': 'Event löschen'
@@ -506,6 +733,24 @@ def delete_timed_event(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'event/*/*',
     'method': 'PUT',
+    'params': [
+        {
+            'name': "event_name",
+            'type': str,
+            'f_name': {
+                'EN': "Event name",
+                'DE': "Eventname"
+            }
+        },
+        {
+            'name': "event_state",
+            'type': bool,
+            'f_name': {
+                'EN': "Event state",
+                'DE': "Eventstatus"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Set event state',
         'DE': 'Eventstatus setzen'
@@ -536,23 +781,3 @@ def set_timed_event_state(reqHandler, p, args, body):
     event.setEnabled(state)
     return {}
 
-
-@api_action(plugin, {
-    'path': 'debug',
-    'method': 'GET',
-    'f_name': {
-        'EN': 'Debug',
-        'DE': 'Debug'
-    },
-
-    'f_description': {
-        'EN': 'Debug',
-        'DE': 'Debug'
-    }
-})
-def debug1(reqHandler, p, args, body):
-    
-
-    return {
-        'data': data
-    }

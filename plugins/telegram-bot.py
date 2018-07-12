@@ -465,49 +465,59 @@ def terminate():
     
     return 1
 
-@api_action(plugin, {
-    'path': 'debug1',
-    'method': 'GET',
-    'f_name': {
-        'EN': 'Debug1'
-    },
-
-    'f_description': {
-        'EN': 'Debug.'
-    }
-})
-def debug1(reqHandler, p, args, body):
-    return {
-        'channel_dict': channel_dict
-    }
-
-@api_action(plugin, {
-    'path': 'debug2/*',
-    'method': 'GET',
-    'f_name': {
-        'EN': 'Debug2'
-    },
-
-    'f_description': {
-        'EN': 'Debug.'
-    }
-})
-def debug2(reqHandler, p, args, body):
-    
-    chat = bot.getChat(p[0])
-    
-    return {
-        'data': {
-            'username': chat.username,
-            'first_name': chat.first_name,
-            'last_name': chat.last_name,
-            'type': chat.type
-        }
-    }
+#@api_action(plugin, {
+#    'path': 'debug1',
+#    'method': 'GET',
+#    'f_name': {
+#        'EN': 'Debug1'
+#    },
+#
+#    'f_description': {
+#        'EN': 'Debug.'
+#    }
+#})
+#def debug1(reqHandler, p, args, body):
+#    return {
+#        'channel_dict': channel_dict
+#    }
+#
+#@api_action(plugin, {
+#    'path': 'debug2/*',
+#    'method': 'GET',
+#    'f_name': {
+#        'EN': 'Debug2'
+#    },
+#
+#    'f_description': {
+#        'EN': 'Debug.'
+#    }
+#})
+#def debug2(reqHandler, p, args, body):
+#    
+#    chat = bot.getChat(p[0])
+#    
+#    return {
+#        'data': {
+#            'username': chat.username,
+#            'first_name': chat.first_name,
+#            'last_name': chat.last_name,
+#            'type': chat.type
+#        }
+#    }
 
 @api_action(plugin, {
     'path': 'channel/list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List channel',
         'DE': 'Channel auflisten'
@@ -519,7 +529,7 @@ def debug2(reqHandler, p, args, body):
     }
 })
 def list_channels(reqHandler, p, args, body):
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': e_list_channels()
         }
@@ -532,6 +542,16 @@ def list_channels(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'channel/*',
     'method': 'GET',
+    'params': [
+        {
+            'name': "channel_name",
+            'type': str,
+            'f_name': {
+                'EN': "Channel name",
+                'DE': "Channel Name"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Get channel',
         'DE': 'Zeige Channel'
@@ -572,6 +592,24 @@ def get_personal_channel(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'channel/*/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "channel_name",
+            'type': str,
+            'f_name': {
+                'EN': "Channel name",
+                'DE': "Channel Name"
+            }
+        },
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Add reciever to channel',
         'DE': 'Füge Empfänger zu Channel hinzu'
@@ -590,6 +628,16 @@ def add_reciever_to_channel(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'channel/*',
     'method': 'POST',
+    'params': [
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Add reciever to your channel',
         'DE': 'Füge Empfänger zu eigenem Channel hinzu'
@@ -610,6 +658,24 @@ def add_reciever(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'channel/*/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "channel_name",
+            'type': str,
+            'f_name': {
+                'EN': "Channel name",
+                'DE': "Channel Name"
+            }
+        },
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Remove reciever from channel',
         'DE': 'Entferne Empfänger aus Channel'
@@ -628,6 +694,16 @@ def remove_reciever_from_channel(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'channel/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "username",
+            'type': str,
+            'f_name': {
+                'EN': "Username",
+                'DE': "Benutzername"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Remove reciever from your channel',
         'DE': 'Entferne Empfänger aus eigenem Channel'
@@ -648,6 +724,25 @@ def remove_reciever(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'send/*/text',
     'method': 'POST',
+    'params': [
+        {
+            'name': "channel_name",
+            'type': str,
+            'f_name': {
+                'EN': "Channel name",
+                'DE': "Channel Name"
+            }
+        }
+    ],
+    'body': {
+        'message': {
+            'type': str,
+            'f_name': {
+                'EN': "Message",
+                'DE': "Nachricht"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Send text to channel',
         'DE': 'Sende Text an Channel'
@@ -669,6 +764,15 @@ def send_text_to_channel(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'send/text',
     'method': 'POST',
+    'body': {
+        'message': {
+            'type': str,
+            'f_name': {
+                'EN': "Message",
+                'DE': "Nachricht"
+            }
+        }
+    },
     'f_name': {
         'EN': 'Send text',
         'DE': 'Sende Text'
@@ -692,6 +796,16 @@ def send_text(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'send/*/image',
     'method': 'POST',
+    'params': [
+        {
+            'name': "channel_name",
+            'type': str,
+            'f_name': {
+                'EN': "Channel name",
+                'DE': "Channel Name"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Send image to channel',
         'DE': 'Sende Bild an Channel'

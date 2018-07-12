@@ -158,6 +158,7 @@ def i_init_lets_encrypt():
     joseheaders['Content-Type']='application/jose+json'
 
     directory = requests.get(config['acme_directory'], headers=adtheaders)
+
     acme_config = directory.json()
 
 def i_setup_signatures():
@@ -172,7 +173,7 @@ def i_setup_signatures():
     if sysout == None:
         api_log().error('Can\'t read generated keyfile.')
         return 0
-
+    
     accountkey = sysout
     pub_hex, pub_exp = re.search(
         r"modulus:\r?\n\s+00:([a-f0-9\:\s]+?)\r?\npublicExponent: ([0-9]+)",
@@ -189,7 +190,7 @@ def i_setup_signatures():
         "kid": None,
     }
     accountkey_json = json.dumps(jws_header["jwk"], sort_keys=True, separators=(",", ":"))
-    thumbprint = _b64(hashlib.sha256(accountkey_json.encode("utf8")).digest())
+    #thumbprint = _b64(hashlib.sha256(accountkey_json.encode("utf8")).digest())
     jws_nonce = None
 
 def i_exec_openssl(parameter, communicate = None):
@@ -306,7 +307,7 @@ def e_add_certificate(domain_list):
     os.makedirs(new_domain_path)
 
     api_log().debug("Generating keyfile....")
-    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, config['rsa_keysize'], '-nodes'])
+    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, str(config['rsa_keysize']), '-nodes'])
     
     if sysout == None:
         api_log().error("Can\'t generate keyfile.")
@@ -423,7 +424,7 @@ def install():
 
     api_log().debug("Generating keyfile....")
     keyfile_path = os.path.join(config['base_key_directory'], 'account/keyfile.pem')
-    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, config['rsa_keysize'], '-nodes'])
+    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, str(config['rsa_keysize']), '-nodes'])
     
     if sysout == None:
         api_log().error("Can\'t generate keyfile.")
@@ -437,10 +438,9 @@ def install():
     account_request = {}
     if 'termsOfService' in acme_config.get('meta', {}):
         account_request["termsOfServiceAgreed"] = True
-    account_request["contact"] = config['contact_data']
+    account_request["contact"] = config["contact_data"].split(';')
     if account_request["contact"] == "":
         del account_request["contact"]
-
     code, result, headers = _send_signed_request(acme_config["newAccount"], account_request)
     if code != 201:
         api_log().error("Error registering account: {0} {1}".format(code, result))
@@ -504,6 +504,16 @@ def load():
 @api_action(plugin, {
     'path': 'cert/list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'f_name': {
         'EN': 'List certificates',
         'DE': 'Liste Zertifikate auf'
@@ -515,7 +525,7 @@ def load():
     }
 })
 def list_certificates(reqHandler, p, args, body):
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return_json = []
         for cert_name in e_list_certificates():
             i_entry = {}
@@ -535,6 +545,16 @@ def list_certificates(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'cert/*',
     'method': 'GET',
+    'params': [
+        {
+            'name': "cert_name",
+            'type': str,
+            'f_name': {
+                'EN': "Certificate name",
+                'DE': "Zertifikatname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Get certificate',
         'DE': 'Zeige Zertifikat'
@@ -553,6 +573,18 @@ def get_certificate(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'cert',
     'method': 'POST',
+    'body': {
+        'domains': {
+            'type': list,
+            'f_name': {
+                'EN': "Domain list",
+                'DE': "Domainliste"
+            },
+            'childs': {
+                'type': str
+            }
+        }
+    },
     'f_name': {
         'EN': 'Add new certificate',
         'DE': 'Neues Zertifikat hinzufügen'
@@ -570,6 +602,16 @@ def add_certificate(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'cert/*',
     'method': 'DELETE',
+    'params': [
+        {
+            'name': "cert_name",
+            'type': str,
+            'f_name': {
+                'EN': "Certificate name",
+                'DE': "Zertifikatname"
+            }
+        }
+    ],
     'f_name': {
         'EN': 'Delete certificate',
         'DE': 'Zertifikat löschen'
@@ -598,6 +640,5 @@ def delete_certificate(reqHandler, p, args, body):
     }
 })
 def check_certificates(reqHandler, p, args, body):
-    #et_check_certificates()
-    0/0
+    et_check_certificates()
     return {}
