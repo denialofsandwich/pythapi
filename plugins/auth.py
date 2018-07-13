@@ -131,7 +131,7 @@ plugin.translation_dict = {
         'DE': 'Ungültiger Username oder Passwort.'
     },
     
-    'AUTH_INVALID_user_token': {
+    'AUTH_INVALID_USER_TOKEN': {
         'EN': 'Invalid API token.',
         'DE': 'Ungültiges API Token.'
     },
@@ -1500,8 +1500,11 @@ def global_preexecution_hook(reqHandler, action):
                     return
             
             else:
-                unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_user_token', remote_ip)
-      
+                unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_USER_TOKEN', remote_ip)
+
+    if action['name'] == "auth.create_session":
+        unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
+     
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
         if session_id in session_dict:
