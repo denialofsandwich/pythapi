@@ -199,6 +199,10 @@ def e_get_timed_event(event_name):
     return_json['repeat'] = event.repeat
     return_json['enabled'] = event.enabled
     return_json['type'] = 'unknown'
+    return_json['func_name'] = event.func.__name__
+
+    return_json['func_args'] = event.func_args
+    return_json['func_kwargs'] = event.func_kwargs
 
     if type(event) == TimedIntervalEvent:
         return_json['type'] = 'interval'
@@ -318,43 +322,6 @@ def terminate():
         event.setEnabled(0)
 
     return 1
-
-#list_and_dividable = ['minute','hour','day_of_week','day_of_month','month','year']
-#format_list = ['minute','hour','day_of_week','day_of_month','month','year','enabled','repeat','interval']
-#
-#def i_check_range(name, body, min_val, max_val):
-#    if not name in body:
-#        return
-#
-#    if len(body[name]) > 1 and not name in list_and_dividable:
-#        raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
-#            'value': name
-#        })
-#        
-#    for value in body[name]:
-#        if value > max_val or value < min_val:
-#            raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
-#                'value': name,
-#                'min': min_val,
-#                'max': max_val
-#            })
-#
-#def i_check_and_convert_value(name, body):
-#    
-#    if name in body:
-#        try:
-#            if body[name] == '*':
-#                body[name] = [-1]
-#            
-#            tmp_list = []
-#            for value in body[name].split(','):
-#                tmp_list.append(int(value))
-#
-#            body[name] = tmp_list
-#        except:
-#            raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
-#                'value': name
-#            })
 
 @api_action(plugin, {
     'path': 'event/list',
