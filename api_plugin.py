@@ -183,6 +183,27 @@ def try_convert_value(section, key, value, skel):
     
     return value
 
+def convert_value(reference, value):
+    if type(reference) == bool:
+        return True if value.lower() == 'true' else False
+
+    elif type(reference) == list:
+        str_val = value
+        value = []
+
+        e_type = str
+        try:
+            e_type = type(reference[0])
+        except IndexError:
+            pass
+
+        for entry in str_val.split(','):
+            value.append(e_type(entry.strip()))
+        
+        return value
+    else:
+        return type(reference)(value)
+
 def add_config_defaults_and_convert(config_defaults):
     for section_name in config_defaults:
         if not section_name in config:
@@ -191,29 +212,12 @@ def add_config_defaults_and_convert(config_defaults):
         for k in config_defaults[section_name]:
             v = config_defaults[section_name][k]
             try:
-                
-                if type(v) == bool:
-                    config[section_name][k] = True if config[section_name][k].lower() == 'true' else False
-
-                elif type(v) == list:
-                    str_val = config[section_name][k]
-                    config[section_name][k] = []
-
-                    e_type = str
-                    try:
-                        e_type = type(v[0])
-                    except IndexError:
-                        pass
-
-                    for entry in str_val.split(','):
-                        config[section_name][k].append(e_type(entry.strip()))
-
-                else:
-                    config[section_name][k] = type(v)(config[section_name][k])
+                config[section_name][k] = convert_value(v, config[section_name][k])
 
             except (TypeError, ValueError) as e:
                 print("ERROR in configuration. {}.{}: {} expected.".format(section_name, k, type(v).__name__))
                 sys.exit(1)
+
             except KeyError as e:
                 config[section_name][k] = v
 

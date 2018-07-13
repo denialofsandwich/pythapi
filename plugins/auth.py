@@ -60,7 +60,8 @@ plugin.config_defaults = {
         'bf_basic_auth_delay': 0.5,
         'bf_temporary_ban_enabled': True,
         'session_expiration_time': 604800,
-        'session_create_limit': 1000
+        'session_create_limit': 1000,
+        'first_user_password': ""
     }
 }
 
@@ -1360,8 +1361,13 @@ def install():
         "permissions":  []
     })
     
+    if api_config()['auth']['first_user_password'] != "":
+        password = api_config()['auth']['first_user_password']
+    else:
+        password = getpass.getpass('Enter new admin password: ')
+
     e_create_user('admin', {
-        'password': getpass.getpass('Enter new admin password: ')
+        'password': password
     })
     
     e_create_user('anonymous', {

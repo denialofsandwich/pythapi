@@ -511,6 +511,50 @@ def main():
 
     api_plugin.translation_dict = translation_dict
 
+    # Only the user defined in the config should be able to execute this program
+    if(getpass.getuser() != api_plugin.config['core.general']['user']):
+        print("CRITICAL The user " +getpass.getuser() + " is not authorized to execute pythapi.")
+        sys.exit(1)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
+    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
+    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
+    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
+    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
+    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
+    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
+
+    args = parser.parse_args()
+
+    config_buffer = {}
+    # Get config parameters from args
+    for entry in args.config_data:
+        m = re.match(r'^(.+)\.([^.]+)="(.*)"$', entry)
+
+        if m == None:
+            m = re.match(r'^(.+)\.([^.]+)=(.*)$', entry)
+
+        if not m == None:
+            m = m.groups()
+            section = m[0]
+            parameter = m[1]
+            value = m[2]
+
+            if not section in api_plugin.config:
+                api_plugin.config[section] = {}
+
+            if section.split('.')[0] == 'core':
+                api_plugin.config[section][parameter] = api_plugin.convert_value(config_defaults[section][parameter], value)
+
+            else:
+                api_plugin.config[section][parameter] = value
+
+
+        else:
+            print("ERROR {}: Invalid syntax.".format(entry))
+            sys.exit(1)
+
     # Initialize fancy_logs
     api_plugin.config['core.general']['logfile'] = api_plugin.config['core.general']['logfile'].replace('[time]', datetime.datetime.now().strftime('%m-%d-%Y'))
     
@@ -522,28 +566,13 @@ def main():
     )
     log = api_plugin.log
     
-    # Only the user defined in the config should be able to execute this program
-    if(getpass.getuser() != api_plugin.config['core.general']['user']):
-        log.critical("The user " +getpass.getuser() + " is not authorized to execute pythapi.")
-        sys.exit(1)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
-    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
-    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
-    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
-    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
-    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
-
-    args = parser.parse_args()
-
-    if args.no_fancy:
-        api_plugin.config['core.general']['fancy_logs'] = False
-        log.setFancy(False)
-
-    if args.verbosity != None:
-        api_plugin.config['core.general']['loglevel'] = args['verbosity']
-        log.setLoglevel(args['verbosity'])
+#    if args.no_fancy:
+#        api_plugin.config['core.general']['fancy_logs'] = False
+#        log.setFancy(False)
+#
+#    if args.verbosity != None:
+#        api_plugin.config['core.general']['loglevel'] = args['verbosity']
+#        log.setLoglevel(args['verbosity'])
 
     # Plugin loader
     log.begin("Loading Plugins...")
