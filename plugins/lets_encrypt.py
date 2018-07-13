@@ -619,7 +619,7 @@ def add_certificate(reqHandler, p, args, body):
 
     'f_description': {
         'EN': 'Deletes a certificate and it linked domains.',
-        'DE': 'Löscht ein Zertifikat und die verlinkten Domains..'
+        'DE': 'Löscht ein Zertifikat und die verlinkten Domains.'
     }
 })
 def delete_certificate(reqHandler, p, args, body):
