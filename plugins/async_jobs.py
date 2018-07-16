@@ -25,7 +25,7 @@ import sys
 sys.path.append("..")
 import MySQLdb # MySQL
 from api_plugin import * # Essential Plugin
-from threading import Thread
+import threading
 import time
 
 plugin = api_plugin()
@@ -42,20 +42,19 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin verwaltet asynchrone jobs.'
 }
 
-plugin.depends = [
-    {
-        'name': 'auth',
-        'required': False
-    }
-]
-
+plugin.depends = []
 plugin.config_defaults = {}
 
 plugin.translation_dict = {
-    'JOB_NOT_FOUND': {
+    'JOB_JOB_NOT_FOUND': {
         'EN': 'Job not found.',
         'DE': 'Job nicht gefunden.'
+    },
+    'JOB_JOB_EXISTS': {
+        'EN': 'Job already exists.',
+        'DE': 'Job existiert bereits.'
     }
+
 }
 
 job_dict = {}
@@ -71,25 +70,32 @@ class AsyncJob():
         self.return_value = None
         self.data = {}
 
-        job_dict[name] = self
+        self.term_event = threading.Event()
+        self.func_kwargs['_t_event'] = self.term_event
 
-        self.thread = Thread(target=self.t_handler)
+        self.thread = threading.Thread(target=self.t_handler)
         self.thread.start()
 
     def t_handler(self):
-       self.status = 'running'
-       api_log().debug("{} is now running.".format(self.name))
-       self.return_value = self.func(*self.func_args, **self.func_kwargs)
-       self.status = 'done'
-       api_log().debug("{} is done.".format(self.name))
+        self.status = 'running'
+        self.return_value = self.func(*self.func_args, **self.func_kwargs)
+
+        if self.term_event.wait(0):
+            self.status = 'done'
+
+        else:
+            self.status = 'terminated'
     
-#    def terminate(self):
-#        self.thread.cancel()
-#        del job_dict[self.name]
+    def terminate(self):
+        self.term_event.set()
+        self.status = 'terminating'
 
 @api_external_function(plugin)
 def e_create_job(job_name, func, func_args=[], func_kwargs={}):
-    AsyncJob(job_name, func, func_args, func_kwargs)
+    if job_name in job_dict:
+        raise WebRequestException(400, 'error', 'JOB_JOB_EXISTS')
+
+    job_dict[job_name] = AsyncJob(job_name, func, func_args, func_kwargs)
 
 @api_external_function(plugin)
 def e_get_job(job_name):
@@ -120,6 +126,10 @@ def e_list_jobs():
 
 @api_event(plugin, 'terminate')
 def terminate():
+    api_log().debug("Terminating all running jobs...")
+    for job_name in job_dict:
+        job_dict[job_name].terminate()
+
     return 1
 
 @api_action(plugin, {
@@ -185,9 +195,10 @@ def get_job(reqHandler, p, args, body):
         'data': e_get_job(p[0])
     }
 
-def test_func(val):
+def test_func(val, **kwargs):
+    t_e = kwargs['_t_event']
     print("Das ist: {}".format(val))
-    time.sleep(45)
+    t_e.wait(60)
 
 @api_action(plugin, {
     'path': '*',
@@ -241,8 +252,9 @@ def add_certificate(reqHandler, p, args, body):
 })
 def terminate_job(reqHandler, p, args, body):
     if not p[0] in job_dict:
-        raise WebRequestException(400, 'error', 'JOB_NOT_FOUND')
+        raise WebRequestException(400, 'error', 'JOB_JOB_NOT_FOUND')
 
-    #job_dict[p[0]].terminate()
+    job_dict[p[0]].terminate()
+    del job_dict[p[0]]
     return {}
 

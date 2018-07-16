@@ -527,6 +527,12 @@ def main():
 
     args = parser.parse_args()
 
+    if args.no_fancy:
+        api_plugin.config['core.general']['fancy_logs'] = False
+
+    if args.verbosity != None:
+        api_plugin.config['core.general']['loglevel'] = args.verbosity
+
     config_buffer = {}
     # Get config parameters from args
     for entry in args.config_data:
