@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
-# Name:        pythapi: info.py
+# Name:        pythapi: async_jobs.py
 # Author:      Rene Fa
 # Date:        13.07.2018
-# Version:     0.1
+# Version:     0.3
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -43,7 +43,11 @@ plugin.info['f_description'] = {
 }
 
 plugin.depends = []
-plugin.config_defaults = {}
+plugin.config_defaults = {
+    plugin.name: {
+        'remove_on_termination': True
+    }
+}
 
 plugin.translation_dict = {
     'JOB_JOB_NOT_FOUND': {
@@ -72,19 +76,26 @@ class AsyncJob():
 
         self.term_event = threading.Event()
         self.func_kwargs['_t_event'] = self.term_event
+        self.func_kwargs['_job'] = self
 
         self.thread = threading.Thread(target=self.t_handler)
         self.thread.start()
 
     def t_handler(self):
         self.status = 'running'
-        self.return_value = self.func(*self.func_args, **self.func_kwargs)
+        
+        try:
+            self.return_value = self.func(*self.func_args, **self.func_kwargs)
 
-        if self.term_event.wait(0):
-            self.status = 'done'
+        finally:
+           if not self.term_event.is_set():
+               self.status = 'done'
 
-        else:
-            self.status = 'terminated'
+           else:
+               self.status = 'terminated'
+
+           if api_config()[plugin.name]['remove_on_termination']:
+               del job_dict[self.name]
     
     def terminate(self):
         self.term_event.set()
@@ -92,10 +103,28 @@ class AsyncJob():
 
 @api_external_function(plugin)
 def e_create_job(job_name, func, func_args=[], func_kwargs={}):
-    if job_name in job_dict:
+    if job_name in job_dict and (job_dict[job_name].status != 'done' and job_dict[job_name].status != 'terminated'):
         raise WebRequestException(400, 'error', 'JOB_JOB_EXISTS')
 
     job_dict[job_name] = AsyncJob(job_name, func, func_args, func_kwargs)
+
+@api_external_function(plugin)
+def e_get_raw_job(job_name):
+    return job_dict[job_name]
+
+def ir_safe_json_dump(d):
+    if type(d) == dict:
+        for k, v in d.items():
+            d[k] = ir_safe_json_dump(d.get(k, {}))
+
+    elif type(d) == list:
+        for k, v in enumerate(d):
+            d[k] = ir_safe_json_dump(v)
+        
+    elif not type(d) in [str, int, bool, dict, list, None]:
+            d = str(d)
+
+    return d
 
 @api_external_function(plugin)
 def e_get_job(job_name):
@@ -105,8 +134,9 @@ def e_get_job(job_name):
 
     return_json['status'] = job.status
     return_json['func_name'] = job.func.__name__
-    return_json['func_args'] = job.func_args
-    return_json['func_kwargs'] = job.func_kwargs
+
+    return_json['func_args'] = ir_safe_json_dump(job.func_args)
+    return_json['func_kwargs'] = ir_safe_json_dump(job.func_kwargs)
 
     return_json['data'] = job.data
     return_json['return_value'] = job.return_value
