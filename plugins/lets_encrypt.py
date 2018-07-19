@@ -3,8 +3,8 @@
 #
 # Name:        pythapi: lets_encrypt.py
 # Author:      Rene Fa
-# Date:        10.07.2018
-# Version:     0.1
+# Date:        19.07.2018
+# Version:     0.6
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -90,7 +90,8 @@ plugin.config_defaults = {
         'autorefresh_month': "*",
         'autorefresh_year': "*",
         'autorefresh_mindaysreaming': 1,
-        'dns_verification_servers': []
+        'dns_verification_servers': [],
+        'wildcard_replace_character': "*"
     }
 }
 plugin.translation_dict = {
@@ -293,10 +294,29 @@ def e_get_certificate(cert_id):
         if not cert_id in cert_dict:
             raise WebRequestException(400, 'error', 'LE_CERT_NOT_FOUND')
 
-        return cert_dict[cert_id]
+        return_json = cert_dict[cert_id]
+
+        if 'expires' in return_json:
+            date = datetime.datetime.strptime(return_json['expires'], '%H:%M:%S %d.%m.%Y')
+            delta = date - datetime.datetime.now()
+
+            if delta.days < 0:
+                return_json['status'] = 'expired'
 
     else:
-        i_get_direct_certificate(cert_id)
+        return_json = i_get_direct_certificate(cert_id)
+
+    job = api_plugins()['job']
+    
+    try:
+        running_job_status = job.e_get_raw_job('le_request:{}'.format(cert_id))
+    except KeyError:
+        running_job_status = 'none'
+
+    if not running_job_status in ['none', 'done', 'terminated']:
+        return_json['status'] = 'waiting_for_verification'
+
+    return return_json
 
 def it_complete_challenges(domain_list, order, order_location, **kwargs):
     config = api_config()[plugin.name]
@@ -318,8 +338,11 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
         token = re.sub(r"[^A-Za-z0-9_\-]", "_", challenge["token"])
         keyauthorization = "{0}.{1}".format(token, thumbprint)
         keydigest64 = _b64(hashlib.sha256(keyauthorization.encode("utf8")).digest())
-        
-        token_dict['_acme-challenge.{}'.format(domain)] = keydigest64
+        record_name = '_acme-challenge.{}'.format(domain)
+
+        if not record_name in token_dict:
+            token_dict[record_name] = []
+        token_dict[record_name].append(keydigest64)
         api_log().info("Register this: {} at _acme-challenge.{}".format(keydigest64, domain))
     
     cert_dict[cert_id]['tokens'] = token_dict
@@ -460,7 +483,9 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
     with open(certfile_path, 'w') as certfile:
         certfile.write(resp.text)
 
+    i_rebuild_domain_links(domain_list)
     cert_dict[cert_id] = i_get_direct_certificate(cert_id)
+
     api_log().info("Certificate signed and chain received: {0}".format(finalize["certificate"]))
 
 @api_external_function(plugin)
@@ -474,6 +499,8 @@ def e_renew_certificate(cert_id):
 
     if not running_job_status in ['none', 'done', 'terminated']:
         raise WebRequestException(400, 'error', 'LE_RENEWAL_RUNNING')
+
+    cert_dict[cert_id]['status'] = 'waiting_for_verification'
 
     config = api_config()[plugin.name]
     cert_path = os.path.join(config['base_key_directory'], 'certs', cert_id)
@@ -531,13 +558,19 @@ def et_check_certificates():
             delta = date - datetime.datetime.now()
 
             if delta.days < config['autorefresh_mindaysreaming']:
+
+                if delta.days < 0:
+                    api_log().warning("Expired Certificate {}...".format(cert_id))
+                    cert_dict[cert_id]['status'] = 'expired'
+
                 api_log().info("Renewing {}...".format(cert_id))
                 try:
                     e_renew_certificate(cert_id)
                 except WebRequestException:
                     api_log().warning("Renewing already running for {}.".format(cert_id))
         
-        cert_dict[cert_id] = i_get_direct_certificate(cert_id)
+        #
+
 
     api_log().debug("Done checking certificates.")
     pass
@@ -556,7 +589,7 @@ def it_add_certificate(domain_list, **kwargs):
 
     i_entry = {}
     i_entry['domains'] = domain_list
-    i_entry['status'] = 'not found'
+    i_entry['status'] = 'generating_keyfile'
     cert_dict[cert_id] = i_entry
 
 
@@ -640,8 +673,13 @@ def e_delete_certificate(cert_id):
         raise WebRequestException(400, 'error', 'LE_CERT_NOT_FOUND')
 
     if write_through_cache_enabled:
+        domain_list = cert_dict[cert_id]['domains']
         del cert_dict[cert_id]
 
+    else:
+        domain_list = i_get_direct_certificate(cert_id)
+
+    i_rebuild_domain_links(domain_list)
     i_delete_directory_tree(domain_path)
 
 
@@ -679,26 +717,38 @@ def i_search_best_cert(domain_name):
 
     return score_dict[min(score_dict.keys())]
 
-def e_add_domains(domain_list):
-    
-    certId_list = []
-    for domain in domain_list:
-        certId_list.append(i_search_best_cert(domain))
 
+def i_rebuild_domain_links_p2(domain_list, certId_list):
     config = api_config()[plugin.name]
     domaindir_path = os.path.join(config['base_key_directory'], 'domains')
     certdir_path = os.path.join(config['base_key_directory'], 'certs')
+    wc_replace_char = config['wildcard_replace_character']
+    print(wc_replace_char)
 
     for domain, cert_id in zip(domain_list, certId_list):
-        domainlink_path = os.path.join(domaindir_path, domain)
-        target_path = os.path.join(certdir_path, cert_id)
+        domainlink_path = os.path.join(domaindir_path, domain.replace('*', wc_replace_char))
+        print(domainlink_path)
+
+        target_path = os.path.join('../certs', cert_id)
+
+        if os.path.islink(domainlink_path):
+            if os.readlink(domainlink_path) != target_path:
+                os.remove(domainlink_path)
+            else:
+                continue
+        
+        if cert_id != 'null':
+            os.symlink(target_path, domainlink_path)
+
+def i_rebuild_domain_links(domain_list):
+    certId_list = []
+    for domain in domain_list:
         try:
-            os.remove(domainlink_path)
-        except FileNotFoundError:
-            pass
+            certId_list.append(i_search_best_cert(domain))
+        except WebRequestException:
+            certId_list.append('null')
 
-        os.symlink(target_path, domainlink_path)
-
+    i_rebuild_domain_links_p2(domain_list, certId_list)
 
 @api_event(plugin, 'check')
 def check():
@@ -949,7 +999,25 @@ def get_certificate(reqHandler, p, args, body):
     }
 })
 def add_certificate(reqHandler, p, args, body):
-    e_add_certificate(body['domains'])
+
+    # Punycode conversion
+    domain_list = body['domains']
+    for i, domain in enumerate(domain_list):
+        domain_r = domain.split('.')
+        
+        for j, level in enumerate(domain_r):
+            plain_punycode = level.encode('punycode').decode('utf8')
+            
+            if plain_punycode[-1] != '-':
+                converted_level = 'xn--' +plain_punycode
+            else:
+                converted_level = plain_punycode.rstrip('-')
+
+            domain_r[j] = converted_level
+
+        domain_list[i] = '.'.join(domain_r)
+
+    e_add_certificate(domain_list)
     return {}
 
 @api_action(plugin, {
@@ -977,35 +1045,6 @@ def add_certificate(reqHandler, p, args, body):
 })
 def delete_certificate(reqHandler, p, args, body):
     e_delete_certificate(p[0])
-    return {}
-
-@api_action(plugin, {
-    'path': 'domain',
-    'method': 'POST',
-    'body': {
-        'domains': {
-            'type': list,
-            'f_name': {
-                'EN': "Domain list",
-                'DE': "Domainliste"
-            },
-            'childs': {
-                'type': str
-            }
-        }
-    },
-    'f_name': {
-        'EN': 'Add new domain-names',
-        'DE': 'Neue Domainnamen hinzufügen'
-    },
-
-    'f_description': {
-        'EN': 'Adds new Domains to the access pool.',
-        'DE': 'Fügt neue Domins zum Access-Pool hinzu.'
-    }
-})
-def add_domains(reqHandler, p, args, body):
-    e_add_domains(body['domains'])
     return {}
 
 @api_action(plugin, {
