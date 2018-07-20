@@ -88,14 +88,15 @@ class AsyncJob():
             self.return_value = self.func(*self.func_args, **self.func_kwargs)
 
         finally:
-           if not self.term_event.is_set():
-               self.status = 'done'
+            if not self.term_event.is_set():
+                self.status = 'done'
 
-           else:
-               self.status = 'terminated'
+            else:
+                self.status = 'terminated'
 
-           if api_config()[plugin.name]['remove_on_termination']:
-               del job_dict[self.name]
+            if api_config()[plugin.name]['remove_on_termination']:
+                try: del job_dict[self.name]
+                except: pass
     
     def terminate(self):
         self.term_event.set()

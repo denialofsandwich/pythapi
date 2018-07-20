@@ -371,6 +371,10 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
         if not record_name in token_dict:
             token_dict[record_name] = []
         token_dict[record_name].append(keydigest64)
+
+        if authorization['status'] == 'valid':
+            continue
+
         api_log().info("Register this: {} at _acme-challenge.{}".format(keydigest64, domain))
     
     for v_handler in preverification_handler_list:

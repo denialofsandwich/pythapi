@@ -25,6 +25,7 @@ import sys
 sys.path.append("..")
 import MySQLdb # MySQL
 from api_plugin import * # Essential Plugin
+import copy
 
 plugin = api_plugin()
 plugin.name = "info"
@@ -105,27 +106,23 @@ def ir_format_properties(return_json):
 
 def i_format_action(action):
     
-    return_json = dict(action)
-    del return_json['func']
-    del return_json['c_regex']
-    
     if 'auth' in api_plugins():
         auth = api_plugins()['auth']
         current_user = auth.e_get_current_user()
         
         if auth.e_check_custom_permissions(current_user, 'permissions', action['name']):
-            return_json['permitted'] = True
+            action['permitted'] = True
         
         else:
-            return_json['permitted'] = False
+            action['permitted'] = False
     
     for property_name in action_property_blacklist:
-        try: del return_json[property_name]
+        try: del action[property_name]
         except: pass
 
-    ir_format_properties(return_json)
+    ir_format_properties(action)
 
-    return return_json
+    return action
 
 def i_get_plugin(plugin_name):
     
@@ -176,7 +173,11 @@ def i_get_action_of_plugin(plugin_name, action_name):
             not auth.e_check_custom_permissions(current_user, 'permissions', plugin_name +'.' +action_name)):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-    return i_format_action(api_action_tree()[plugin_name][action_name])
+    tmp_action = dict(api_action_tree()[plugin_name][action_name])
+    del tmp_action['func']
+    del tmp_action['c_regex']
+        
+    return i_format_action(copy.deepcopy(tmp_action))
 
 def i_list_actions_of_plugin(plugin_name):
     
@@ -194,7 +195,11 @@ def i_list_actions_of_plugin(plugin_name):
                 not auth.e_check_custom_permissions(current_user, 'permissions', i_action['name'])):
                 continue
         
-        return_json.append(i_format_action(i_action))
+        tmp_action = dict(i_action)
+        del tmp_action['func']
+        del tmp_action['c_regex']
+        
+        return_json.append(i_format_action(copy.deepcopy(tmp_action)))
         
     return return_json
 
@@ -325,6 +330,16 @@ def get_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/list',
     'method': 'GET',
+    'args': {
+        'verbose': {
+            'type': bool,
+            'default': False,
+            'f_name': {
+                'EN': "Verbose",
+                'DE': "Ausführlich"
+            }
+        }
+    },
     'params': [
         {
             'name': "plugin_name",
@@ -349,7 +364,7 @@ def list_actions_of_plugin(reqHandler, p, args, body):
 
     full_action_list = i_list_actions_of_plugin(p[0])
     
-    if 'verbose' in args and args['verbose'][0].decode("utf-8") == 'true':
+    if args['verbose']:
         return {
             'data': full_action_list
         }
