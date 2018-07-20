@@ -1144,7 +1144,7 @@ def i_apply_ruleset(role_name):
                     
                     role_list.append(role_name)
         
-        elif len(rule_r) == 1 or (rule_r[1] == '*' and len(rule_r) == 2):
+        elif len(rule_r) == 1:
             if not rule_r[0] in action_tree:
                 api_log().warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
                 continue
@@ -2213,7 +2213,7 @@ def delete_role(reqHandler, p, args, body):
     }
 })
 def add_member_to_role(reqHandler, p, args, body):
-
+    
     if (p[0] == ""):
         raise WebRequestException(400, 'error', 'AUTH_ROLE_MISSING')
 

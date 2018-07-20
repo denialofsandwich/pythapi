@@ -98,7 +98,7 @@ def ir_format_properties(return_json):
                     ir_format_properties(item)
 
         elif type(return_json[property_name]) == type:
-            return_json[property_name] = type(return_json[property_name]).__name__
+            return_json[property_name] = return_json[property_name].__name__
 
         if property_name[:2] == 'f_':
             i_format_formatted_properties(return_json, property_name)
@@ -214,7 +214,7 @@ def install():
         
         auth.e_create_role('info_default', {
             'permissions':  [
-                'info.*'
+                'info'
             ]
         })
         

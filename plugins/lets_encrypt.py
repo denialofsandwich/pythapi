@@ -106,6 +106,10 @@ plugin.translation_dict = {
     'LE_RENEWAL_RUNNING': {
         'EN': "Renewal is already running.",
         'DE': "Die Anforderung des neuen Zertifikats ist bereits in Bearbeitung."
+    },
+    'LE_DOMAIN_NOT_FOUND': {
+        'EN': "No certificate with this domain exists.",
+        'DE': "Es existiert kein Zertifikat mit dieser Domain."
     }
 }
 
@@ -122,20 +126,39 @@ write_through_cache_enabled = False
 def _b64(b):
     return base64.urlsafe_b64encode(b).decode("utf8").rstrip("=")
 
+def i_domains_to_punycode(domain_list):
+    return_list = []
+    for i, domain in enumerate(domain_list):
+        domain_r = domain.split('.')
+        
+        for j, level in enumerate(domain_r):
+            plain_punycode = level.encode('punycode').decode('utf8')
+            
+            if plain_punycode[-1] != '-':
+                converted_level = 'xn--' +plain_punycode
+            else:
+                converted_level = plain_punycode.rstrip('-')
+
+            domain_r[j] = converted_level
+
+        return_list.append('.'.join(domain_r))
+
+    return return_list
+
 def i_get_cert_id(domains):
     domain_str = json.dumps(domains, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha1(domain_str.encode('utf8')).digest()
     b64_str = base64.urlsafe_b64encode(digest).decode('utf8')
     return b64_str.rstrip('=')
 
-def i_delete_directory_tree(path):
-    for root, dirs, files in os.walk(path, topdown=False):
-        for name in files:
-            os.remove(os.path.join(root, name))
-        for name in dirs:
-            os.rmdir(os.path.join(root, name))
-    try: os.rmdir(path)
-    except: pass
+def ir_delete_directory_tree(path):
+    path_list = glob.glob(os.path.join(path, '*'))
+    for i_path in path_list:
+        if os.path.islink(i_path) or os.path.isfile(i_path):
+            os.remove(i_path)
+        else:
+            ir_delete_directory_tree(i_path)
+    os.rmdir(path)
 
 def _send_signed_request(url, payload):
     global jws_nonce
@@ -680,7 +703,7 @@ def e_delete_certificate(cert_id):
         domain_list = i_get_direct_certificate(cert_id)
 
     i_rebuild_domain_links(domain_list)
-    i_delete_directory_tree(domain_path)
+    ir_delete_directory_tree(domain_path)
 
 
 def i_search_best_cert(domain_name):
@@ -723,11 +746,9 @@ def i_rebuild_domain_links_p2(domain_list, certId_list):
     domaindir_path = os.path.join(config['base_key_directory'], 'domains')
     certdir_path = os.path.join(config['base_key_directory'], 'certs')
     wc_replace_char = config['wildcard_replace_character']
-    print(wc_replace_char)
 
     for domain, cert_id in zip(domain_list, certId_list):
         domainlink_path = os.path.join(domaindir_path, domain.replace('*', wc_replace_char))
-        print(domainlink_path)
 
         target_path = os.path.join('../certs', cert_id)
 
@@ -839,7 +860,7 @@ def install():
 @api_event(plugin, 'uninstall')
 def uninstall():
     config = api_config()[plugin.name]
-    i_delete_directory_tree(config['base_key_directory'])
+    ir_delete_directory_tree(config['base_key_directory'])
     return 1
 
 def i_format_time_value(config, key, minv, maxv):
@@ -999,25 +1020,7 @@ def get_certificate(reqHandler, p, args, body):
     }
 })
 def add_certificate(reqHandler, p, args, body):
-
-    # Punycode conversion
-    domain_list = body['domains']
-    for i, domain in enumerate(domain_list):
-        domain_r = domain.split('.')
-        
-        for j, level in enumerate(domain_r):
-            plain_punycode = level.encode('punycode').decode('utf8')
-            
-            if plain_punycode[-1] != '-':
-                converted_level = 'xn--' +plain_punycode
-            else:
-                converted_level = plain_punycode.rstrip('-')
-
-            domain_r[j] = converted_level
-
-        domain_list[i] = '.'.join(domain_r)
-
-    e_add_certificate(domain_list)
+    e_add_certificate(i_domains_to_punycode(body['domains']))
     return {}
 
 @api_action(plugin, {
@@ -1063,3 +1066,98 @@ def delete_certificate(reqHandler, p, args, body):
 def check_certificates(reqHandler, p, args, body):
     et_check_certificates()
     return {}
+
+def i_domain_permission_validator(ruleset, rule_section, target_domain):
+    if not rule_section in ruleset:
+        return 0    
+
+    domain_list = ruleset[rule_section]
+
+    if '*' in domain_list:
+        return 1
+
+    domain_r = target_domain.split('.')
+
+    for i_domain in domain_list:
+        i_domain_r = i_domain.split('.')
+
+        if target_domain == i_domain:
+            return 1
+
+        elif i_domain_r[0] == '*' and '.'.join(domain_r[1:]) == '.'.join(i_domain_r[1:]):
+            return 1
+
+    return 0
+
+@api_action(plugin, {
+    'path': 'request',
+    'method': 'POST',
+    'body': {
+        'domains': {
+            'type': list,
+            'f_name': {
+                'EN': "Domain list",
+                'DE': "Domainliste"
+            },
+            'childs': {
+                'type': str
+            }
+        }
+    },
+    'f_name': {
+        'EN': 'Request Certificates',
+        'DE': 'Zertifikate anfordern'
+    },
+
+    'f_description': {
+        'EN': 'Requests stored certificates.',
+        'DE': 'Fragt gespeicherte Zertifikate an.'
+    }
+})
+def request_certificates(reqHandler, p, args, body):
+    auth = api_plugins()['auth']
+    current_user = auth.e_get_current_user()
+    
+    domain_list = i_domains_to_punycode(body['domains'])
+
+    for domain in domain_list:
+        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
+    config = api_config()[plugin.name]
+    domaindir_path = os.path.join(config['base_key_directory'], 'domains')
+
+    tmp_cert_dict = {}
+    for domain in  domain_list:
+        wc_replace_char = config['wildcard_replace_character']
+        cert_path = os.path.join(domaindir_path, domain.replace('*', wc_replace_char))
+        if not os.path.islink(cert_path):
+            raise WebRequestException(400, 'error', 'LE_DOMAIN_NOT_FOUND', {
+                'domain': domain
+            })
+
+        with open(os.path.join(cert_path, 'domains.json')) as domainfile:
+            cert_domain_list = json.loads(domainfile.read())
+
+        cert_id = i_get_cert_id(cert_domain_list)
+
+        if cert_id in tmp_cert_dict:
+            tmp_cert_dict[cert_id]['domains'].append(domain)
+            continue
+        
+        tmp_cert_dict[cert_id] = {}
+        tmp_cert_dict[cert_id]['domains'] = [domain]
+
+        with open(os.path.join(cert_path, 'certfile.pem')) as certfile:
+            tmp_cert_dict[cert_id]['certfile'] = certfile.read()
+
+        with open(os.path.join(cert_path, 'keyfile.pem')) as keyfile:
+            tmp_cert_dict[cert_id]['keyfile'] = keyfile.read()
+
+    return_json = []
+    for cert_id in tmp_cert_dict.keys():
+        return_json.append(tmp_cert_dict[cert_id])
+
+    return {
+        'data': return_json
+    }

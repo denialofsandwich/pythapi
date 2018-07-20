@@ -267,7 +267,7 @@ def install():
     
     auth.e_create_role('userdata_default', {
         'permissions':  [
-            'userdata.*'
+            'userdata'
         ]
     })
     

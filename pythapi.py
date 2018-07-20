@@ -391,7 +391,8 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     log.info('Checking ' +plugin_name)
     if not 'check' in plugin.events:
         plugin.info['i_loaded'] = 1
-        check_successful = 1
+        
+        check_successful = event_name != 'install'
     else:
         check_successful = plugin.events['check']()
 
