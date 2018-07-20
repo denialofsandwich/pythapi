@@ -286,6 +286,5 @@ def terminate_job(reqHandler, p, args, body):
         raise WebRequestException(400, 'error', 'JOB_JOB_NOT_FOUND')
 
     job_dict[p[0]].terminate()
-    del job_dict[p[0]]
     return {}
 

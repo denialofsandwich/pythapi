@@ -333,7 +333,8 @@ def e_get_certificate(cert_id):
     job = api_plugins()['job']
     
     try:
-        running_job_status = job.e_get_raw_job('le_request:{}'.format(cert_id))
+        running_job = job.e_get_raw_job('le_request:{}'.format(cert_id))
+        running_job_status = running_job.status
     except KeyError:
         running_job_status = 'none'
 
@@ -528,7 +529,8 @@ def e_renew_certificate(cert_id):
     job = api_plugins()['job']
     
     try:
-        running_job_status = job.e_get_raw_job('le_request:{}'.format(cert_id))
+        running_job = job.e_get_raw_job('le_request:{}'.format(cert_id))
+        running_job_status = running_job.status
     except KeyError:
         running_job_status = 'none'
 
@@ -707,6 +709,17 @@ def e_delete_certificate(cert_id):
     if not os.path.isdir(domain_path):
         raise WebRequestException(400, 'error', 'LE_CERT_NOT_FOUND')
 
+    job = api_plugins()['job']
+    
+    try:
+        running_job = job.e_get_raw_job('le_request:{}'.format(cert_id))
+        running_job_status = running_job.status
+    except KeyError:
+        running_job_status = 'none'
+
+    if running_job_status == 'running':
+        running_job.terminate()
+
     if write_through_cache_enabled:
         domain_list = cert_dict[cert_id]['domains']
         del cert_dict[cert_id]
@@ -716,7 +729,6 @@ def e_delete_certificate(cert_id):
 
     i_rebuild_domain_links(domain_list)
     ir_delete_directory_tree(domain_path)
-
 
 def i_search_best_cert(domain_name):
     score_dict = {}
