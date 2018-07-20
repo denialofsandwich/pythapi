@@ -121,6 +121,7 @@ joseheaders = None
 dns_resolver = None
 
 cert_dict = {}
+preverification_handler_list = []
 write_through_cache_enabled = False
 
 def _b64(b):
@@ -341,6 +342,10 @@ def e_get_certificate(cert_id):
 
     return return_json
 
+@api_external_function(plugin)
+def e_add_preverfication_handler(f):
+    preverification_handler_list.append(f)
+
 def it_complete_challenges(domain_list, order, order_location, **kwargs):
     config = api_config()[plugin.name]
     cert_id = i_get_cert_id(domain_list)
@@ -368,6 +373,9 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
         token_dict[record_name].append(keydigest64)
         api_log().info("Register this: {} at _acme-challenge.{}".format(keydigest64, domain))
     
+    for v_handler in preverification_handler_list:
+        v_handler(domain_list, token_dict)
+
     cert_dict[cert_id]['tokens'] = token_dict
     with open(os.path.join(cert_path, 'token.json'), 'w') as tokenfile:
         tokenfile.write(json.dumps(token_dict))
