@@ -22,7 +22,7 @@
 #
 # Note:        Based on the work of acme_dns_tiny (MIT Licence) from Adrien Dorsaz
 #              https://projects.adorsaz.ch/adrien/acme-dns-tiny/
-#
+# TEST
 
 
 import sys
