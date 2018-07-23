@@ -731,6 +731,7 @@ def e_delete_certificate(cert_id):
     except KeyError:
         running_job_status = 'none'
 
+    # If there is a renewal of this cert running, terminate it
     if running_job_status == 'running':
         running_job.terminate()
 
@@ -742,9 +743,7 @@ def e_delete_certificate(cert_id):
         domain_list = i_get_direct_certificate(cert_id)
 
     i_rebuild_domain_links(domain_list)
-
     i_revoke_certificate(cert_id)
-
     ir_delete_directory_tree(domain_path)
 
 def i_search_best_cert(domain_name):
@@ -1143,6 +1142,14 @@ def i_domain_permission_validator(ruleset, rule_section, target_domain):
             'childs': {
                 'type': str
             }
+        },
+        'fingerprints': {
+            'type': list,
+            'f_name': {
+                'EN': "Domain list",
+                'DE': "Domainliste"
+            },
+            'default': []
         }
     },
     'f_name': {
@@ -1168,8 +1175,14 @@ def request_certificates(reqHandler, p, args, body):
     config = api_config()[plugin.name]
     domaindir_path = os.path.join(config['base_key_directory'], 'domains')
 
+    certfp_list = []
+    keyfp_list = []
+    for fp in body['fingerprints']:
+        certfp_list.append(fp['cert'])
+        keyfp_list.append(fp['key'])
+
     tmp_cert_dict = {}
-    for domain in  domain_list:
+    for domain in domain_list:
         wc_replace_char = config['wildcard_replace_character']
         cert_path = os.path.join(domaindir_path, domain.replace('*', wc_replace_char))
         if not os.path.islink(cert_path):
@@ -1190,10 +1203,29 @@ def request_certificates(reqHandler, p, args, body):
         tmp_cert_dict[cert_id]['domains'] = [domain]
 
         with open(os.path.join(cert_path, 'certfile.pem')) as certfile:
-            tmp_cert_dict[cert_id]['certfile'] = certfile.read()
+            cert = certfile.read()
 
+        cert_fingerprint = hashlib.sha256(cert.encode('ascii')).hexdigest()
+        if cert_fingerprint in certfp_list:
+            tmp_cert_dict[cert_id]['cert'] = cert_fingerprint
+        else:
+            tmp_cert_dict[cert_id]['certfile'] = cert
+        
         with open(os.path.join(cert_path, 'keyfile.pem')) as keyfile:
-            tmp_cert_dict[cert_id]['keyfile'] = keyfile.read()
+            key = keyfile.read()
+
+        key_fingerprint = hashlib.sha256(key.encode('ascii')).hexdigest()
+        if key_fingerprint in keyfp_list:
+            tmp_cert_dict[cert_id]['key'] = key_fingerprint
+        else:
+            tmp_cert_dict[cert_id]['keyfile'] = key
+
+        if 'cert' in tmp_cert_dict[cert_id]:
+            tmp_cert_dict[cert_id]['status'] = 'ok'
+        elif 'key' in tmp_cert_dict[cert_id]:
+            tmp_cert_dict[cert_id]['status'] = 'update'
+        else:
+            tmp_cert_dict[cert_id]['status'] = 'new'
 
     return_json = []
     for cert_id in tmp_cert_dict.keys():
