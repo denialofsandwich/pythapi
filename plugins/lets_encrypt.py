@@ -701,6 +701,20 @@ def e_add_certificate(domain_list):
     job = api_plugins()['job']
     job.e_create_job('add_crt:{}'.format(cert_id), it_add_certificate, [domain_list])
 
+def i_revoke_certificate(cert_id):
+    config = api_config()[plugin.name]
+    certfile_path = os.path.join(config['base_key_directory'], 'certs', cert_id, 'certfile.pem')
+
+    if not os.path.isfile(certfile_path):
+        return
+
+    cert64 = _b64(i_exec_openssl(['x509', '-in', certfile_path, '-outform', 'DER']))
+    code, result, headers = _send_signed_request(acme_config["revokeCert"], {'certificate': cert64})
+    if code != 200:
+        raise ValueError("Error while revoking the certificate: {0} {1}".format(code, result))
+
+    api_log().debug("Certificate revoked.")
+
 @api_external_function(plugin)
 def e_delete_certificate(cert_id):
     config = api_config()[plugin.name]
@@ -728,6 +742,9 @@ def e_delete_certificate(cert_id):
         domain_list = i_get_direct_certificate(cert_id)
 
     i_rebuild_domain_links(domain_list)
+
+    i_revoke_certificate(cert_id)
+
     ir_delete_directory_tree(domain_path)
 
 def i_search_best_cert(domain_name):
