@@ -46,6 +46,8 @@ tr_loglevel = {
     6: 10
 }
 
+interposer_list = []
+
 class ColoredFormatter(logging.Formatter):
     def __init__(self, msg, fancy = True):
         logging.Formatter.__init__(self, msg)
@@ -57,6 +59,14 @@ class ColoredFormatter(logging.Formatter):
             record.levelname = color_codes[levelname].format(levelname)
             
         return logging.Formatter.format(self, record)
+
+class LoggingFunctionExecutor(logging.StreamHandler):
+    def emit(self, record):
+        try:
+            for f in interposer_list:
+                f(record, self)
+        except (KeyboardInterrupt, SystemExit):
+            raise
 
 class fancy_logger(logging.Logger):
 
@@ -95,6 +105,7 @@ class fancy_logger(logging.Logger):
         else:
             self.sout.setFormatter(ColoredFormatter('%(levelname)s %(message)s', fancy = False))
 
+        self.addHandler(LoggingFunctionExecutor())
         self.addHandler(self.sout)
     
     def success(self, *args):
@@ -123,3 +134,6 @@ class fancy_logger(logging.Logger):
         loglevel = tr_loglevel[loglevel]
         
         self.setLevel(loglevel)
+
+    def addInterposer(self, f):
+        interposer_list.append(f)
