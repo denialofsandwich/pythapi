@@ -3,8 +3,8 @@
 #
 # Name:        pythapi: lets_encrypt.py
 # Author:      Rene Fa
-# Date:        19.07.2018
-# Version:     0.6
+# Date:        23.07.2018
+# Version:     0.7
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
