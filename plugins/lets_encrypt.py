@@ -147,7 +147,7 @@ def i_domains_to_punycode(domain_list):
     return return_list
 
 def i_get_cert_id(domains):
-    domain_str = json.dumps(domains, sort_keys=True, separators=(",", ":"))
+    domain_str = json.dumps(sorted(domains), sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha1(domain_str.encode('utf8')).digest()
     b64_str = base64.urlsafe_b64encode(digest).decode('utf8')
     return b64_str.rstrip('=')
