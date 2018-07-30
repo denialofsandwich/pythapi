@@ -226,38 +226,6 @@ def get_job(reqHandler, p, args, body):
         'data': e_get_job(p[0])
     }
 
-def test_func(val, **kwargs):
-    t_e = kwargs['_t_event']
-    print("Das ist: {}".format(val))
-    t_e.wait(60)
-
-@api_action(plugin, {
-    'path': '*',
-    'method': 'POST',
-    'params': [
-        {
-            'name': "job_name",
-            'type': str,
-            'f_name': {
-                'EN': "Job Name",
-                'DE': "Job Name"
-            }
-        }
-    ],
-    'f_name': {
-        'EN': 'Add new certificate',
-        'DE': 'Neues Zertifikat hinzufügen'
-    },
-
-    'f_description': {
-        'EN': 'Adds a new certificate to the certpool and request it.',
-        'DE': 'Fügt ein neues Zertifikat zum Pool hinzu und fordert es an.'
-    }
-})
-def add_certificate(reqHandler, p, args, body):
-    e_create_job(p[0], test_func, ["Teststring"])
-    return {}
-
 @api_action(plugin, {
     'path': '*',
     'method': 'DELETE',
