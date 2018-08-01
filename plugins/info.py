@@ -137,6 +137,7 @@ def i_get_plugin(plugin_name):
     return_json['essential'] = i_plugin.essential
     return_json['depends'] = i_plugin.depends
     return_json['action_count'] = len(i_plugin.actions)
+    return_json['events'] = list(i_plugin.events.keys())
     return_json.update(i_plugin.info)
     
     for property_name in plugin_property_blacklist:
