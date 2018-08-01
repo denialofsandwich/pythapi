@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
-# Name:        pythapi: telegram.py
+# Name:        pythapi: telegram-bot.py
 # Author:      Rene Fa
 # Date:        10.07.2018
 # Version:     0.5

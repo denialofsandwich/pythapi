@@ -606,9 +606,6 @@ def et_check_certificates():
                 except WebRequestException:
                     api_log().warning("Renewing already running for {}.".format(cert_id))
         
-        #
-
-
     api_log().debug("Done checking certificates.")
     pass
 
@@ -700,6 +697,8 @@ def e_add_certificate(domain_list):
 
     job = api_plugins()['job']
     job.e_create_job('add_crt:{}'.format(cert_id), it_add_certificate, [domain_list])
+
+    return cert_id
 
 def i_revoke_certificate(cert_id):
     config = api_config()[plugin.name]
@@ -1060,8 +1059,9 @@ def get_certificate(reqHandler, p, args, body):
     }
 })
 def add_certificate(reqHandler, p, args, body):
-    e_add_certificate(i_domains_to_punycode(body['domains']))
-    return {}
+    return {
+        'cert_id': e_add_certificate(i_domains_to_punycode(body['domains']))
+    }
 
 @api_action(plugin, {
     'path': 'cert/*',
