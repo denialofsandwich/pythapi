@@ -1149,7 +1149,18 @@ def i_domain_permission_validator(ruleset, rule_section, target_domain):
                 'EN': "Domain list",
                 'DE': "Domainliste"
             },
-            'default': []
+            'default': [],
+            'childs': {
+                'type': dict,
+                'childs': {
+                    'cert': {
+                        'type': str
+                    },
+                    'key': {
+                        'type': str
+                    }
+                }
+            }
         }
     },
     'f_name': {
