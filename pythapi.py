@@ -361,7 +361,7 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     plugin = api_plugin.plugin_dict[plugin_name]
     
     for dependency in plugin.depends:
-        if 'i_error' in api_plugin.plugin_dict[dependency['name']].info:
+        if not dependency['name'] in api_plugin.plugin_dict or 'i_error' in api_plugin.plugin_dict[dependency['name']].info:
             
             if dependency['required'] == True:
                 log.error(plugin.name + ": required plugin {} not loaded.".format(dependency['name']))
