@@ -150,7 +150,7 @@ def try_convert_value(section, key, value, skel):
             if desired_type == dict:
                 if type(value) == dict:
                     if 'childs' in skel:
-                        for sub_key, sub_value in skel['childs'].items():
+                        for sub_key in skel['childs'].keys():
                             value[sub_key] = try_convert_value(section, "{}.{}".format(key, sub_key), value.get(sub_key, None), skel['childs'][sub_key])
 
                     return value
