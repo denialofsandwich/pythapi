@@ -174,6 +174,16 @@ plugin.translation_dict = {
     'AUTH_SYNTAX_ERROR_3': {
         'EN': 'Auth: Error in role {}: Action {} not found.',
         'DE': 'Auth: Fehler in der Rolle {}: Action {} nicht gefunden.'
+    },
+
+    'AUTH_SESSION_NOT_FOUND': {
+        'EN': 'Session not found or already closed.',
+        'DE': 'Session nicht gefunden oder bereits beendet.'
+    },
+
+    'AUTH_EXECUTION_DENIED': {
+        'EN': 'The execution of this request was denied.',
+        'DE': 'Die Ausführung der Anfrage wurde verweigert.'
     }
 }
 
@@ -492,6 +502,10 @@ def e_list_users():
 
 @api_external_function(plugin)
 def e_create_user(username, data):
+
+    if username == 'list':
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -538,6 +552,10 @@ def e_create_user(username, data):
 
 @api_external_function(plugin)
 def e_edit_user(username, data):
+
+    if username == 'list':
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -567,11 +585,14 @@ def e_edit_user(username, data):
 
 @api_external_function(plugin)
 def e_delete_user(username):
+
+    if username in ['admin', 'anonymous', 'list']:
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    # TODO: Wenn write_trough_cache_enabled == false, wird nicht gecheckt ob User existiert.
     if write_trough_cache_enabled and not username in users_dict:
         raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
     
@@ -732,6 +753,10 @@ def e_list_user_token(username):
 
 @api_external_function(plugin)
 def e_create_user_token(username, token_name):
+
+    if token_name == 'list':
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -778,6 +803,10 @@ def e_create_user_token(username, token_name):
 
 @api_external_function(plugin)
 def e_delete_user_token(username, token_name):
+
+    if token_name == 'list':
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -908,6 +937,10 @@ def e_list_roles():
 
 @api_external_function(plugin)
 def e_create_role(role_name, ruleset):
+
+    if role_name == 'list':
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -968,6 +1001,9 @@ def i_edit_db_role(role_name, ruleset):
 @api_external_function(plugin)
 def e_edit_role(role_name, ruleset):
 
+    if role_name == 'list':
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     if write_trough_cache_enabled:
         if not role_name in roles_dict:
             raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
@@ -1011,6 +1047,9 @@ def e_delete_db_role(role_name):
 @api_external_function(plugin)
 def e_delete_role(role_name):
     
+    if role_name in ['admin', 'anonymous', 'default', 'list']:
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
     if write_trough_cache_enabled:
         if not role_name in roles_dict:
             raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
@@ -1647,8 +1686,31 @@ def create_session(reqHandler, p, args, body):
     'path': 'session',
     'method': 'DELETE',
     'f_name': {
-        'EN': 'Close sessions',
-        'DE': 'Sessions beenden'
+        'EN': 'Close session',
+        'DE': 'Session beenden'
+    },
+
+    'f_description': {
+        'EN': 'Quits the current session.',
+        'DE': 'Schließt die aktuelle Session.'
+    }
+})
+def delete_session(reqHandler, p, args, body):
+
+    if reqHandler.get_cookie("session_id"):
+        if reqHandler.get_cookie("session_id") in session_dict:
+            e_delete_session(reqHandler.get_cookie("session_id"))
+            return {}
+
+    raise WebRequestException(400, 'error', 'AUTH_SESSION_NOT_FOUND')
+    return {}
+
+@api_action(plugin, {
+    'path': 'session/all',
+    'method': 'DELETE',
+    'f_name': {
+        'EN': 'Close all sessions',
+        'DE': 'Alle Sessions beenden'
     },
 
     'f_description': {
@@ -1656,7 +1718,7 @@ def create_session(reqHandler, p, args, body):
         'DE': 'Schließt alle aktiven Sessions.'
     }
 })
-def delete_session(reqHandler, p, args, body):
+def delete_all_sessions(reqHandler, p, args, body):
     e_delete_sessions_from_user(current_user)
     return {}
 
