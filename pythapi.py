@@ -361,7 +361,7 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     plugin = api_plugin.plugin_dict[plugin_name]
     
     for dependency in plugin.depends:
-        if 'i_error' in api_plugin.plugin_dict[dependency['name']].info:
+        if not dependency['name'] in api_plugin.plugin_dict or 'i_error' in api_plugin.plugin_dict[dependency['name']].info:
             
             if dependency['required'] == True:
                 log.error(plugin.name + ": required plugin {} not loaded.".format(dependency['name']))
@@ -587,8 +587,8 @@ def main():
     dir_r = glob.glob("plugins/*.py")
     log.info("Plugins found: " +str(len(dir_r) -1) )
     
-    plugin_whitelist = []
-    if api_plugin.config['core.general']['enabled_plugins'] != '*':
+    plugin_whitelist = None
+    if api_plugin.config['core.general']['enabled_plugins'] != ['*']:
         plugin_whitelist = api_plugin.config['core.general']['enabled_plugins']
     
     log.debug("Importing and initializing plugins...")
@@ -597,7 +597,7 @@ def main():
         module_name = re.search('^plugins/(.*)\.py$', i_dir).group(1)
         if(module_name == "__init__"): continue
         
-        if len(plugin_whitelist) and not module_name in plugin_whitelist:
+        if plugin_whitelist != None and len(plugin_whitelist) and not module_name in plugin_whitelist:
             log.debug("{}.py is disabled.".format(module_name))
             continue
         
