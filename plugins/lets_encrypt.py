@@ -389,7 +389,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
         # Pre-verification
         # Check via DNS resolver before Let's Encrypt verification
         for name, keydigest64 in token_dict.items():
-    
+            
             api_log().debug("Pre-verification: Waiting for correct key of {}...".format(name))
             while True:
                 try:
@@ -403,7 +403,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                 
                 preVerified = False
                 for dns_result in dns_results:
-                    if str(dns_result).strip('"') == keydigest64:
+                    if str(dns_result).strip('"') in keydigest64:
                         preVerified = True
                         break
     
@@ -427,32 +427,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             challenge = [c for c in authorization["challenges"] if c["type"] == "dns-01"][0]
             token = re.sub(r"[^A-Za-z0-9_\-]", "_", challenge["token"])
             keyauthorization = "{0}.{1}".format(token, thumbprint)
-            keydigest64 = _b64(hashlib.sha256(keyauthorization.encode("utf8")).digest())
-    
-            # Check via DNS resolver before Let's Encrypt verification
-            api_log().debug("Pre-verification: Waiting for correct key of {}...".format(domain))
-            while True:
-                try:
-                    dns_results = dns_resolver.query("_acme-challenge.{}".format(domain), 'TXT')
-    
-                except dns.resolver.NoAnswer:
-                    dns_results = []
-    
-                except dns.resolver.NXDOMAIN:
-                    dns_results = []
-                
-                preVerified = False
-                for dns_result in dns_results:
-                    if str(dns_result).strip('"') == keydigest64:
-                        preVerified = True
-                        break
-    
-                if preVerified:
-                    break
-    
-                kwargs['_t_event'].wait(2)
-                if kwargs['_t_event'].is_set():
-                    return
     
             # Start Let's Encrypt verification
             api_log().debug("Asking ACME server to validate challenge.")
