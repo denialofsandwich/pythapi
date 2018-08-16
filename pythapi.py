@@ -49,7 +49,7 @@ version = 0.9
 config_defaults = {
     'core.general': {
         'loglevel': 5,
-        'fancy_logs': True,
+        'colored_logs': True,
         'file_logging_enabled': True,
         'logfile': 'pythapilog_[time].log',
         'user': 'root',
@@ -499,15 +499,46 @@ class ConvertableConfigParser(configparser.ConfigParser):
             d[k].pop('__name__', None)
         return d
 
+def r_read_child_configs(config, depth = 0):
+    if depth > 100:
+        print("Recursive Config detected!")
+        return False
+    
+    if 'include_files' in config['core.general']:
+        for pathname in list(config['core.general']['include_files'].split(',')):
+            for filename in glob.glob(pathname.strip()):
+                del config['core.general']['include_files']
+                config.read(filename)
+                
+                if not r_read_child_configs(config, depth +1):
+                    return False
+
 def main():
     global log
     signal.signal(signal.SIGINT, signal_handler)
     
-    # Read the config file
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
+    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
+    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
+    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
+    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
+    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
+    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
+    parser.add_argument('--config', '-c', help="Add config-file")
+
+    args = parser.parse_args()
+    
     api_plugin.config = ConvertableConfigParser()
-    api_plugin.config.read('pythapi.ini')
-    api_plugin.config.read('/etc/pythapi/pythapi.ini')
-    api_plugin.config = api_plugin.config.as_dict()    
+    
+    if args.config == None:
+        api_plugin.config.read('pythapi.ini')
+    else:
+        api_plugin.config.read(args.config)
+    
+    r_read_child_configs(api_plugin.config)
+    
+    api_plugin.config = api_plugin.config.as_dict()
     api_plugin.add_config_defaults_and_convert(config_defaults)
 
     api_plugin.translation_dict = translation_dict
@@ -517,19 +548,8 @@ def main():
         print("CRITICAL The user " +getpass.getuser() + " is not authorized to execute pythapi.")
         sys.exit(1)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
-    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
-    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
-    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
-    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
-    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
-    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
-
-    args = parser.parse_args()
-
     if args.no_fancy:
-        api_plugin.config['core.general']['fancy_logs'] = False
+        api_plugin.config['core.general']['colored_logs'] = False
 
     if args.verbosity != None:
         api_plugin.config['core.general']['loglevel'] = args.verbosity
@@ -566,7 +586,7 @@ def main():
     api_plugin.config['core.general']['logfile'] = api_plugin.config['core.general']['logfile'].replace('[time]', datetime.datetime.now().strftime('%m-%d-%Y'))
     
     api_plugin.log = tools.fancy_logs.fancy_logger(
-        api_plugin.config['core.general']['fancy_logs'],
+        api_plugin.config['core.general']['colored_logs'],
         api_plugin.config['core.general']['loglevel'],
         api_plugin.config['core.general']['file_logging_enabled'],
         api_plugin.config['core.general']['logfile']
@@ -574,7 +594,7 @@ def main():
     log = api_plugin.log
     
 #    if args.no_fancy:
-#        api_plugin.config['core.general']['fancy_logs'] = False
+#        api_plugin.config['core.general']['colored_logs'] = False
 #        log.setFancy(False)
 #
 #    if args.verbosity != None:
@@ -585,7 +605,7 @@ def main():
     log.begin("Loading Plugins...")
 
     dir_r = glob.glob("plugins/*.py")
-    log.info("Plugins found: " +str(len(dir_r) -1) )
+    log.debug("Plugins found: " +str(len(dir_r) -1) )
     
     plugin_whitelist = None
     if api_plugin.config['core.general']['enabled_plugins'] != ['*']:
@@ -606,6 +626,7 @@ def main():
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
     
+    log.info("Plugins enabled: " +str(len(api_plugin.plugin_dict)))
     for plugin_name in api_plugin.plugin_dict:
         if not plugin_name in api_plugin.dependency_list and not 'i_error' in api_plugin.plugin_dict[plugin_name].info:
             r_build_dependency_list(plugin_name, len(api_plugin.plugin_dict) )
