@@ -528,6 +528,7 @@ def e_renew_certificate(cert_id):
 
     code, result, headers = _send_signed_request(acme_config["newOrder"], new_order)
     order = result
+    log.debug(result) # DEBUG
     if code == 201:
         order_location = headers['Location']
 
@@ -1153,6 +1154,7 @@ def request_certificates(reqHandler, p, args, body):
     
     domain_list = i_domains_to_punycode(body['domains'])
 
+    # Checking permissions
     for domain in domain_list:
         if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
@@ -1160,6 +1162,7 @@ def request_certificates(reqHandler, p, args, body):
     config = api_config()[plugin.name]
     domaindir_path = os.path.join(config['base_key_directory'], 'domains')
 
+    # Build cert- and key-fingerprint-lists
     certfp_list = []
     keyfp_list = []
     for fp in body['fingerprints']:
@@ -1193,8 +1196,10 @@ def request_certificates(reqHandler, p, args, body):
         cert_fingerprint = hashlib.sha256(cert.encode('ascii')).hexdigest()
         if cert_fingerprint in certfp_list:
             tmp_cert_dict[cert_id]['cert'] = cert_fingerprint
+            cert_valid = True
         else:
             tmp_cert_dict[cert_id]['certfile'] = cert
+            cert_valid = False
         
         with open(os.path.join(cert_path, 'keyfile.pem')) as keyfile:
             key = keyfile.read()
@@ -1202,13 +1207,15 @@ def request_certificates(reqHandler, p, args, body):
         key_fingerprint = hashlib.sha256(key.encode('ascii')).hexdigest()
         if key_fingerprint in keyfp_list:
             tmp_cert_dict[cert_id]['key'] = key_fingerprint
+            key_valid = True
         else:
             tmp_cert_dict[cert_id]['keyfile'] = key
+            key_valid = False
 
-        if 'cert' in tmp_cert_dict[cert_id]:
-            tmp_cert_dict[cert_id]['status'] = 'ok'
-        elif 'key' in tmp_cert_dict[cert_id]:
+        if cert_valid != key_valid:
             tmp_cert_dict[cert_id]['status'] = 'update'
+        elif cert_valid == True:
+            tmp_cert_dict[cert_id]['status'] = 'ok'
         else:
             tmp_cert_dict[cert_id]['status'] = 'new'
 
