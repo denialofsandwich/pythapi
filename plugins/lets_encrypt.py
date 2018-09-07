@@ -528,7 +528,6 @@ def e_renew_certificate(cert_id):
 
     code, result, headers = _send_signed_request(acme_config["newOrder"], new_order)
     order = result
-    log.debug(result) # DEBUG
     if code == 201:
         order_location = headers['Location']
 
