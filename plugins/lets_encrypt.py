@@ -348,6 +348,7 @@ def e_add_preverfication_handler(f):
     preverification_handler_list.append(f)
 
 def it_complete_challenges(domain_list, order, order_location, **kwargs):
+    global jws_nonce
     config = api_config()[plugin.name]
     cert_id = i_get_cert_id(domain_list)
     cert_path = os.path.join(config['base_key_directory'], 'certs', cert_id)
@@ -417,6 +418,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                     return
 
         cert_dict[cert_id]['status'] = 'waiting_for_acme_verification'
+        jws_nonce = None
         for authz in order["authorizations"]:
     
             # get new challenge
