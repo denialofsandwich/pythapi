@@ -378,6 +378,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
 
         api_log().info("Register this: {} at _acme-challenge.{}".format(keydigest64, domain))
     
+    cert_dict[cert_id]['status'] = 'running_pre_verification_handlers'
     for v_handler in preverification_handler_list:
         v_handler(domain_list, token_dict)
 
@@ -385,6 +386,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
     with open(os.path.join(cert_path, 'token.json'), 'w') as tokenfile:
         tokenfile.write(json.dumps(token_dict))
 
+    cert_dict[cert_id]['status'] = 'waiting_for_pre_verification'
     if order['status'] == 'pending':
         # Pre-verification
         # Check via DNS resolver before Let's Encrypt verification
@@ -414,6 +416,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                 if kwargs['_t_event'].is_set():
                     return
 
+        cert_dict[cert_id]['status'] = 'waiting_for_acme_verification'
         for authz in order["authorizations"]:
     
             # get new challenge
@@ -455,6 +458,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
     else:
         api_log().debug("Challenges are already satisfied. Skipping verification.")
     
+    cert_dict[cert_id]['status'] = 'finalizing_order'
     csrfile_path = os.path.join(cert_path, 'certfile.csr')
 
     csr_der = _b64(i_exec_openssl(['req', '-in', csrfile_path, '-outform', 'DER']))
@@ -511,7 +515,7 @@ def e_renew_certificate(cert_id):
     if not running_job_status in ['none', 'done', 'terminated']:
         raise WebRequestException(400, 'error', 'LE_RENEWAL_RUNNING')
 
-    cert_dict[cert_id]['status'] = 'waiting_for_verification'
+    cert_dict[cert_id]['status'] = 'initializing_verification'
 
     config = api_config()[plugin.name]
     cert_path = os.path.join(config['base_key_directory'], 'certs', cert_id)
