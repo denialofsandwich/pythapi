@@ -386,16 +386,17 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
 
         api_log().info("Register this: {} at _acme-challenge.{}".format(keydigest64, domain))
     
-    cert_dict[cert_id]['status'] = 'running_pre_verification_handlers'
-    for v_handler in preverification_handler_list:
-        v_handler(domain_list, token_dict)
-
     cert_dict[cert_id]['tokens'] = token_dict
     with open(os.path.join(cert_path, 'token.json'), 'w') as tokenfile:
         tokenfile.write(json.dumps(token_dict))
 
     cert_dict[cert_id]['status'] = 'waiting_for_pre_verification'
     if order['status'] == 'pending':
+
+        cert_dict[cert_id]['status'] = 'running_pre_verification_handlers'
+        for v_handler in preverification_handler_list:
+            v_handler(domain_list, token_dict)
+
         # Pre-verification
         # Check via DNS resolver before Let's Encrypt verification
         for name, keydigest64 in token_dict.items():
@@ -465,9 +466,9 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                     raise ValueError("Challenge for domain {0} did not pass: {1}".format(
                         domain, challenge_status))
 
-    cert_dict[cert_id]['status'] = 'running_post_verification_handlers'
-    for v_handler in postverification_handler_list:
-        v_handler(domain_list, token_dict)
+        cert_dict[cert_id]['status'] = 'running_post_verification_handlers'
+        for v_handler in postverification_handler_list:
+            v_handler(domain_list, token_dict)
 
     else:
         api_log().debug("Challenges are already satisfied. Skipping verification.")
