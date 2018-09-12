@@ -122,6 +122,7 @@ dns_resolver = None
 
 cert_dict = {}
 preverification_handler_list = []
+postverification_handler_list = []
 write_through_cache_enabled = False
 
 def _b64(b):
@@ -349,6 +350,10 @@ def e_get_certificate(cert_id):
 def e_add_preverfication_handler(f):
     preverification_handler_list.append(f)
 
+@api_external_function(plugin)
+def e_add_postverfication_handler(f):
+    postverification_handler_list.append(f)
+
 def it_complete_challenges(domain_list, order, order_location, **kwargs):
     global jws_nonce
     config = api_config()[plugin.name]
@@ -459,6 +464,11 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                 else:
                     raise ValueError("Challenge for domain {0} did not pass: {1}".format(
                         domain, challenge_status))
+
+    cert_dict[cert_id]['status'] = 'running_post_verification_handlers'
+    for v_handler in postverification_handler_list:
+        v_handler(domain_list, token_dict)
+
     else:
         api_log().debug("Challenges are already satisfied. Skipping verification.")
     
