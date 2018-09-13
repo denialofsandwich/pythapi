@@ -1609,52 +1609,52 @@ def global_preexecution_hook(reqHandler, action):
 
     unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
 
-@api_action(plugin, {
-    'path': 'debug',
-    'method': 'POST',
-    'f_name': {
-        'EN': 'Debug 1'
-    },
-
-    'f_description': {
-        'EN': 'Dumps the write-through-cache.',
-        'DE': 'Gibt den write-through-cache aus.'
-    }
-})
-def auth_debug1(reqHandler, p, args, body):
-    return {
-        'users_dict': users_dict,
-        'user_token_dict': user_token_dict,
-        'session_dict': session_dict,
-        'roles_dict': roles_dict,
-        'bf_blacklist': bf_blacklist,
-        'session_counter': session_counter
-    }
-
-@api_action(plugin, {
-    'path': 'debug2',
-    'method': 'POST'
-})
-def auth_debug2(reqHandler, p, args, body):
-    
-    plist = {} 
-    for i_p in api_plugins():
-        i_pe = api_plugins()[i_p]
-        i_actions = {} 
-     
-        for i_action in i_pe.actions:
-            i_ae = {} 
-            i_ae['roles'] = i_action['roles']
-     
-            i_actions[i_action['name']] = i_ae 
-     
-        plist[i_pe.name] = {} 
-        plist[i_pe.name]['actions'] = i_actions
-        plist[i_pe.name]['essential'] = i_pe.essential
-    
-    return {
-        'data': plist
-    }
+#@api_action(plugin, {
+#    'path': 'debug',
+#    'method': 'POST',
+#    'f_name': {
+#        'EN': 'Debug 1'
+#    },
+#
+#    'f_description': {
+#        'EN': 'Dumps the write-through-cache.',
+#        'DE': 'Gibt den write-through-cache aus.'
+#    }
+#})
+#def auth_debug1(reqHandler, p, args, body):
+#    return {
+#        'users_dict': users_dict,
+#        'user_token_dict': user_token_dict,
+#        'session_dict': session_dict,
+#        'roles_dict': roles_dict,
+#        'bf_blacklist': bf_blacklist,
+#        'session_counter': session_counter
+#    }
+#
+#@api_action(plugin, {
+#    'path': 'debug2',
+#    'method': 'POST'
+#})
+#def auth_debug2(reqHandler, p, args, body):
+#    
+#    plist = {} 
+#    for i_p in api_plugins():
+#        i_pe = api_plugins()[i_p]
+#        i_actions = {} 
+#     
+#        for i_action in i_pe.actions:
+#            i_ae = {} 
+#            i_ae['roles'] = i_action['roles']
+#     
+#            i_actions[i_action['name']] = i_ae 
+#     
+#        plist[i_pe.name] = {} 
+#        plist[i_pe.name]['actions'] = i_actions
+#        plist[i_pe.name]['essential'] = i_pe.essential
+#    
+#    return {
+#        'data': plist
+#    }
 
 @api_action(plugin, {
     'path': 'whoami',
