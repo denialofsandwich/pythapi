@@ -34,6 +34,7 @@ import string
 import random
 import math
 import getpass
+import copy
 
 cookie_length = 64
 session_clean_threshold = 1000
@@ -280,6 +281,40 @@ def i_clean_expired_sessions():
             e_delete_session(session_id)
     
     session_counter = 0
+
+# To merge dicts and lists
+def update_2(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.Mapping):
+            d[k] = update(d.get(k, {}), v)
+        elif type(v) == list and k in d:
+            d[k].extend(v)
+        else:
+            d[k] = v
+
+    return d
+
+def ir_merge_permissions(role_name, depth=0):
+    if depth > len(roles_dict):
+        raise WebRequestException(400, 'error', 'GENERAL_RECURSIVE_LOOP')
+        
+    parent_list = roles_dict[role_name]['ruleset']['inherit']
+
+    return_json = copy.deepcopy(roles_dict[role_name]['ruleset'])
+    del return_json['inherit']
+
+    for parent in parent_list:
+        update_2(return_json, ir_merge_permissions(parent, depth+1))
+
+    return return_json
+
+@api_external_function(plugin)
+def e_get_permissions_of_user(username):
+    return_json = {}
+    for parent in users_dict[username]['roles']:
+        update_2(return_json, ir_merge_permissions(parent))
+
+    return return_json
 
 @api_external_function(plugin)
 def e_list_sessions(username):
@@ -1378,6 +1413,7 @@ def install():
             "auth.list_sessions",
             "auth.create_session",
             "auth.delete_session",
+            "auth.delete_all_sessions",
             
             "auth.get_user_token",
             "auth.list_user_tokens",
@@ -1385,6 +1421,7 @@ def install():
             "auth.delete_user_token",
             
             "auth.change_password",
+            "auth.get_permissions",
             "auth.get_current_user"
         ]
     })
@@ -1572,52 +1609,52 @@ def global_preexecution_hook(reqHandler, action):
 
     unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
 
-#@api_action(plugin, {
-#    'path': 'debug',
-#    'method': 'POST',
-#    'f_name': {
-#        'EN': 'Debug 1'
-#    },
-#
-#    'f_description': {
-#        'EN': 'Dumps the write-through-cache.',
-#        'DE': 'Gibt den write-through-cache aus.'
-#    }
-#})
-#def auth_debug1(reqHandler, p, args, body):
-#    return {
-#        'users_dict': users_dict,
-#        'user_token_dict': user_token_dict,
-#        'session_dict': session_dict,
-#        'roles_dict': roles_dict,
-#        'bf_blacklist': bf_blacklist,
-#        'session_counter': session_counter
-#    }
-#
-#@api_action(plugin, {
-#    'path': 'debug2',
-#    'method': 'POST'
-#})
-#def auth_debug2(reqHandler, p, args, body):
-#    
-#    plist = {} 
-#    for i_p in api_plugins():
-#        i_pe = api_plugins()[i_p]
-#        i_actions = {} 
-#     
-#        for i_action in i_pe.actions:
-#            i_ae = {} 
-#            i_ae['roles'] = i_action['roles']
-#     
-#            i_actions[i_action['name']] = i_ae 
-#     
-#        plist[i_pe.name] = {} 
-#        plist[i_pe.name]['actions'] = i_actions
-#        plist[i_pe.name]['essential'] = i_pe.essential
-#    
-#    return {
-#        'data': plist
-#    }
+@api_action(plugin, {
+    'path': 'debug',
+    'method': 'POST',
+    'f_name': {
+        'EN': 'Debug 1'
+    },
+
+    'f_description': {
+        'EN': 'Dumps the write-through-cache.',
+        'DE': 'Gibt den write-through-cache aus.'
+    }
+})
+def auth_debug1(reqHandler, p, args, body):
+    return {
+        'users_dict': users_dict,
+        'user_token_dict': user_token_dict,
+        'session_dict': session_dict,
+        'roles_dict': roles_dict,
+        'bf_blacklist': bf_blacklist,
+        'session_counter': session_counter
+    }
+
+@api_action(plugin, {
+    'path': 'debug2',
+    'method': 'POST'
+})
+def auth_debug2(reqHandler, p, args, body):
+    
+    plist = {} 
+    for i_p in api_plugins():
+        i_pe = api_plugins()[i_p]
+        i_actions = {} 
+     
+        for i_action in i_pe.actions:
+            i_ae = {} 
+            i_ae['roles'] = i_action['roles']
+     
+            i_actions[i_action['name']] = i_ae 
+     
+        plist[i_pe.name] = {} 
+        plist[i_pe.name]['actions'] = i_actions
+        plist[i_pe.name]['essential'] = i_pe.essential
+    
+    return {
+        'data': plist
+    }
 
 @api_action(plugin, {
     'path': 'whoami',
@@ -1635,6 +1672,24 @@ def global_preexecution_hook(reqHandler, action):
 def get_current_user(reqHandler, p, args, body):
     return {
         'data': e_get_user(e_get_current_user())
+    }
+
+@api_action(plugin, {
+    'path': 'permissions',
+    'method': 'GET',
+    'f_name': {
+        'EN': 'Get permissions',
+        'DE': 'Zeige Berechtigungen'
+    },
+
+    'f_description': {
+        'EN': 'Returns a merged list of all permissions.',
+        'DE': 'Gibt eine zusammengesetzte Liste mit allen Berechtigungen zurück.'
+    }
+})
+def get_permissions(reqHandler, p, args, body):
+    return {
+        'data': e_get_permissions_of_user(e_get_current_user())
     }
 
 @api_action(plugin, {
