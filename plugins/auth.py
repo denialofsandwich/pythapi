@@ -97,6 +97,11 @@ plugin.translation_dict = {
         'DE': 'Session ID nicht gefunden.'
     },
     
+    'AUTH_SESSION_EXPIRED': {
+        'EN': 'Session expired.',
+        'DE': 'Session abgelaufen.'
+    },
+    
     'AUTH_TOKEN_NOT_FOUND': {
         'EN': 'Token doesn\'t exist.',
         'DE': 'Token nicht gefunden.'
@@ -697,7 +702,7 @@ def i_list_db_user_token(username):
     
     with db:
         sql = """
-            SELECT """ +db_prefix +"""user_token.id, name, token_name, user_key
+            SELECT """ +db_prefix +"""user_token.id, name, token_name, user_key, data
                 FROM """ +db_prefix +"""user_token
                 JOIN """ +db_prefix +"""user
                 ON user_id = """ +db_prefix +"""user.id
@@ -720,7 +725,7 @@ def i_list_db_token():
     
     with db:
         sql = """
-            SELECT """ +db_prefix +"""user_token.id, name, token_name, user_key
+            SELECT """ +db_prefix +"""user_token.id, name, token_name, user_key, data
                 FROM """ +db_prefix +"""user_token
                 JOIN """ +db_prefix +"""user
                 ON user_id = """ +db_prefix +"""user.id;
@@ -741,7 +746,7 @@ def i_get_local_user_token(username, token_name):
             continue
         
         if user_token_dict[key]['token_name'] == token_name:
-            i_entry = dict(user_token_dict[key])
+            i_entry = copy.deepcopy(user_token_dict[key])
             return i_entry
     
     raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
@@ -749,7 +754,7 @@ def i_get_local_user_token(username, token_name):
 def i_list_local_user_token(username):
     return_json = []
     for key in users_dict[username]['keys']:
-        i_entry = dict(user_token_dict[key])
+        i_entry = copy.deepcopy(user_token_dict[key])
         return_json.append(i_entry)
     
     return return_json
@@ -760,12 +765,12 @@ def e_get_user_token(username, token_name):
         return i_get_local_user_token(username, token_name)
     
     else:
-        # Just to check if the token exists
-        i_get_db_user_token(username, token_name)
+        token = i_get_db_user_token(username, token_name)
         
         return_json = {}
         return_json['token_name'] = token_name
         return_json['username'] = username
+        return_json['ruleset'] = json.loads(token[4])
         
         return return_json
 
@@ -781,13 +786,14 @@ def e_list_user_token(username):
             
             i_entry['token_name'] = token[1]
             i_entry['username'] = username
+            i_entry['ruleset'] = json.loads(token[4])
             
             return_json.append(i_entry)
         
         return return_json
 
 @api_external_function(plugin)
-def e_create_user_token(username, token_name):
+def e_create_user_token(username, token_name, ruleset):
 
     if token_name == 'list':
         raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
@@ -805,22 +811,36 @@ def e_create_user_token(username, token_name):
     else:
         user_id = i_get_db_user(username)[0]
     
+    if ruleset != {}:
+        user_ruleset = e_get_permissions_of_user(username)
+        try: del ruleset['inherit']
+        except KeyError: pass
+
+        for section_name in ruleset:
+            if not section_name in user_ruleset:
+                raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
+            for entry in ruleset[section_name]:
+                if not entry in user_ruleset[section_name]:
+                    raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
     new_token = e_generate_random_string(cookie_length)
     h_new_token = e_hash_password('', new_token)
     
     with db:
         sql = """
             INSERT INTO """ +db_prefix +"""user_token (
-                    token_name, user_key, user_id
+                    token_name, user_key, user_id, data
                 )
-                VALUES (%s, %s, %s);
+                VALUES (%s, %s, %s, %s);
         """
         
         try:
             dbc.execute(sql,[
                 token_name,
                 h_new_token,
-                user_id
+                user_id,
+                json.dumps(ruleset)
             ])
             db.commit()
             
@@ -830,7 +850,8 @@ def e_create_user_token(username, token_name):
     if write_trough_cache_enabled:
         user_token_dict[h_new_token] = {
             'username': current_user,
-            'token_name': token_name
+            'token_name': token_name,
+            'ruleset': ruleset
         }
         users_dict[current_user]['keys'].append(h_new_token)
     
@@ -1293,7 +1314,8 @@ def load():
     for row in i_list_db_token():
         user_token_dict[row[3]] = {
             'username': row[1],
-            'token_name': row[2]
+            'token_name': row[2],
+            'ruleset': json.loads(row[4])
         }
         users_dict[row[1]]['keys'].append(row[3])
         
@@ -1340,6 +1362,7 @@ def install():
                 token_name VARCHAR(32) NOT NULL,
                 user_key VARCHAR(64) NOT NULL,
                 user_id INT NOT NULL,
+                data TEXT NOT NULL,
                 PRIMARY KEY (id),
                 UNIQUE (token_name, user_id)
             ) ENGINE = InnoDB;
@@ -1527,24 +1550,24 @@ def i_log_access(message):
     if log.loglevel >= 5:
         log.access('{} {}'.format(api_environment_variables()['transaction_id'], message))
 
-def i_is_permited(username, action, remote_ip = "N/A"):
+def i_is_permited(username, action, remote_ip = "N/A", h_token=None):
 
     for role_name in users_dict[username]['roles']:
         if ir_check_permissions(role_name, action['roles']):
             i_log_access('authorized as {}'.format(current_user))
             return 1
     
-    unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', remote_ip)
+    raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
 @api_event(plugin, 'global_preexecution_hook')
 def global_preexecution_hook(reqHandler, action):
     global current_user
     
+    remote_ip = i_get_client_ip(reqHandler)
     if bf_temporary_ban_enabled:
-        remote_ip = i_get_client_ip(reqHandler)
         if remote_ip in bf_blacklist and bf_blacklist[remote_ip]['banned_until'] > time.time():
-            reaming_time = math.ceil(bf_blacklist[remote_ip]['banned_until'] - time.time())
-            raise WebRequestException(401, 'unauthorized', 'AUTH_TOO_MANY_LOGIN_FAILS', {'reaming_time': reaming_time})
+            remaining_time = math.ceil(bf_blacklist[remote_ip]['banned_until'] - time.time())
+            raise WebRequestException(401, 'unauthorized', 'AUTH_TOO_MANY_LOGIN_FAILS', {'remaining_time': remaining_time})
     
     auth_header = reqHandler.request.headers.get('Authorization', None)
     if auth_header is not None:
@@ -1571,7 +1594,8 @@ def global_preexecution_hook(reqHandler, action):
             
             if h_token in user_token_dict:
                 current_user = user_token_dict[h_token]['username']
-                if i_is_permited(current_user, action, remote_ip):
+
+                if i_is_permited(current_user, action, remote_ip, h_token):
                     i_reset_ban_time(remote_ip)
                     return
             
@@ -1579,7 +1603,7 @@ def global_preexecution_hook(reqHandler, action):
                 unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_USER_TOKEN', remote_ip)
 
     if action['name'] == "auth.create_session":
-        unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
+        raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
      
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
@@ -1598,7 +1622,7 @@ def global_preexecution_hook(reqHandler, action):
             
             if time.time() > session_dict[session_id]['expiration_time']:
                 i_clean_expired_sessions()
-                raise WebRequestException(401, 'unauthorized', 'Session expired.')
+                raise WebRequestException(401, 'unauthorized', 'AUTH_SESSION_EXPIRED')
             
             if i_is_permited(current_user, action, remote_ip):
                 return
@@ -1607,29 +1631,29 @@ def global_preexecution_hook(reqHandler, action):
     if i_is_permited(current_user, action, remote_ip):
         return
 
-    unauthorized_error(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
+    raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-#@api_action(plugin, {
-#    'path': 'debug',
-#    'method': 'POST',
-#    'f_name': {
-#        'EN': 'Debug 1'
-#    },
-#
-#    'f_description': {
-#        'EN': 'Dumps the write-through-cache.',
-#        'DE': 'Gibt den write-through-cache aus.'
-#    }
-#})
-#def auth_debug1(reqHandler, p, args, body):
-#    return {
-#        'users_dict': users_dict,
-#        'user_token_dict': user_token_dict,
-#        'session_dict': session_dict,
-#        'roles_dict': roles_dict,
-#        'bf_blacklist': bf_blacklist,
-#        'session_counter': session_counter
-#    }
+@api_action(plugin, {
+    'path': 'debug',
+    'method': 'POST',
+    'f_name': {
+        'EN': 'Debug 1'
+    },
+
+    'f_description': {
+        'EN': 'Dumps the write-through-cache.',
+        'DE': 'Gibt den write-through-cache aus.'
+    }
+})
+def auth_debug1(reqHandler, p, args, body):
+    return {
+        'users_dict': users_dict,
+        'user_token_dict': user_token_dict,
+        'session_dict': session_dict,
+        'roles_dict': roles_dict,
+        'bf_blacklist': bf_blacklist,
+        'session_counter': session_counter
+    }
 #
 #@api_action(plugin, {
 #    'path': 'debug2',
@@ -1870,7 +1894,7 @@ def get_user_token(reqHandler, p, args, body):
 })
 def create_user_token(reqHandler, p, args, body):
     return {
-        'token': e_create_user_token(current_user, p[0])
+        'token': e_create_user_token(current_user, p[0], body)
     }
 
 @api_action(plugin, {
