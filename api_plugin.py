@@ -296,9 +296,6 @@ def api_action(plugin, pJSON):
         if not 'content_type' in plugin.actions[-1]:
             plugin.actions[-1]['content_type'] = 'application/json'
         
-        if not 'roles' in plugin.actions[-1]:
-            plugin.actions[-1]['roles'] = []
-        
         if 'path' in plugin.actions[-1]:
             plugin.actions[-1]['regex'] = '^' +plugin.name +'/' +plugin.actions[-1]['path'].replace('*','([^/]*)') +'$'
         

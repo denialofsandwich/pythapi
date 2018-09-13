@@ -194,6 +194,7 @@ plugin.translation_dict = {
 }
 
 current_user = "anonymous"
+active_ruleset = None
 used_tables = ["user","user_token","role","role_member"]
 users_dict = {}
 user_token_dict = {}
@@ -882,6 +883,8 @@ def e_create_user_token(username, token_name, ruleset):
             'ruleset': ruleset
         }
         users_dict[current_user]['keys'].append(h_new_token)
+
+    i_apply_ruleset(h_new_token, is_token=True)
     
     return new_token
 
@@ -920,11 +923,15 @@ def e_delete_user_token(username, token_name):
         except MySQLdb.IntegrityError as e:
             api_log().error("e_delete_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-    
+
+
     if write_trough_cache_enabled:
         for i in range(len(users_dict[username]['keys'])):
             key = users_dict[username]['keys'][i]
             if user_token_dict[key]['token_name'] == token_name:
+                h_token = key
+                i_apply_ruleset(h_token, is_token=True, delete=True)
+
                 del user_token_dict[key]
                 del users_dict[username]['keys'][i]
                 break
@@ -1150,7 +1157,7 @@ def e_delete_role(role_name):
         
         del roles_dict[role_name]
         
-        i_apply_ruleset(role_name)
+        i_apply_ruleset(role_name, delete=True)
 
 @api_external_function(plugin)
 def e_add_member_to_role(role_name, username):
@@ -1239,65 +1246,77 @@ def e_remove_member_from_role(role_name, username):
     if write_trough_cache_enabled:
         users_dict[username]['roles'].remove(role_name)
 
-def i_apply_ruleset(role_name):
+def i_apply_ruleset(role_name, is_token=False, delete=False):
     
+    if is_token:
+        h_token = role_name
+
+        token = user_token_dict[h_token]
+        p_name = "token:" +token['username'] +":" +token['token_name']
+        ruleset = token['ruleset']
+        r_type = 'tokens'
+
+    else:
+        p_name = role_name
+        ruleset = roles_dict[role_name]['ruleset']
+        r_type = 'roles'
+
     for plugin_name in action_tree:
         for action_name in action_tree[plugin_name]:
-            try: action_tree[plugin_name][action_name]['roles'].remove(role_name)
+            try: action_tree[plugin_name][action_name][r_type].remove(p_name)
             except: pass
-    
-    if not role_name in roles_dict:
+
+    if delete:
         return
-    
-    ruleset = roles_dict[role_name]['ruleset']
-    for p_rule in roles_dict[role_name]['ruleset']['permissions']:
+   
+    for p_rule in ruleset['permissions']:
         rule_r = p_rule.split('.')
         
         if rule_r[0] == '*':
             if len(rule_r) > 1:
-                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_1').format(p_name, p_rule))
                 continue
             
             for plugin_name in action_tree:
                 for action_name in action_tree[plugin_name]:
-                    role_list = action_tree[plugin_name][action_name]['roles']
+                    role_list = action_tree[plugin_name][action_name][r_type]
                     
                     if role_name in role_list:
                         continue
                     
-                    role_list.append(role_name)
+                    role_list.append(p_name)
         
         elif len(rule_r) == 1:
             if not rule_r[0] in action_tree:
-                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_2').format(p_name, rule_r[0]))
                 continue
             
             for action_name in action_tree[rule_r[0]]:
-                role_list = action_tree[rule_r[0]][action_name]['roles']
+                role_list = action_tree[rule_r[0]][action_name][r_type]
                 
                 if role_name in role_list:
                     continue
                 
-                role_list.append(role_name)
+                role_list.append(p_name)
                 
         elif len(rule_r) == 2:
             if not rule_r[0] in action_tree:
-                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_2').format(role_name, rule_r[0]))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_2').format(p_name, rule_r[0]))
                 continue
             
             if not rule_r[1] in action_tree[rule_r[0]]:
-                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_3').format(role_name, rule_r[1]))
+                api_log().warning(api_tr('AUTH_SYNTAX_ERROR_3').format(p_name, rule_r[1]))
                 continue
             
-            role_list = action_tree[rule_r[0]][rule_r[1]]['roles']
+            role_list = action_tree[rule_r[0]][rule_r[1]][r_type]
                 
             if role_name in role_list:
                 continue
                 
-            role_list.append(role_name)
+            role_list.append(p_name)
             
         else:
-            api_log().warning(api_tr('AUTH_SYNTAX_ERROR_1').format(role_name, p_rule))
+            api_log().warning(api_tr('AUTH_SYNTAX_ERROR_1').format(p_name, p_rule))
             continue
 
 @api_event(plugin, 'check')
@@ -1326,6 +1345,11 @@ def load():
     global bf_temporary_ban_enabled
     #global config
     
+    for plugin_name in action_tree:
+        for action_name in action_tree[plugin_name]:
+            action_tree[plugin_name][action_name]['roles'] = []
+            action_tree[plugin_name][action_name]['tokens'] = []
+
     for row in i_list_db_user():
         users_dict[row[1]] = {
             'id': row[0],
@@ -1356,6 +1380,9 @@ def load():
     for role_name in roles_dict:
         i_apply_ruleset(role_name)
     
+    for h_token in user_token_dict:
+        i_apply_ruleset(h_token, is_token=True)
+
     bf_basic_auth_delay = api_config()[plugin.name]['bf_basic_auth_delay']
     bf_temporary_ban_enabled = api_config()[plugin.name]['bf_temporary_ban_enabled']
     
@@ -1696,6 +1723,7 @@ def global_preexecution_hook(reqHandler, action):
 #        for i_action in i_pe.actions:
 #            i_ae = {} 
 #            i_ae['roles'] = i_action['roles']
+#            i_ae['tokens'] = i_action['tokens']
 #     
 #            i_actions[i_action['name']] = i_ae 
 #     
