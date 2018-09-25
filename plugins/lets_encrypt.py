@@ -825,6 +825,26 @@ def check():
 def install():
     config = api_config()[plugin.name]
 
+    auth = api_plugins()['auth']
+
+    auth.e_create_role( plugin.name +'_admin', {
+        plugin.name +'_allowed_domains':  [
+            '*'
+        ]
+    })
+
+    ruleset = auth.e_get_role('admin')['ruleset']
+
+    try:
+        if not plugin.name +'_admin' in ruleset['inherit']:
+            ruleset['inherit'].append(plugin.name +'_admin')
+
+        auth.e_edit_role('admin', ruleset)
+        log.debug("Permissions applied.")
+    except WebRequestException as e:
+        api_log().error('Editing the admin role failed!')
+        return 0
+
     # Generating directory structure
     try:
         os.makedirs(config['base_key_directory'])
@@ -892,6 +912,22 @@ def install():
 @api_event(plugin, 'uninstall')
 def uninstall():
     config = api_config()[plugin.name]
+
+    auth = api_plugins()['auth']
+    if auth.events['check']():
+        ruleset = auth.e_get_role('admin')['ruleset']
+
+        try:
+            ruleset['inherit'].remove(plugin.name +'_admin')
+            auth.e_edit_role('admin', ruleset)
+        except: pass
+
+        try:
+            auth.e_delete_role(plugin.name +'_admin')
+        except: pass
+
+        api_log().debug('Ruleset deleted.')
+
     ir_delete_directory_tree(config['base_key_directory'])
     return 1
 
@@ -981,12 +1017,25 @@ def load():
     }
 })
 def list_certificates(reqHandler, p, args, body):
+    cert_list = e_list_certificates()
+
+    auth = api_plugins()['auth']
+    current_user = auth.e_get_current_user()
+
+    # Checking permissions
+    for cert_id in list(cert_list):
+        domain_list = e_get_certificate(cert_id)['domains']
+        for domain in domain_list:
+            if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+                cert_list.remove(cert_id)
+                break
+
     if args['verbose']:
         return_json = []
-        for cert_name in e_list_certificates():
+        for cert_id in cert_list:
             i_entry = {}
-            i_entry['id'] = cert_name
-            i_entry.update(e_get_certificate(cert_name))
+            i_entry['id'] = cert_id
+            i_entry.update(e_get_certificate(cert_id))
             return_json.append(i_entry)
 
         return {
@@ -995,7 +1044,7 @@ def list_certificates(reqHandler, p, args, body):
     
     else:
         return {
-            'data': e_list_certificates()
+            'data': cert_list
         }
 
 @api_action(plugin, {
@@ -1022,8 +1071,20 @@ def list_certificates(reqHandler, p, args, body):
     }
 })
 def get_certificate(reqHandler, p, args, body):
+
+    cert_data = e_get_certificate(p[0])
+
+    auth = api_plugins()['auth']
+    current_user = auth.e_get_current_user()
+    domain_list = cert_data['domains']
+
+    # Checking permissions
+    for domain in domain_list:
+        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
     return {
-        'data': e_get_certificate(p[0])
+        'data': cert_data
     }
 
 @api_action(plugin, {
@@ -1052,8 +1113,18 @@ def get_certificate(reqHandler, p, args, body):
     }
 })
 def add_certificate(reqHandler, p, args, body):
+
+    auth = api_plugins()['auth']
+    current_user = auth.e_get_current_user()
+    domain_list = body['domains']
+
+    # Checking permissions
+    for domain in domain_list:
+        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
     return {
-        'cert_id': e_add_certificate(i_domains_to_punycode(body['domains']))
+        'cert_id': e_add_certificate(i_domains_to_punycode(domain_list))
     }
 
 @api_action(plugin, {
@@ -1080,6 +1151,18 @@ def add_certificate(reqHandler, p, args, body):
     }
 })
 def delete_certificate(reqHandler, p, args, body):
+
+    cert_data = e_get_certificate(p[0])
+
+    auth = api_plugins()['auth']
+    current_user = auth.e_get_current_user()
+    domain_list = cert_data['domains']
+
+    # Checking permissions
+    for domain in domain_list:
+        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+            
     e_delete_certificate(p[0])
     return {}
 
