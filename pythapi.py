@@ -102,6 +102,11 @@ translation_dict = {
     'GENERAL_VALUE_RANGE_EXCEEDED': {
         'EN': 'Allowed value range exceeded.',
         'DE': 'Erlaubter Wertebereich überschritten.'
+    },
+
+    'GENERAL_MALFORMED_JSON': {
+        'EN': 'Syntax Error in JSON-Object.',
+        'DE': 'Syntax Fehler im JSON-Objekt.'
     }
 }
 
@@ -159,10 +164,14 @@ class MainHandler(tornado.web.RequestHandler):
                     
                     raw_body = self.request.body
                     if action['request_body_type'] == 'application/json':
-                        try:
-                            body = tornado.escape.json_decode(raw_body)
-                        except ValueError as e:
+                        str_body = raw_body.decode('utf8')
+                        if str_body == "":
                             body = {}
+                        else:
+                            try:
+                                body = tornado.escape.json_decode(str_body)
+                            except ValueError as e:
+                                raise api_plugin.WebRequestException(400, 'error', 'GENERAL_MALFORMED_JSON')
                         
                     else:
                         body = {}
