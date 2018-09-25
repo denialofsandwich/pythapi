@@ -131,7 +131,7 @@ def _b64(b):
 def i_domains_to_punycode(domain_list):
     return_list = []
     for i, domain in enumerate(domain_list):
-        domain_r = domain.split('.')
+        domain_r = domain.strip('.').split('.')
         
         for j, level in enumerate(domain_r):
             plain_punycode = level.encode('punycode').decode('utf8')
