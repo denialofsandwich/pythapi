@@ -1632,27 +1632,27 @@ def global_preexecution_hook(reqHandler, action):
 
     raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-@api_action(plugin, {
-    'path': 'debug',
-    'method': 'POST',
-    'f_name': {
-        'EN': 'Debug 1'
-    },
-
-    'f_description': {
-        'EN': 'Dumps the write-through-cache.',
-        'DE': 'Gibt den write-through-cache aus.'
-    }
-})
-def auth_debug1(reqHandler, p, args, body):
-    return {
-        'users_dict': users_dict,
-        'user_token_dict': user_token_dict,
-        'session_dict': session_dict,
-        'roles_dict': roles_dict,
-        'bf_blacklist': bf_blacklist,
-        'session_counter': session_counter
-    }
+#@api_action(plugin, {
+#    'path': 'debug',
+#    'method': 'POST',
+#    'f_name': {
+#        'EN': 'Debug 1'
+#    },
+#
+#    'f_description': {
+#        'EN': 'Dumps the write-through-cache.',
+#        'DE': 'Gibt den write-through-cache aus.'
+#    }
+#})
+#def auth_debug1(reqHandler, p, args, body):
+#    return {
+#        'users_dict': users_dict,
+#        'user_token_dict': user_token_dict,
+#        'session_dict': session_dict,
+#        'roles_dict': roles_dict,
+#        'bf_blacklist': bf_blacklist,
+#        'session_counter': session_counter
+#    }
 #
 #@api_action(plugin, {
 #    'path': 'debug2',
