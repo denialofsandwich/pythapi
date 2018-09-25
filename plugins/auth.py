@@ -1586,8 +1586,7 @@ def global_preexecution_hook(reqHandler, action):
                         i_reset_ban_time(remote_ip)
                         return
                 
-                else:
-                    unauthorized_error(401, 'unauthorized', 'AUTH_WRONG_PASSWORD_OR_USERNAME', remote_ip)
+            unauthorized_error(401, 'unauthorized', 'AUTH_WRONG_PASSWORD_OR_USERNAME', remote_ip)
         
         elif(r_auth_header[0] == "Bearer"):
             h_token = e_hash_password('', r_auth_header[1])
@@ -1603,7 +1602,7 @@ def global_preexecution_hook(reqHandler, action):
                 unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_USER_TOKEN', remote_ip)
 
     if action['name'] == "auth.create_session":
-        raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED', reqHandler)
+        raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
      
     session_id = reqHandler.get_cookie("session_id")
     if session_id:
