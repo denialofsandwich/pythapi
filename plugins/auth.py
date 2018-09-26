@@ -852,6 +852,8 @@ def e_create_user_token(username, token_name, ruleset):
             for entry in ruleset[section_name]:
                 if not entry in user_ruleset[section_name]:
                     raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+    else:
+        ruleset = e_get_permissions_of_user(username)
 
     new_token = e_generate_random_string(cookie_length)
     h_new_token = e_hash_password('', new_token)
@@ -1252,7 +1254,8 @@ def i_apply_ruleset(role_name, is_token=False, delete=False):
         h_token = role_name
 
         token = user_token_dict[h_token]
-        p_name = "token:" +token['username'] +":" +token['token_name']
+        #p_name = token['username'] +":" +token['token_name']
+        p_name = h_token
         ruleset = token['ruleset']
         r_type = 'tokens'
 
@@ -1343,7 +1346,6 @@ def load():
     global write_trough_cache_enabled
     global bf_basic_auth_delay
     global bf_temporary_ban_enabled
-    #global config
     
     for plugin_name in action_tree:
         for action_name in action_tree[plugin_name]:
@@ -1605,12 +1607,20 @@ def i_log_access(message):
     if log.loglevel >= 5:
         log.access('{} {}'.format(api_environment_variables()['transaction_id'], message))
 
-def i_is_permited(username, action, remote_ip = "N/A", h_token=None):
+def i_is_permitted(username, action):
 
     for role_name in users_dict[username]['roles']:
         if ir_check_permissions(role_name, action['roles']):
             i_log_access('authorized as {}'.format(current_user))
             return 1
+    
+    raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
+def i_is_token_permitted(h_token, action):
+
+    if h_token in action['tokens']:
+        i_log_access('authorized as {} via token {}'.format(current_user, user_token_dict[h_token]['token_name']))
+        return 1
     
     raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
@@ -1637,7 +1647,7 @@ def global_preexecution_hook(reqHandler, action):
                 if (e_hash_password(credentials[0], credentials[1]) == users_dict[credentials[0]]['h_password']):
                 
                     current_user = credentials[0]
-                    if i_is_permited(current_user, action, remote_ip):
+                    if i_is_permitted(current_user, action):
                         i_reset_ban_time(remote_ip)
                         return
                 
@@ -1649,7 +1659,7 @@ def global_preexecution_hook(reqHandler, action):
             if h_token in user_token_dict:
                 current_user = user_token_dict[h_token]['username']
 
-                if i_is_permited(current_user, action, remote_ip, h_token):
+                if i_is_token_permitted(h_token, action):
                     i_reset_ban_time(remote_ip)
                     return
             
@@ -1678,62 +1688,62 @@ def global_preexecution_hook(reqHandler, action):
                 i_clean_expired_sessions()
                 raise WebRequestException(401, 'unauthorized', 'AUTH_SESSION_EXPIRED')
             
-            if i_is_permited(current_user, action, remote_ip):
+            if i_is_permitted(current_user, action):
                 return
 
     current_user = "anonymous"
-    if i_is_permited(current_user, action, remote_ip):
+    if i_is_permitted(current_user, action):
         return
 
     raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-#@api_action(plugin, {
-#    'path': 'debug',
-#    'method': 'POST',
-#    'f_name': {
-#        'EN': 'Debug 1'
-#    },
-#
-#    'f_description': {
-#        'EN': 'Dumps the write-through-cache.',
-#        'DE': 'Gibt den write-through-cache aus.'
-#    }
-#})
-#def auth_debug1(reqHandler, p, args, body):
-#    return {
-#        'users_dict': users_dict,
-#        'user_token_dict': user_token_dict,
-#        'session_dict': session_dict,
-#        'roles_dict': roles_dict,
-#        'bf_blacklist': bf_blacklist,
-#        'session_counter': session_counter
-#    }
-#
-#@api_action(plugin, {
-#    'path': 'debug2',
-#    'method': 'POST'
-#})
-#def auth_debug2(reqHandler, p, args, body):
-#    
-#    plist = {} 
-#    for i_p in api_plugins():
-#        i_pe = api_plugins()[i_p]
-#        i_actions = {} 
-#     
-#        for i_action in i_pe.actions:
-#            i_ae = {} 
-#            i_ae['roles'] = i_action['roles']
-#            i_ae['tokens'] = i_action['tokens']
-#     
-#            i_actions[i_action['name']] = i_ae 
-#     
-#        plist[i_pe.name] = {} 
-#        plist[i_pe.name]['actions'] = i_actions
-#        plist[i_pe.name]['essential'] = i_pe.essential
-#    
-#    return {
-#        'data': plist
-#    }
+@api_action(plugin, {
+    'path': 'debug',
+    'method': 'POST',
+    'f_name': {
+        'EN': 'Debug 1'
+    },
+
+    'f_description': {
+        'EN': 'Dumps the write-through-cache.',
+        'DE': 'Gibt den write-through-cache aus.'
+    }
+})
+def auth_debug1(reqHandler, p, args, body):
+    return {
+        'users_dict': users_dict,
+        'user_token_dict': user_token_dict,
+        'session_dict': session_dict,
+        'roles_dict': roles_dict,
+        'bf_blacklist': bf_blacklist,
+        'session_counter': session_counter
+    }
+
+@api_action(plugin, {
+    'path': 'debug2',
+    'method': 'POST'
+})
+def auth_debug2(reqHandler, p, args, body):
+    
+    plist = {} 
+    for i_p in api_plugins():
+        i_pe = api_plugins()[i_p]
+        i_actions = {} 
+     
+        for i_action in i_pe.actions:
+            i_ae = {} 
+            i_ae['roles'] = i_action['roles']
+            i_ae['tokens'] = i_action['tokens']
+     
+            i_actions[i_action['name']] = i_ae 
+     
+        plist[i_pe.name] = {} 
+        plist[i_pe.name]['actions'] = i_actions
+        plist[i_pe.name]['essential'] = i_pe.essential
+    
+    return {
+        'data': plist
+    }
 
 @api_action(plugin, {
     'path': 'whoami',
