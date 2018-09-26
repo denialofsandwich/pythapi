@@ -107,6 +107,11 @@ translation_dict = {
     'GENERAL_MALFORMED_JSON': {
         'EN': 'Syntax Error in JSON-Object.',
         'DE': 'Syntax Fehler im JSON-Objekt.'
+    },
+
+    'GENERAL_LIST_EMPTY': {
+        'EN': 'List is empty..',
+        'DE': 'Liste ist leer.'
     }
 }
 
