@@ -194,7 +194,8 @@ plugin.translation_dict = {
 }
 
 current_user = "anonymous"
-active_ruleset = None
+auth_type = "none"
+current_token = None
 used_tables = ["user","user_token","role","role_member"]
 users_dict = {}
 user_token_dict = {}
@@ -268,6 +269,18 @@ def e_check_custom_permissions(username, rule_section, target_rule, f = i_defaul
 @api_external_function(plugin)
 def e_get_current_user():
     return current_user
+
+@api_external_function(plugin)
+def e_get_current_user_info():
+    return_json = copy.deepcopy(e_get_user(current_user))
+    return_json['auth_type'] = auth_type
+    del return_json['roles']
+    return_json['ruleset'] = user_token_dict[current_token]['ruleset']
+    
+    if auth_type == "token":
+        return_json['token_name'] = user_token_dict[current_token]['token_name']
+
+    return return_json
 
 def i_get_client_ip(reqHandler):
     
@@ -343,11 +356,22 @@ def i_reduce_ruleset(ruleset):
 
 @api_external_function(plugin)
 def e_get_permissions_of_user(username):
+    if not username in users_dict:
+        raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
+
     return_json = {}
     for parent in users_dict[username]['roles']:
         update_2(return_json, ir_merge_permissions(parent))
     
     return_json = i_reduce_ruleset(return_json)
+    return return_json
+
+@api_external_function(plugin)
+def e_get_permissions_of_token(h_token):
+    if not h_token in user_token_dict:
+        raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
+
+    return_json = copy.deepcopy(user_token_dict[h_token]['ruleset'])
     return return_json
 
 @api_external_function(plugin)
@@ -1611,7 +1635,7 @@ def i_is_permitted(username, action):
 
     for role_name in users_dict[username]['roles']:
         if ir_check_permissions(role_name, action['roles']):
-            i_log_access('authorized as {}'.format(current_user))
+            i_log_access('authorized as {} via {}'.format(current_user, auth_type))
             return 1
     
     raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
@@ -1627,6 +1651,8 @@ def i_is_token_permitted(h_token, action):
 @api_event(plugin, 'global_preexecution_hook')
 def global_preexecution_hook(reqHandler, action):
     global current_user
+    global auth_type
+    global current_token
     
     remote_ip = i_get_client_ip(reqHandler)
     if bf_temporary_ban_enabled:
@@ -1647,6 +1673,7 @@ def global_preexecution_hook(reqHandler, action):
                 if (e_hash_password(credentials[0], credentials[1]) == users_dict[credentials[0]]['h_password']):
                 
                     current_user = credentials[0]
+                    auth_type = "basic"
                     if i_is_permitted(current_user, action):
                         i_reset_ban_time(remote_ip)
                         return
@@ -1658,6 +1685,8 @@ def global_preexecution_hook(reqHandler, action):
             
             if h_token in user_token_dict:
                 current_user = user_token_dict[h_token]['username']
+                auth_type = "token"
+                current_token = h_token
 
                 if i_is_token_permitted(h_token, action):
                     i_reset_ban_time(remote_ip)
@@ -1683,6 +1712,7 @@ def global_preexecution_hook(reqHandler, action):
                 reqHandler.add_header('X-CSRF-TOKEN', csrf_token)
             
             current_user = session_dict[session_id]['username']
+            auth_type = "session"
             
             if time.time() > session_dict[session_id]['expiration_time']:
                 i_clean_expired_sessions()
@@ -1692,6 +1722,7 @@ def global_preexecution_hook(reqHandler, action):
                 return
 
     current_user = "anonymous"
+    auth_type = "none"
     if i_is_permitted(current_user, action):
         return
 
@@ -1760,7 +1791,7 @@ def auth_debug2(reqHandler, p, args, body):
 })
 def get_current_user(reqHandler, p, args, body):
     return {
-        'data': e_get_user(e_get_current_user())
+        'data': e_get_current_user_info()
     }
 
 @api_action(plugin, {
@@ -1777,9 +1808,14 @@ def get_current_user(reqHandler, p, args, body):
     }
 })
 def get_permissions(reqHandler, p, args, body):
-    return {
-        'data': e_get_permissions_of_user(e_get_current_user())
-    }
+    if auth_type == "token":
+        return {
+            'data': e_get_permissions_of_token(current_token)
+        }
+    else:
+        return {
+            'data': e_get_permissions_of_user(e_get_current_user())
+        }
 
 @api_action(plugin, {
     'path': 'session/list',
