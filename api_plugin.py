@@ -138,7 +138,7 @@ def try_convert_value(section, key, value, skel):
         if section == 'body' or section == 'args':
             if desired_type == list:
                 if type(value) == list:
-                    if (not 'allow_empty' in skel or skel['allow_empty'] == True) and len(value) == 0:
+                    if 'allow_empty' in skel and skel['allow_empty'] == False and len(value) == 0:
                         raise WebRequestException(400, 'error', 'GENERAL_LIST_EMPTY', {
                             'section': section,
                             'value': key if section != "param" else "{} ({})".format(key +1, skel['name'])

@@ -253,6 +253,51 @@ def i_exec_openssl(parameter, communicate = None):
     
     return sysout
 
+def i_domain_permission_validator(ruleset, rule_section, target_domain):
+    if not rule_section in ruleset:
+        return 0    
+
+    domain_list = ruleset[rule_section]
+
+    if '*' in domain_list:
+        return 1
+
+    domain_r = target_domain.split('.')
+
+    for i_domain in domain_list:
+        i_domain_r = i_domain.split('.')
+
+        if target_domain == i_domain:
+            return 1
+
+        elif i_domain_r[0] == '*' and '.'.join(domain_r[1:]) == '.'.join(i_domain_r[1:]):
+            return 1
+
+    return 0
+
+def i_le_permission_reduce_handler(ruleset):
+
+    if not 'lets_encrypt_allowed_domains' in ruleset:
+        return ruleset
+
+    ## Reduce lets_encrypt_allowed_domains
+    # Removes duplicate entries
+    ruleset['lets_encrypt_allowed_domains'] = list(set(ruleset['lets_encrypt_allowed_domains']))
+
+    if '*' in ruleset['lets_encrypt_allowed_domains']:
+        ruleset['lets_encrypt_allowed_domains'] = ['*']
+
+    for rule in list(ruleset['lets_encrypt_allowed_domains']):
+        if rule[0] != '*':
+            continue
+
+        prefix = rule[1:]
+        for sub_rule in list(ruleset['lets_encrypt_allowed_domains']):
+            if re.search(re.escape(prefix) +r'$', sub_rule) and len(rule) != len(sub_rule):
+                ruleset['lets_encrypt_allowed_domains'].remove(sub_rule)
+
+    return ruleset
+
 @api_external_function(plugin)
 def e_list_certificates():
     if write_through_cache_enabled:
@@ -989,6 +1034,9 @@ def load():
     time_plugin = api_plugins()['time']
     time_plugin.e_register_timed_static_event('_lets_encrypt_job', et_check_certificates, [], enabled=1, repeat=1, **time_dict)
 
+    auth = api_plugins()['auth']
+    auth.e_add_permission_reduce_handler(i_le_permission_reduce_handler)
+
     write_through_cache_enabled = True
 
     return 1
@@ -1097,6 +1145,7 @@ def get_certificate(reqHandler, p, args, body):
                 'EN': "Domain list",
                 'DE': "Domainliste"
             },
+            "allow_empty": False,
             'childs': {
                 'type': str
             }
@@ -1183,28 +1232,6 @@ def check_certificates(reqHandler, p, args, body):
     et_check_certificates()
     return {}
 
-def i_domain_permission_validator(ruleset, rule_section, target_domain):
-    if not rule_section in ruleset:
-        return 0    
-
-    domain_list = ruleset[rule_section]
-
-    if '*' in domain_list:
-        return 1
-
-    domain_r = target_domain.split('.')
-
-    for i_domain in domain_list:
-        i_domain_r = i_domain.split('.')
-
-        if target_domain == i_domain:
-            return 1
-
-        elif i_domain_r[0] == '*' and '.'.join(domain_r[1:]) == '.'.join(i_domain_r[1:]):
-            return 1
-
-    return 0
-
 @api_action(plugin, {
     'path': 'request',
     'method': 'POST',
@@ -1215,6 +1242,7 @@ def i_domain_permission_validator(ruleset, rule_section, target_domain):
                 'EN': "Domain list",
                 'DE': "Domainliste"
             },
+            "allow_empty": False,
             'childs': {
                 'type': str
             }

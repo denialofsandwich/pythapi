@@ -110,8 +110,8 @@ translation_dict = {
     },
 
     'GENERAL_LIST_EMPTY': {
-        'EN': 'List is empty..',
-        'DE': 'Liste ist leer.'
+        'EN': 'List must not be empty.',
+        'DE': 'Liste darf nicht leer sein.'
     }
 }
 

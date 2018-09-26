@@ -3,7 +3,7 @@
 #
 # Name:        pythapi: _auth.py
 # Author:      Rene Fa
-# Date:        10.07.2018
+# Date:        26.09.2018
 # Version:     0.8
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -204,6 +204,7 @@ bf_blacklist = {}
 bf_basic_auth_delay = 0
 bf_temporary_ban_enabled = True
 session_counter = 0
+permission_reduce_handlers = []
 
 @api_external_function(plugin)
 def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digits):
@@ -314,11 +315,38 @@ def ir_merge_permissions(role_name, depth=0):
     return return_json
 
 @api_external_function(plugin)
+def e_add_permission_reduce_handler(f):
+    permission_reduce_handlers.append(f)
+
+def i_reduce_ruleset(ruleset):
+    
+    ## Reduce permissions
+    # Removes duplicate entries
+    ruleset['permissions'] = list(set(ruleset['permissions']))
+
+    if '*' in ruleset['permissions']:
+        ruleset['permissions'] = ['*']
+    
+    for rule in list(ruleset['permissions']):
+        if rule.find('.') == -1:
+            for sub_rule in list(ruleset['permissions']):
+                parts = sub_rule.split('.')
+                if len(parts) == 2 and parts[0] == rule:
+                    ruleset['permissions'].remove(sub_rule)
+
+    # Call other handlers
+    for handler in permission_reduce_handlers:
+        ruleset = handler(ruleset)
+
+    return ruleset
+
+@api_external_function(plugin)
 def e_get_permissions_of_user(username):
     return_json = {}
     for parent in users_dict[username]['roles']:
         update_2(return_json, ir_merge_permissions(parent))
-
+    
+    return_json = i_reduce_ruleset(return_json)
     return return_json
 
 @api_external_function(plugin)
@@ -1056,6 +1084,12 @@ def i_edit_db_role(role_name, ruleset):
 
 @api_external_function(plugin)
 def e_edit_role(role_name, ruleset):
+
+    if not 'inherit' in ruleset:
+        ruleset['inherit'] = []
+    
+    if not 'permissions' in ruleset:
+        ruleset['permissions'] = []
 
     if role_name == 'list':
         raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
