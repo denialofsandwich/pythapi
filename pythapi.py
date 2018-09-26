@@ -107,6 +107,11 @@ translation_dict = {
     'GENERAL_MALFORMED_JSON': {
         'EN': 'Syntax Error in JSON-Object.',
         'DE': 'Syntax Fehler im JSON-Objekt.'
+    },
+
+    'GENERAL_LIST_EMPTY': {
+        'EN': 'List must not be empty.',
+        'DE': 'Liste darf nicht leer sein.'
     }
 }
 
@@ -486,8 +491,7 @@ def i_removeBrokenPlugins():
             
             i += 1
 
-def signal_handler(signal, frame):
-    print()
+def terminate_application():
     log.info("Terminate all active plugins...")
     
     for plugin_name in reversed(api_plugin.dependency_list):
@@ -499,6 +503,10 @@ def signal_handler(signal, frame):
         
     log.info("pythapi terminated.")
     sys.exit(0)
+
+def signal_handler(signal, frame):
+    print()
+    terminate_application()
 
 class ConvertableConfigParser(configparser.ConfigParser):
     def as_dict(self):
@@ -602,14 +610,6 @@ def main():
     )
     log = api_plugin.log
     
-#    if args.no_fancy:
-#        api_plugin.config['core.general']['colored_logs'] = False
-#        log.setFancy(False)
-#
-#    if args.verbosity != None:
-#        api_plugin.config['core.general']['loglevel'] = args['verbosity']
-#        log.setLoglevel(args['verbosity'])
-
     # Plugin loader
     log.begin("Loading Plugins...")
 
@@ -724,11 +724,17 @@ def main():
             (r"/(.*)?", MainHandler)
         ])
         
+        open_ports = 0
+
         http_ports = api_plugin.config['core.web']['http_port']
         http_ip    = api_plugin.config['core.web']['bind_ip']
         for port in http_ports:
-            app.listen(port,http_ip)
-            log.debug('HTTP started at: {}:{}'.format(http_ip,port))
+            try:
+                app.listen(port,http_ip)
+                open_ports += 1
+                log.debug('HTTP started at: {}:{}'.format(http_ip,port))
+            except OSError as e:
+                log.error("Address {}:{} is already in use.".format(http_ip, port))
         
         if api_plugin.config['core.web']['https_enabled']:
             
@@ -749,9 +755,17 @@ def main():
             
             https_ports = api_plugin.config['core.web']['https_port']
             for port in https_ports:
-                https_server.listen(port,http_ip)
-                log.debug('HTTPS started at: {}:{}'.format(http_ip,port))
+                try:
+                    https_server.listen(port,http_ip)
+                    open_ports += 1
+                    log.debug('HTTPS started at: {}:{}'.format(http_ip,port))
+                except OSError as e:
+                    log.error("Address {}:{} is already in use.".format(http_ip, port))
         
+        if open_ports == 0:
+            log.critical("Can't open any Ports.")
+            terminate_application()
+
         hn = logging.NullHandler()
         hn.setLevel(logging.DEBUG)
         logging.getLogger("tornado.access").addHandler(hn)

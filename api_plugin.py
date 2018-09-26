@@ -138,6 +138,12 @@ def try_convert_value(section, key, value, skel):
         if section == 'body' or section == 'args':
             if desired_type == list:
                 if type(value) == list:
+                    if 'allow_empty' in skel and skel['allow_empty'] == False and len(value) == 0:
+                        raise WebRequestException(400, 'error', 'GENERAL_LIST_EMPTY', {
+                            'section': section,
+                            'value': key if section != "param" else "{} ({})".format(key +1, skel['name'])
+                        })
+
                     if 'childs' in skel:
                         for i, item in enumerate(value):
                             value[i] = try_convert_value(section, "{}.{}".format(key, i+1), item, skel['childs'])
