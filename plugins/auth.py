@@ -1064,13 +1064,7 @@ def e_edit_role(role_name, ruleset):
         if not role_name in roles_dict:
             raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
         
-        for key in ruleset:
-            if ruleset[key] == None and key in roles_dict[role_name]['ruleset']:
-                del roles_dict[role_name]['ruleset'][key]
-            else:
-                roles_dict[role_name]['ruleset'][key] = ruleset[key]
-        
-        ruleset = roles_dict[role_name]['ruleset']
+        roles_dict[role_name]['ruleset'] = ruleset
     
     else:
         i_get_db_role(role_name)
