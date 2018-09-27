@@ -112,6 +112,11 @@ translation_dict = {
     'GENERAL_LIST_EMPTY': {
         'EN': 'List must not be empty.',
         'DE': 'Liste darf nicht leer sein.'
+    },
+
+    'GENERAL_DUPLICATE_IN_LIST': {
+        'EN': 'Double entry in list.',
+        'DE': 'Doppelter Eintrag in Liste.'
     }
 }
 
