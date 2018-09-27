@@ -280,8 +280,6 @@ def i_le_permission_reduce_handler(ruleset):
     if not 'lets_encrypt_allowed_domains' in ruleset:
         return ruleset
 
-    ## Reduce lets_encrypt_allowed_domains
-    # Removes duplicate entries
     ruleset['lets_encrypt_allowed_domains'] = list(set(ruleset['lets_encrypt_allowed_domains']))
 
     if '*' in ruleset['lets_encrypt_allowed_domains']:
@@ -297,6 +295,22 @@ def i_le_permission_reduce_handler(ruleset):
                 ruleset['lets_encrypt_allowed_domains'].remove(sub_rule)
 
     return ruleset
+
+def i_le_subset_intersection_handler(ruleset, subset):
+    section = ruleset['lets_encrypt_allowed_domains']
+    return_subset = {}
+
+    if '*' in section:
+        return copy.deepcopy(subset)
+
+    for rule in list(subset['lets_encrypt_allowed_domains']):
+        if rule in section or '*' +rule[rule.find('.'):] in section:
+            if not 'lets_encrypt_allowed_domains' in return_subset:
+                return_subset['lets_encrypt_allowed_domains'] = []
+
+            return_subset['lets_encrypt_allowed_domains'].append(rule)
+
+    return return_subset
 
 @api_external_function(plugin)
 def e_list_certificates():
@@ -1036,6 +1050,7 @@ def load():
 
     auth = api_plugins()['auth']
     auth.e_add_permission_reduce_handler(i_le_permission_reduce_handler)
+    auth.e_add_subset_intersection_handler(i_le_subset_intersection_handler)
 
     write_through_cache_enabled = True
 
@@ -1074,7 +1089,7 @@ def list_certificates(reqHandler, p, args, body):
     for cert_id in list(cert_list):
         domain_list = e_get_certificate(cert_id)['domains']
         for domain in domain_list:
-            if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+            if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
                 cert_list.remove(cert_id)
                 break
 
@@ -1128,7 +1143,7 @@ def get_certificate(reqHandler, p, args, body):
 
     # Checking permissions
     for domain in domain_list:
-        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+        if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
     return {
@@ -1169,7 +1184,7 @@ def add_certificate(reqHandler, p, args, body):
 
     # Checking permissions
     for domain in domain_list:
-        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+        if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
     return {
@@ -1209,7 +1224,7 @@ def delete_certificate(reqHandler, p, args, body):
 
     # Checking permissions
     for domain in domain_list:
-        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+        if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
             
     e_delete_certificate(p[0])
@@ -1285,7 +1300,7 @@ def request_certificates(reqHandler, p, args, body):
 
     # Checking permissions
     for domain in domain_list:
-        if not auth.e_check_custom_permissions(current_user, plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
+        if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
     config = api_config()[plugin.name]
