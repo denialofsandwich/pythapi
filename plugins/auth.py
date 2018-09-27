@@ -207,6 +207,7 @@ bf_basic_auth_delay = 0
 bf_temporary_ban_enabled = True
 session_counter = 0
 permission_reduce_handlers = []
+subset_intersection_handlers = []
 
 @api_external_function(plugin)
 def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digits):
@@ -267,6 +268,19 @@ def e_check_custom_permissions(username, rule_section, target_rule, f = i_defaul
     return 0
 
 @api_external_function(plugin)
+def e_check_custom_permissions_of_current_user(rule_section, target_rule, f = i_default_permission_validator):
+    
+    if auth_type == "token":
+        if f(e_get_permissions_of_token(current_token), rule_section, target_rule):
+            return 1
+    else:
+        for role_name in users_dict[current_user]['roles']:
+            if ir_check_custom_permissions(role_name, rule_section, target_rule, f):
+                    return 1
+    
+    return 0
+
+@api_external_function(plugin)
 def e_get_current_user():
     return current_user
 
@@ -274,11 +288,11 @@ def e_get_current_user():
 def e_get_current_user_info():
     return_json = copy.deepcopy(e_get_user(current_user))
     return_json['auth_type'] = auth_type
-    del return_json['roles']
-    return_json['ruleset'] = user_token_dict[current_token]['ruleset']
     
     if auth_type == "token":
         return_json['token_name'] = user_token_dict[current_token]['token_name']
+        return_json['ruleset'] = user_token_dict[current_token]['ruleset']
+        del return_json['roles']
 
     return return_json
 
@@ -332,10 +346,7 @@ def ir_merge_permissions(role_name, depth=0):
 def e_add_permission_reduce_handler(f):
     permission_reduce_handlers.append(f)
 
-def i_reduce_ruleset(ruleset):
-    
-    ## Reduce permissions
-    # Removes duplicate entries
+def i_permission_reduce_handler(ruleset):
     ruleset['permissions'] = list(set(ruleset['permissions']))
 
     if '*' in ruleset['permissions']:
@@ -348,7 +359,11 @@ def i_reduce_ruleset(ruleset):
                 if len(parts) == 2 and parts[0] == rule:
                     ruleset['permissions'].remove(sub_rule)
 
-    # Call other handlers
+    return ruleset
+
+def i_reduce_ruleset(ruleset):
+    ruleset = copy.deepcopy(ruleset)
+    
     for handler in permission_reduce_handlers:
         ruleset = handler(ruleset)
 
@@ -373,6 +388,34 @@ def e_get_permissions_of_token(h_token):
 
     return_json = copy.deepcopy(user_token_dict[h_token]['ruleset'])
     return return_json
+
+def i_subset_permission_handler(ruleset, subset):
+    section = ruleset['permissions']
+    return_subset = {}
+
+    if '*' in section:
+        return copy.deepcopy(subset)
+    
+    return_subset['permissions'] = []
+
+    for rule in list(subset['permissions']):
+        if rule in section or rule.split('.')[0] in section:
+            return_subset['permissions'].append(rule)
+
+    return return_subset
+
+@api_external_function(plugin)
+def e_add_subset_intersection_handler(f):
+    subset_intersection_handlers.append(f)
+
+@api_external_function(plugin)
+def e_intersect_subset(ruleset, subset):
+    return_subset = {}
+
+    for handler in subset_intersection_handlers:
+        return_subset.update(handler(ruleset, subset))
+
+    return return_subset
 
 @api_external_function(plugin)
 def e_list_sessions(username):
@@ -869,13 +912,13 @@ def e_create_user_token(username, token_name, ruleset):
         try: del ruleset['inherit']
         except KeyError: pass
 
-        for section_name in ruleset:
-            if not section_name in user_ruleset:
-                raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+        if not 'permissions' in ruleset:
+            ruleset['permissions'] = []
+        
+        intersected = e_intersect_subset(user_ruleset, ruleset)
+        if intersected != ruleset:
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-            for entry in ruleset[section_name]:
-                if not entry in user_ruleset[section_name]:
-                    raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
     else:
         ruleset = e_get_permissions_of_user(username)
 
@@ -913,6 +956,64 @@ def e_create_user_token(username, token_name, ruleset):
     i_apply_ruleset(h_new_token, is_token=True)
     
     return new_token
+
+@api_external_function(plugin)
+def e_edit_user_token(username, token_name, ruleset):
+
+    if token_name == 'list':
+        raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
+
+    db_prefix = api_config()['core.mysql']['prefix']
+    db = api_mysql_connect()
+    dbc = db.cursor()
+    
+    if write_trough_cache_enabled:
+        if not username in users_dict:
+            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
+        
+        user_id = users_dict[username]['id']
+    
+    else:
+        user_id = i_get_db_user(username)[0]
+    
+    if ruleset != {}:
+        user_ruleset = e_get_permissions_of_user(username)
+        try: del ruleset['inherit']
+        except KeyError: pass
+
+        if not 'permissions' in ruleset:
+            ruleset['permissions'] = []
+        
+        intersected = e_intersect_subset(user_ruleset, ruleset)
+        if intersected != ruleset:
+            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
+    else:
+        ruleset = e_get_permissions_of_user(username)
+
+    i_get_db_user_token(username, token_name)
+    
+    with db:
+        sql = """
+            UPDATE """ +db_prefix +"""user_token
+                SET data = %s
+                WHERE user_id = %s AND token_name = %s;
+        """
+            
+        try:
+            dbc.execute(sql, [json.dumps(ruleset), user_id, token_name])
+            db.commit()
+            
+        except MySQLdb.IntegrityError as e:
+            api_log().error("e_delete_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+
+    if write_trough_cache_enabled:
+        for i, h_token in enumerate(users_dict[username]['keys']):
+            if user_token_dict[h_token]['token_name'] == token_name:
+                user_token_dict[h_token]['ruleset'] = ruleset
+                i_apply_ruleset(h_token, is_token=True)
+                break
 
 @api_external_function(plugin)
 def e_delete_user_token(username, token_name):
@@ -1137,7 +1238,7 @@ def e_edit_role(role_name, ruleset):
         i_get_db_role(role_name)
     
     i_edit_db_role(role_name, ruleset)
-    
+
     if write_trough_cache_enabled:
         i_apply_ruleset(role_name)
 
@@ -1272,7 +1373,7 @@ def e_remove_member_from_role(role_name, username):
     if write_trough_cache_enabled:
         users_dict[username]['roles'].remove(role_name)
 
-def i_apply_ruleset(role_name, is_token=False, delete=False):
+def i_apply_ruleset(role_name, is_token=False, delete=False, no_change=False):
     
     if is_token:
         h_token = role_name
@@ -1346,6 +1447,17 @@ def i_apply_ruleset(role_name, is_token=False, delete=False):
             api_log().warning(api_tr('AUTH_SYNTAX_ERROR_1').format(p_name, p_rule))
             continue
 
+    if is_token == False and no_change == False:
+        for username, user_data in users_dict.items():
+            ruleset = e_get_permissions_of_user(username)
+            
+            for h_token in user_data['keys']:
+                subset = user_token_dict[h_token]['ruleset']
+                intersection = e_intersect_subset(ruleset, subset)
+
+                if subset != intersection:
+                    e_edit_user_token(username, user_token_dict[h_token]['token_name'], intersection)
+
 @api_event(plugin, 'check')
 def check():
     
@@ -1371,6 +1483,9 @@ def load():
     global bf_basic_auth_delay
     global bf_temporary_ban_enabled
     
+    e_add_subset_intersection_handler(i_subset_permission_handler)
+    e_add_permission_reduce_handler(i_permission_reduce_handler)
+
     for plugin_name in action_tree:
         for action_name in action_tree[plugin_name]:
             action_tree[plugin_name][action_name]['roles'] = []
@@ -1403,11 +1518,11 @@ def load():
             'ruleset': json.loads(row[2])
         }
     
-    for role_name in roles_dict:
-        i_apply_ruleset(role_name)
-    
     for h_token in user_token_dict:
         i_apply_ruleset(h_token, is_token=True)
+    
+    for role_name in roles_dict:
+        i_apply_ruleset(role_name, no_change=True)
 
     bf_basic_auth_delay = api_config()[plugin.name]['bf_basic_auth_delay']
     bf_temporary_ban_enabled = api_config()[plugin.name]['bf_temporary_ban_enabled']
@@ -1522,6 +1637,7 @@ def install():
             "auth.get_user_token",
             "auth.list_user_tokens",
             "auth.create_user_token",
+            "auth.edit_user_token",
             "auth.delete_user_token",
             
             "auth.change_password",
@@ -1990,13 +2106,40 @@ def get_user_token(reqHandler, p, args, body):
 
     'f_description': {
         'EN': 'Creates a new API token.',
-        'DE': 'Erstellt ein neuees API Token.'
+        'DE': 'Erstellt ein neues API Token.'
     }
 })
 def create_user_token(reqHandler, p, args, body):
     return {
         'token': e_create_user_token(current_user, p[0], body)
     }
+
+@api_action(plugin, {
+    'path': 'token/*',
+    'method': 'PUT',
+    'params': [
+        {
+            'name': "token_name",
+            'type': str,
+            'f_name': {
+                'EN': "Token name",
+                'DE': "Tokenname"
+            }
+        }
+    ],
+    'f_name': {
+        'EN': 'Edit API token',
+        'DE': 'API Token editieren'
+    },
+
+    'f_description': {
+        'EN': 'Edit\'s an API token.',
+        'DE': 'Editiert ein API Token.'
+    }
+})
+def edit_user_token(reqHandler, p, args, body):
+    e_edit_user_token(current_user, p[0], body)
+    return {}
 
 @api_action(plugin, {
     'path': 'token/*',
