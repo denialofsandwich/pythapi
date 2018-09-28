@@ -112,6 +112,11 @@ translation_dict = {
     'GENERAL_LIST_EMPTY': {
         'EN': 'List must not be empty.',
         'DE': 'Liste darf nicht leer sein.'
+    },
+
+    'GENERAL_DUPLICATE_IN_LIST': {
+        'EN': 'Double entry in list.',
+        'DE': 'Doppelter Eintrag in Liste.'
     }
 }
 
@@ -244,6 +249,9 @@ class MainHandler(tornado.web.RequestHandler):
                     return_value = json.dumps(return_json) + '\n'
                     self.write(return_value)
                     return
+                except Exception as e:
+                    log.error("An exception occured.", exc_info=e)
+                    raise
         
         self.set_status(404)
         self.set_header("Content-Type", 'application/json')
@@ -504,7 +512,7 @@ def terminate_application():
     log.info("pythapi terminated.")
     sys.exit(0)
 
-def signal_handler(signal, frame):
+def termination_handler(signal, frame):
     print()
     terminate_application()
 
@@ -532,7 +540,8 @@ def r_read_child_configs(config, depth = 0):
 
 def main():
     global log
-    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, termination_handler)
+    signal.signal(signal.SIGTERM, termination_handler)
     
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
@@ -771,6 +780,9 @@ def main():
         logging.getLogger("tornado.access").addHandler(hn)
         logging.getLogger("tornado.access").propagate = False
         
+        logging.getLogger("tornado.application").addHandler(hn)
+        logging.getLogger("tornado.application").propagate = False
+
         log.success("pythapi successfully started.")
         log.info("Entering main loop...")
         
