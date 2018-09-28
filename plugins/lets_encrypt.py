@@ -462,22 +462,24 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             
             api_log().debug("Pre-verification: Waiting for correct key of {}...".format(name))
             while True:
-                try:
-                    dns_results = dns_resolver.query(name, 'TXT')
+                preVerified = 0
+                for dns_server in config['dns_verification_servers']:
+                    try:
+                        dns_resolver.nameservers = [dns_server]
+                        dns_results = dns_resolver.query(name, 'TXT')
+        
+                    except dns.resolver.NoAnswer:
+                        dns_results = []
+        
+                    except dns.resolver.NXDOMAIN:
+                        dns_results = []
+                    
+                    for dns_result in dns_results:
+                        if str(dns_result).strip('"') in keydigest64:
+                            preVerified += 1
+                            break
     
-                except dns.resolver.NoAnswer:
-                    dns_results = []
-    
-                except dns.resolver.NXDOMAIN:
-                    dns_results = []
-                
-                preVerified = False
-                for dns_result in dns_results:
-                    if str(dns_result).strip('"') in keydigest64:
-                        preVerified = True
-                        break
-    
-                if preVerified:
+                if preVerified >= len(config['dns_verification_servers']):
                     break
     
                 kwargs['_t_event'].wait(2)
@@ -1034,8 +1036,6 @@ def load():
         jws_header['kid'] = keyid_file.read()
 
     dns_resolver = dns.resolver.Resolver()
-    if config['dns_verification_servers'] != []:
-        dns_resolver.nameservers = config['dns_verification_servers']
     
     # Initialize cache
     certdir_path = os.path.join(config['base_key_directory'], 'certs')
