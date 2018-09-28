@@ -249,6 +249,9 @@ class MainHandler(tornado.web.RequestHandler):
                     return_value = json.dumps(return_json) + '\n'
                     self.write(return_value)
                     return
+                except Exception as e:
+                    log.error("An exception occured.", exc_info=e)
+                    raise
         
         self.set_status(404)
         self.set_header("Content-Type", 'application/json')
@@ -776,6 +779,9 @@ def main():
         logging.getLogger("tornado.access").addHandler(hn)
         logging.getLogger("tornado.access").propagate = False
         
+        logging.getLogger("tornado.application").addHandler(hn)
+        logging.getLogger("tornado.application").propagate = False
+
         log.success("pythapi successfully started.")
         log.info("Entering main loop...")
         

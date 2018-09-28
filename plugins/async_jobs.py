@@ -87,13 +87,17 @@ class AsyncJob():
         try:
             self.return_value = self.func(*self.func_args, **self.func_kwargs)
 
-        finally:
             if not self.term_event.is_set():
                 self.status = 'done'
 
             else:
                 self.status = 'terminated'
 
+        except Exception as e:
+            log.error("The job {} crashed.".format(self.name), exc_info=e)
+            self.status = 'crashed'
+
+        finally:
             if api_config()[plugin.name]['remove_on_termination']:
                 try: del job_dict[self.name]
                 except: pass
