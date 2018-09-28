@@ -512,7 +512,7 @@ def terminate_application():
     log.info("pythapi terminated.")
     sys.exit(0)
 
-def signal_handler(signal, frame):
+def termination_handler(signal, frame):
     print()
     terminate_application()
 
@@ -540,7 +540,8 @@ def r_read_child_configs(config, depth = 0):
 
 def main():
     global log
-    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, termination_handler)
+    signal.signal(signal.SIGTERM, termination_handler)
     
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
