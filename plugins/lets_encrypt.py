@@ -449,7 +449,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
     with open(os.path.join(cert_path, 'token.json'), 'w') as tokenfile:
         tokenfile.write(json.dumps(token_dict))
 
-    cert_dict[cert_id]['status'] = 'waiting_for_pre_verification'
     if order['status'] == 'pending':
 
         cert_dict[cert_id]['status'] = 'running_pre_verification_handlers'
@@ -458,6 +457,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
 
         # Pre-verification
         # Check via DNS resolver before Let's Encrypt verification
+        cert_dict[cert_id]['status'] = 'waiting_for_pre_verification'
         for name, keydigest64 in token_dict.items():
             
             api_log().debug("Pre-verification: Waiting for correct key of {}...".format(name))
@@ -482,6 +482,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
     
                 kwargs['_t_event'].wait(2)
                 if kwargs['_t_event'].is_set():
+                    cert_dict[cert_id]['status'] = 'job_terminated'
                     return
 
         cert_dict[cert_id]['status'] = 'waiting_for_acme_verification'
@@ -492,6 +493,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             resp = requests.get(authz, headers=adtheaders)
             authorization = resp.json()
             if resp.status_code != 200:
+                cert_dict[cert_id]['status'] = 'verification_failed'
                 raise ValueError("Error fetching challenges: {0} {1}".format(resp.status_code, authorization))
     
             domain = authorization["identifier"]["value"]
@@ -504,6 +506,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             api_log().debug("Asking ACME server to validate challenge.")
             code, result, headers = _send_signed_request(challenge["url"], {"keyAuthorization": keyauthorization})
             if code != 200:
+                cert_dict[cert_id]['status'] = 'verification_failed'
                 raise ValueError("Error triggering challenge: {0} {1}".format(code, result))
     
             while True:
@@ -511,17 +514,20 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                     resp = requests.get(challenge["url"], headers=adtheaders)
                     challenge_status = resp.json()
                 except requests.exceptions.RequestException as error:
+                    cert_dict[cert_id]['status'] = 'verification_failed'
                     raise ValueError("Error during challenge validation: {0} {1}".format(
                         error.response.status_code, error.response.text()))
                 if challenge_status["status"] == "pending":
                     kwargs['_t_event'].wait(2)
                     if kwargs['_t_event'].is_set():
+                        cert_dict[cert_id]['status'] = 'job_terminated'
                         return
     
                 elif challenge_status["status"] == "valid":
                     api_log().info("ACME has verified challenge for domain: {0}".format(domain))
                     break
                 else:
+                    cert_dict[cert_id]['status'] = 'verification_failed'
                     raise ValueError("Challenge for domain {0} did not pass: {1}".format(
                         domain, challenge_status))
 
@@ -538,6 +544,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
     csr_der = _b64(i_exec_openssl(['req', '-in', csrfile_path, '-outform', 'DER']))
     code, result, headers = _send_signed_request(order["finalize"], {"csr": csr_der})
     if code != 200:
+        cert_dict[cert_id]['status'] = 'sending_csr_failed'
         raise ValueError("Error while sending the CSR: {0} {1}".format(code, result))
 
     while True:
@@ -546,6 +553,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             resp.raise_for_status()
             finalize = resp.json()
         except requests.exceptions.RequestException as error:
+            cert_dict[cert_id]['status'] = 'finalizing_error'
             raise ValueError("Error finalizing order: {0} {1}".format(
                 error.response.status_code, error.response.text()))
 
@@ -558,11 +566,13 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             break
 
         else:
+            cert_dict[cert_id]['status'] = 'finalizing_error'
             raise ValueError("Finalizing order {0} got errors: {1}".format(
                 domain, finalize))
     
     resp = requests.get(finalize["certificate"], headers=adtheaders)
     if resp.status_code != 200:
+        cert_dict[cert_id]['status'] = 'finalizing_error'
         raise ValueError("Finalizing order {0} got errors: {1}".format(
             resp.status_code, resp.json()))
 
