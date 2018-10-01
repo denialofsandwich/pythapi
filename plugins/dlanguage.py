@@ -59,8 +59,18 @@ def global_preexecution_hook(reqHandler, action):
     userdata = api_plugins()['userdata']
     
     current_user = auth.e_get_current_user()
-    try: api_environment_variables()['language'] = userdata.e_get_data(current_user, 'general', 'prefered_language', 0)['prefered_language']
+    try:
+        api_environment_variables()['language'] = userdata.e_get_data(current_user, 'general', 'prefered_language', 0)['prefered_language']
+        return 1
     except: pass
+
+    try:
+        acc_lang = reqHandler.request.headers.get('Accept-Language', None)
+        
+        api_environment_variables()['language'] = acc_lang.split(',')[0].split(';')[0].upper()
+        return 1
+    except: pass
+
     return 1
 
 
