@@ -111,7 +111,8 @@ def e_create_job(job_name, func, func_args=[], func_kwargs={}):
     if job_name in job_dict and (job_dict[job_name].status != 'done' and job_dict[job_name].status != 'terminated'):
         raise WebRequestException(400, 'error', 'JOB_JOB_EXISTS')
 
-    return job_dict[job_name] = AsyncJob(job_name, func, func_args, func_kwargs)
+    job_dict[job_name] = AsyncJob(job_name, func, func_args, func_kwargs)
+    return job_dict[job_name]
 
 @api_external_function(plugin)
 def e_get_raw_job(job_name):
@@ -164,6 +165,9 @@ def terminate():
     api_log().debug("Terminating all running jobs...")
     for job_name in job_dict:
         job_dict[job_name].terminate()
+
+    for job_name in dict(job_dict):
+        job_dict[job_name].thread.join()
 
     return 1
 
