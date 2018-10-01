@@ -321,6 +321,9 @@ def terminate():
         event = event_dict[event_name]
         event.setEnabled(0)
 
+    for event_name in dict(event_dict):
+        event_dict[event_name].timer.join()
+
     return 1
 
 @api_action(plugin, {

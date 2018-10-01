@@ -61,7 +61,8 @@ config_defaults = {
         'username': 'pythapi',
         'password': 'pythapi',
         'database': 'pythapi',
-        'prefix': 'pa_'
+        'prefix': 'pa_',
+        'port': 3306
     },
     'core.web': {
         'bind_ip': '0.0.0.0',
@@ -619,6 +620,13 @@ def main():
     )
     log = api_plugin.log
     
+    try:
+        t = api_plugin.api_mysql_connect()
+        t.close()
+    except MySQLdb.OperationalError as e:
+        log.critical("Can't connect to Database: {}".format(e.args[1]))
+        sys.exit(1)
+
     # Plugin loader
     log.begin("Loading Plugins...")
 

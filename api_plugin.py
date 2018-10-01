@@ -63,10 +63,11 @@ class WebRequestException(Exception):
         self.return_json = return_json
 
 def api_mysql_connect():
-    return MySQLdb.connect(config['core.mysql']['hostname'],
-                           config['core.mysql']['username'],
-                           config['core.mysql']['password'],
-                           config['core.mysql']['database'])
+    return MySQLdb.connect(host=config['core.mysql']['hostname'],
+                           user=config['core.mysql']['username'],
+                           passwd=config['core.mysql']['password'],
+                           db=config['core.mysql']['database'],
+                           port=config['core.mysql']['port'])
 
 def api_config():
     return config
