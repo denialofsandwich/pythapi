@@ -61,7 +61,8 @@ config_defaults = {
         'username': 'pythapi',
         'password': 'pythapi',
         'database': 'pythapi',
-        'prefix': 'pa_'
+        'prefix': 'pa_',
+        'port': 3306
     },
     'core.web': {
         'bind_ip': '0.0.0.0',
