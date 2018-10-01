@@ -450,3 +450,31 @@ def get_action_by_path(reqHandler, p, args, body):
     return {
         'data': i_get_action_by_path(p[0], p[1])
     }
+
+@api_action(plugin, {
+    'regex': '^' +plugin.name,
+    'method': 'GET',
+    'f_name': {
+        'EN': 'Get basic informations',
+        'DE': 'Zeige Basisinformationen'
+    },
+
+    'f_description': {
+        'EN': 'Shows basic informations about this API and basic requests to work with pythapi.',
+        'DE': 'Zeigt grundlegende Informationen über die API an und zeigt die Benutzung von Basisanfragen um mit pythapi arbeiten zu können.'
+    }
+})
+def get_basic_informations(reqHandler, p, args, body):
+    return {
+        'data': {
+            'name': 'pythapi',
+            'list_plugins': {
+                'path': '/' +plugin.name +'/list?verbose=true',
+                'method': 'GET'
+            },
+            'list_possible_requests_of_plugin': {
+                'path': '/' +plugin.name +'/<plugin_name>/list?verbose=true',
+                'method': 'GET'
+            }
+        }
+    }

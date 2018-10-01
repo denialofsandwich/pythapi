@@ -1646,15 +1646,16 @@ def install():
         ]
     })
     
+    e_create_role('anonymous', {
+        "permissions":  []
+    })
+    
     e_create_role('default', {
         "inherit":  [
+            "anonymous",
             "auth_default"
         ],
         "permissions": []
-    })
-    
-    e_create_role('anonymous', {
-        "permissions":  []
     })
     
     if api_config()['auth']['first_user_password'] != "":
