@@ -61,6 +61,87 @@ plugin.config_defaults = {}
 
 used_tables = ["data"]
 
+def i_data_permission_validator(ruleset, rule_section, target_rule):
+    if not rule_section in ruleset:
+        return 0
+
+    rules = ruleset[rule_section]
+
+    if '/* rw' in rules:
+        return 1
+
+    path, operation = target_rule.split(' ')
+    
+    for rule in rules:
+        i_path, i_operations = rule.split(' ')
+
+        if '#' in i_path:
+            auth = api_plugins()['auth']
+            current_user = auth.e_get_current_user()
+            i_path = i_path.replace('#username', current_user)
+        
+        if not operation in i_operations:
+            continue
+
+        if path == i_path:
+            return 1
+
+        if path.find(i_path[:-1]) != -1:
+            return 1
+
+    return 0
+
+def i_data_permission_reduce_handler(ruleset):
+    section_name = 'data_permissions'
+    if not section_name in ruleset:
+        return ruleset
+
+    ruleset[section_name] = list(set(ruleset[section_name]))
+
+    if '/ rw' in ruleset[section_name]:
+        ruleset[section_name] = ['/ rw']
+
+    for rule in list(ruleset[section_name]):
+        path, operations = rule.split(' ')
+
+        for sub_rule in list(ruleset[section_name]):
+            if rule == sub_rule:
+                continue
+
+            sub_path, sub_operations = sub_rule.split(' ')
+
+            fully_included = True
+            for s_op in sub_operations:
+                if not s_op in operations:
+                    fully_included = False
+                    break
+                
+            if not fully_included:
+                continue
+
+            if re.search(r'^' +re.escape(path), sub_rule):
+                ruleset[section_name].remove(sub_rule)
+
+    return ruleset
+
+# TODO: I am here.
+def i_data_subset_intersection_handler(ruleset, subset):
+#    section = ruleset['lets_encrypt_allowed_domains']
+#    return_subset = {}
+#
+#    if '*' in section:
+#        return copy.deepcopy(subset)
+#
+#    for rule in list(subset['lets_encrypt_allowed_domains']):
+#        if rule in section or '*' +rule[rule.find('.'):] in section:
+#            if not 'lets_encrypt_allowed_domains' in return_subset:
+#                return_subset['lets_encrypt_allowed_domains'] = []
+#
+#            return_subset['lets_encrypt_allowed_domains'].append(rule)
+#
+#    return return_subset
+    return {}
+
 def ir_serialize_data_tree(root, data_dict):
     insert_data = []
     delete_data = []
@@ -85,8 +166,9 @@ def ir_serialize_data_tree(root, data_dict):
             insert_data.append(path)
             insert_data.append(json.dumps(value))
 
-            if path[:6] == '/user/':
-                username = path[6:(path[6:].find('/')+6)]
+            match = re.search(r'/user/([^\/]+)/', path)
+            if match:
+                username = match.group(1)
                 auth = api_plugins()['auth']
                 user_id = auth.e_get_user(username)['id']
 
@@ -99,6 +181,7 @@ def ir_serialize_data_tree(root, data_dict):
 
 @api_external_function(plugin)
 def e_read_data(path):
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
 
@@ -221,11 +304,72 @@ def install():
     dbc.execute(sql)
     dbc.close()
     
+    auth = api_plugins()['auth']
+
+    auth.e_create_role('data_default', {
+        'permissions':  [
+            'data'
+        ],
+        'data_permissions': [
+            '/user/#username rw',
+            '/global r'
+        ]
+    })
+
+    ruleset = auth.e_get_role('default')['ruleset']
+
+    try:
+        if not 'data_default' in ruleset['inherit']:
+            ruleset['inherit'].append('data_default')
+
+        auth.e_edit_role('default', ruleset)
+    except WebRequestException as e:
+        api_log().error('Editing the default role failed!')
+        return 0
+
+    auth.e_create_role('data_admin', {
+        'permissions':  [
+            'data'
+        ],
+        'data_permissions': [
+            '/ rw',
+        ]
+    })
+
+    ruleset = auth.e_get_role('admin')['ruleset']
+
+    try:
+        if not 'data_admin' in ruleset['inherit']:
+            ruleset['inherit'].append('data_admin')
+
+        auth.e_edit_role('admin', ruleset)
+    except WebRequestException as e:
+        api_log().error('Editing the admin role failed!')
+        return 0
+
     return 1
 
 @api_event(plugin, 'uninstall')
 def uninstall():
-    
+
+    auth = api_plugins()['auth']
+
+    if auth.events['check']():
+        ruleset = auth.e_get_role('default')['ruleset']
+
+        try:
+            ruleset['inherit'].remove('data_default')
+            ruleset['inherit'].remove('data_admin')
+            auth.e_edit_role('default', ruleset)
+        except: pass
+
+        try:
+            auth.e_delete_role('userdata_default')
+            auth.e_delete_role('data_admin')
+        except: pass
+
+        api_log().debug('Roles deleted.')
+
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
@@ -241,6 +385,15 @@ def uninstall():
         api_log().debug("Table: '" +db_prefix +table +"' deleted.")
     
     dbc.close()
+
+    return 1
+
+@api_event(plugin, 'load')
+def load():
+    auth = api_plugins()['auth']
+    auth.e_add_permission_reduce_handler(i_data_permission_reduce_handler)
+    auth.e_add_subset_intersection_handler(i_data_subset_intersection_handler)
+
     return 1
 
 @api_action(plugin, {
@@ -256,6 +409,11 @@ def uninstall():
     }
 })
 def read_data(reqHandler, p, args, body):
+
+    auth = api_plugins()['auth']
+    if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_permissions', p[0] +' r', i_data_permission_validator):
+        raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
     return {
         'data': e_read_data(p[0])
     }
@@ -273,6 +431,11 @@ def read_data(reqHandler, p, args, body):
     }
 })
 def write_data(reqHandler, p, args, body):
+
+    auth = api_plugins()['auth']
+    if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_permissions', p[0] +' w', i_data_permission_validator):
+        raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
     return {
         'affected_rows': e_write_data(p[0], body)
     }
@@ -290,6 +453,11 @@ def write_data(reqHandler, p, args, body):
     }
 })
 def delete_data(reqHandler, p, args, body):
+
+    auth = api_plugins()['auth']
+    if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_permissions', p[0] +' w', i_data_permission_validator):
+        raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
     return {
         'affected_rows': e_delete_data(p[0])
     }

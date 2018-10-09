@@ -398,11 +398,6 @@ def e_get_certificate(cert_id):
     except KeyError:
         running_job_status = 'none'
 
-#    if not running_job_status in ['none', 'done', 'terminated']:
-#        if 'status' in cert_dict[cert_id]:
-#            return_json['status'] = cert_dict[cert_id]['status']
-#            return_json['status'] = 'waiting_for_verification'
-
     return return_json
 
 @api_external_function(plugin)
