@@ -85,7 +85,7 @@ def i_data_permission_validator(ruleset, rule_section, target_rule):
 
         if path == i_path:
             return 1
-
+        
         if path.find(i_path[:-1]) != -1:
             return 1
 
@@ -124,23 +124,37 @@ def i_data_permission_reduce_handler(ruleset):
 
     return ruleset
 
-# TODO: I am here.
 def i_data_subset_intersection_handler(ruleset, subset):
-#    section = ruleset['lets_encrypt_allowed_domains']
-#    return_subset = {}
-#
-#    if '*' in section:
-#        return copy.deepcopy(subset)
-#
-#    for rule in list(subset['lets_encrypt_allowed_domains']):
-#        if rule in section or '*' +rule[rule.find('.'):] in section:
-#            if not 'lets_encrypt_allowed_domains' in return_subset:
-#                return_subset['lets_encrypt_allowed_domains'] = []
-#
-#            return_subset['lets_encrypt_allowed_domains'].append(rule)
-#
-#    return return_subset
-    return {}
+    section_name = 'data_permissions'
+    return_subset = {}
+
+    if '/ rw' in ruleset[section_name]:
+        return copy.deepcopy(subset)
+
+    for ss_rule in list(subset[section_name]):
+        s_path, s_operations = ss_rule.split(' ')
+
+        for rule in ruleset[section_name]:
+            path, operations = rule.split(' ')
+
+            fully_included = True
+            for s_op in s_operations:
+                if not s_op in operations:
+                    fully_included = False
+                    break
+                
+            if not fully_included:
+                continue
+
+            if re.search(r'^' +re.escape(path), s_path):
+                if not section_name in return_subset:
+                    return_subset[section_name] = []
+
+                return_subset[section_name].append(ss_rule)
+                break
+
+    log.debug(return_subset)
+    return return_subset
 
 def ir_serialize_data_tree(root, data_dict):
     insert_data = []
