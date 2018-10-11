@@ -889,7 +889,7 @@ def e_list_user_token(username):
         return return_json
 
 @api_external_function(plugin)
-def e_create_user_token(username, token_name, ruleset):
+def e_create_user_token(username, token_name, ruleset = {}):
 
     if token_name == 'list':
         raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')

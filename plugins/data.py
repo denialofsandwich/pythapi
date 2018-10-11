@@ -156,40 +156,50 @@ def i_data_subset_intersection_handler(ruleset, subset):
     log.debug(return_subset)
     return return_subset
 
+def i_resolve_user_id_from_path(path):
+    match = re.search(r'/user/([^\/]+)/', path)
+    if match:
+        username = match.group(1)
+        auth = api_plugins()['auth']
+        user_id = auth.e_get_user(username)['id']
+
+        return user_id
+
+    else:
+        return 1 # Admin
+
 def ir_serialize_data_tree(root, data_dict):
     insert_data = []
     delete_data = []
 
-    for key, value in data_dict.items():
-        if key.find('/') != -1:
-            raise WebRequestException(400, 'error', 'DATA_ILLEGAL_CHARACTER_FOUND')
+    if type(data_dict) == dict:
+        for key, value in data_dict.items():
+            if key.find('/') != -1:
+                raise WebRequestException(400, 'error', 'DATA_ILLEGAL_CHARACTER_FOUND')
 
-        path = os.path.join(root, key)
-        
-        if type(value) == dict:
-            delete_data.append(path)
+            path = os.path.join(root, key)
+            
+            if type(value) == dict and value != {}:
+                delete_data.append(path)
 
-            new_insert_data, new_delete_data = ir_serialize_data_tree(path, value)
+                new_insert_data, new_delete_data = ir_serialize_data_tree(path, value)
 
-            insert_data.extend(new_insert_data)
-            delete_data.extend(new_delete_data)
-
-        else:
-            delete_data.append(os.path.join(path, '%'))
-
-            insert_data.append(path)
-            insert_data.append(json.dumps(value))
-
-            match = re.search(r'/user/([^\/]+)/', path)
-            if match:
-                username = match.group(1)
-                auth = api_plugins()['auth']
-                user_id = auth.e_get_user(username)['id']
-
-                insert_data.append(user_id)
+                insert_data.extend(new_insert_data)
+                delete_data.extend(new_delete_data)
 
             else:
-                insert_data.append(1) # Admin
+                delete_data.append(os.path.join(path, '%'))
+
+                insert_data.append(path)
+                insert_data.append(json.dumps(value))
+                insert_data.append(i_resolve_user_id_from_path(path))
+
+    else:
+        delete_data.append(root)
+
+        insert_data.append(root)
+        insert_data.append(json.dumps(data_dict))
+        insert_data.append(i_resolve_user_id_from_path(root))
 
     return insert_data, delete_data
 
@@ -200,13 +210,17 @@ def e_read_data(path):
     db = api_mysql_connect()
 
     dbc = db.cursor()
-    result = dbc.execute("""
+    row_count = dbc.execute("""
             SELECT *
                 FROM """ +db_prefix +"""data
                 WHERE key_name = %s OR key_name LIKE %s;
         """, [path, os.path.join(path, '%')])
 
-    return_json = {}
+    if row_count == 0:
+        return None
+    else:
+        return_json = {}
+
     for row in dbc:
 
         if path == row[0]:
@@ -220,8 +234,9 @@ def e_read_data(path):
                 i_dict = i_dict.setdefault(i_dir, {})
                 
             i_dict[hierarchy[-1]] = json.loads(row[2])
-    
+
     db.close()
+
     return return_json
 
 @api_external_function(plugin)
