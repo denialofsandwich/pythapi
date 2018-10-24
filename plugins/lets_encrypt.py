@@ -297,18 +297,19 @@ def i_le_permission_reduce_handler(ruleset):
     return ruleset
 
 def i_le_subset_intersection_handler(ruleset, subset):
-    section = ruleset['lets_encrypt_allowed_domains']
+    section_name = 'lets_encrypt_allowed_domains'
+    section = ruleset[section_name]
     return_subset = {}
 
-    if '*' in section:
+    if '*' in ruleset[section_name] or not section_name in subset:
         return copy.deepcopy(subset)
 
-    for rule in list(subset['lets_encrypt_allowed_domains']):
-        if rule in section or '*' +rule[rule.find('.'):] in section:
-            if not 'lets_encrypt_allowed_domains' in return_subset:
-                return_subset['lets_encrypt_allowed_domains'] = []
+    for rule in list(subset[section_name]):
+        if rule in ruleset[section_name] or '*' +rule[rule.find('.'):] in ruleset[section_name]:
+            if not section_name in return_subset:
+                return_subset[section_name] = []
 
-            return_subset['lets_encrypt_allowed_domains'].append(rule)
+            return_subset[section_name].append(rule)
 
     return return_subset
 
@@ -398,11 +399,6 @@ def e_get_certificate(cert_id):
     except KeyError:
         running_job_status = 'none'
 
-#    if not running_job_status in ['none', 'done', 'terminated']:
-#        if 'status' in cert_dict[cert_id]:
-#            return_json['status'] = cert_dict[cert_id]['status']
-#            return_json['status'] = 'waiting_for_verification'
-
     return return_json
 
 @api_external_function(plugin)
@@ -451,13 +447,13 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
 
     if order['status'] == 'pending':
 
-        cert_dict[cert_id]['status'] = 'running_pre_verification_handlers'
         for v_handler in preverification_handler_list:
+            cert_dict[cert_id]['status'] = 'running_pre_verify_handler:' +v_handler.__name__
             v_handler(domain_list, token_dict)
 
         # Pre-verification
         # Check via DNS resolver before Let's Encrypt verification
-        cert_dict[cert_id]['status'] = 'waiting_for_pre_verification'
+        cert_dict[cert_id]['status'] = 'waiting_for_local_verification'
         for name, keydigest64 in token_dict.items():
             
             api_log().debug("Pre-verification: Waiting for correct key of {}...".format(name))
@@ -535,6 +531,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
 
         cert_dict[cert_id]['status'] = 'running_post_verification_handlers'
         for v_handler in postverification_handler_list:
+            cert_dict[cert_id]['status'] = 'running_post_verify_handler:' +v_handler.__name__
             v_handler(domain_list, token_dict)
 
     else:

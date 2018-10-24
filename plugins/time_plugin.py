@@ -51,7 +51,7 @@ plugin.depends = [
         'required': True
     },
     {
-        'name': 'userdata',
+        'name': 'data',
         'required': True
     }
 ]
@@ -279,15 +279,15 @@ def test_func(text):
 def etv_action_request_template(current_user, method, path, body={}):
     
     auth = api_plugins()['auth']
-    userdata = api_plugins()['userdata']
+    data = api_plugins()['data']
 
     try: 
         auth.e_get_user_token(current_user, '_timer_key')
-        token = userdata.e_get_data(current_user, 'timer', 'user_token', 1)['user_token']
+        token = data.e_read_data('/user/' +current_user +'/timer/user_token')
 
     except WebRequestException:
         token = auth.e_create_user_token(current_user, '_timer_key')
-        userdata.e_write_data(current_user, 'timer', {'user_token': token}, 1)
+        data.e_write_data('/user/' +current_user +'/timer/user_token', token)
 
     port = api_config()['core.web']['http_port'][0]
 
