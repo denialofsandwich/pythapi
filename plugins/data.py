@@ -314,11 +314,11 @@ def install():
     
     sql = """
         CREATE TABLE """ +db_prefix +"""data (
-            key_name VARCHAR(256) NOT NULL,
+            key_name VARCHAR(255) NOT NULL,
             user_id INT NOT NULL,
             data TEXT NOT NULL,
             PRIMARY KEY (key_name)
-        ) ENGINE = InnoDB;
+        ) ENGINE = InnoDB DEFAULT CHARSET=utf8;
         """
     dbc.execute(sql)
     api_log().debug("Table: '" +db_prefix +"data' created.")
