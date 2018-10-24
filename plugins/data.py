@@ -28,6 +28,7 @@ from api_plugin import * # Essential Plugin
 import json
 import re
 import os
+import copy
 
 plugin = api_plugin()
 plugin.name = "data"
@@ -128,7 +129,7 @@ def i_data_subset_intersection_handler(ruleset, subset):
     section_name = 'data_permissions'
     return_subset = {}
 
-    if '/ rw' in ruleset[section_name]:
+    if '/ rw' in ruleset[section_name] or not section_name in subset:
         return copy.deepcopy(subset)
 
     for ss_rule in list(subset[section_name]):
@@ -166,7 +167,7 @@ def i_resolve_user_id_from_path(path):
         return user_id
 
     else:
-        return 1 # Admin
+        return 1 # Admin user_id = 1
 
 def ir_serialize_data_tree(root, data_dict):
     insert_data = []
