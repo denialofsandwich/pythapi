@@ -54,7 +54,9 @@ config_defaults = {
         'logfile': 'pythapilog_[time].log',
         'user': 'root',
         'default_language': 'EN',
-        'enabled_plugins': ['*']
+        'enabled_plugins': ['*'],
+        'proxy_enabled': False,
+        'proxy': 'http://localhost:8080'
     },
     'core.mysql': {
         'hostname': 'localhost',
@@ -631,6 +633,11 @@ def main():
     except MySQLdb.OperationalError as e:
         log.critical("Can't connect to Database: {}".format(e.args[1]))
         sys.exit(1)
+
+    # Set Proxy
+    if api_plugin.config['core.general']['proxy_enabled']:
+        os.environ["HTTP_PROXY"] = api_plugin.config['core.general']['proxy']
+        os.environ["HTTPS_PROXY"] = api_plugin.config['core.general']['proxy']
 
     # Plugin loader
     log.begin("Loading Plugins...")
