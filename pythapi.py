@@ -118,6 +118,11 @@ translation_dict = {
     'GENERAL_DUPLICATE_IN_LIST': {
         'EN': 'Double entry in list.',
         'DE': 'Doppelter Eintrag in Liste.'
+    },
+
+    'GENERAL_INVALID_STRING_FORMAT': {
+        'EN': 'String format invalid.',
+        'DE': 'Invalides Stringformat.'
     }
 }
 

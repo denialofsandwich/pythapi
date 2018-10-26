@@ -2066,6 +2066,7 @@ def list_user_tokens(reqHandler, p, args, body):
         {
             'name': "token_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Token name",
                 'DE': "Tokenname"
@@ -2094,6 +2095,7 @@ def get_user_token(reqHandler, p, args, body):
         {
             'name': "token_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Token name",
                 'DE': "Tokenname"
@@ -2122,6 +2124,7 @@ def create_user_token(reqHandler, p, args, body):
         {
             'name': "token_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Token name",
                 'DE': "Tokenname"
@@ -2149,6 +2152,7 @@ def edit_user_token(reqHandler, p, args, body):
         {
             'name': "token_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Token name",
                 'DE': "Tokenname"
@@ -2241,6 +2245,7 @@ def change_password(reqHandler, p, args, body):
         {
             'name': "username",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Username",
                 'DE': "Benutzername"
@@ -2268,6 +2273,7 @@ def get_user(reqHandler, p, args, body):
         {
             'name': "username",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Username",
                 'DE': "Benutzername"
@@ -2320,6 +2326,7 @@ def create_user(reqHandler, p, args, body):
         {
             'name': "username",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Username",
                 'DE': "Benutzername"
@@ -2360,6 +2367,7 @@ def edit_user(reqHandler, p, args, body):
         {
             'name': "username",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Username",
                 'DE': "Benutzername"
@@ -2426,6 +2434,7 @@ def list_roles(reqHandler, p, args, body):
         {
             'name': "role_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Role name",
                 'DE': "Rollenname"
@@ -2456,6 +2465,7 @@ def get_role(reqHandler, p, args, body):
         {
             'name': "role_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Role name",
                 'DE': "Rollenname"
@@ -2512,6 +2522,7 @@ def create_role(reqHandler, p, args, body):
         {
             'name': "role_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Role name",
                 'DE': "Rollenname"
@@ -2543,6 +2554,7 @@ def edit_role(reqHandler, p, args, body):
         {
             'name': "role_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Role name",
                 'DE': "Rollenname"
@@ -2574,6 +2586,7 @@ def delete_role(reqHandler, p, args, body):
         {
             'name': "role_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Role name",
                 'DE': "Rollenname"
@@ -2582,6 +2595,7 @@ def delete_role(reqHandler, p, args, body):
         {
             'name': "username",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Username",
                 'DE': "Benutzername"
@@ -2616,6 +2630,7 @@ def add_member_to_role(reqHandler, p, args, body):
         {
             'name': "role_name",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Role name",
                 'DE': "Rollenname"
@@ -2624,6 +2639,7 @@ def add_member_to_role(reqHandler, p, args, body):
         {
             'name': "username",
             'type': str,
+            'regex': r'^[a-zA-Z0-9_-]{1,31}$',
             'f_name': {
                 'EN': "Username",
                 'DE': "Benutzername"

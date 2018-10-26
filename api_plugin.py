@@ -172,6 +172,14 @@ def try_convert_value(section, key, value, skel):
         
         value = desired_type(value)
 
+        if desired_type == str:
+            if 'regex' in skel and not re.match(skel['regex'], value):
+                raise WebRequestException(400, 'error', 'GENERAL_INVALID_STRING_FORMAT', {
+                    'section': section,
+                    'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                    'regex': skel['regex']
+                })
+
         if desired_type == int:
             if 'min' in skel and value < skel['min']:
                 raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
