@@ -2294,6 +2294,7 @@ def get_user(reqHandler, p, args, body):
                 'EN': "Roles",
                 'DE': "Rollen"
             },
+            'allow_duplicates': False,
             'default': [],
             'childs': {
                 'type': str

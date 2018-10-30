@@ -144,7 +144,7 @@ def try_convert_value(section, key, value, skel):
                             'section': section,
                             'value': key if section != "param" else "{} ({})".format(key +1, skel['name'])
                         })
-                    elif (not 'allow_duplicates' in skel or skel['allow_duplicates'] == False) and len(value) != len(set(value)):
+                    elif 'allow_duplicates' in skel and skel['allow_duplicates'] == False and len(value) != len(set(value)):
                         raise WebRequestException(400, 'error', 'GENERAL_DUPLICATE_IN_LIST', {
                             'section': section,
                             'value': key if section != "param" else "{} ({})".format(key +1, skel['name'])

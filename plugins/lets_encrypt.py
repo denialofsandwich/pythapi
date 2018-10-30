@@ -1168,6 +1168,7 @@ def get_certificate(reqHandler, p, args, body):
                 'DE': "Domainliste"
             },
             "allow_empty": False,
+            'allow_duplicates': False,
             'childs': {
                 'type': str
             }
@@ -1266,7 +1267,8 @@ def check_certificates(reqHandler, p, args, body):
                 'EN': "Domain list",
                 'DE': "Domainliste"
             },
-            "allow_empty": False,
+            'allow_empty': False,
+            'allow_duplicates': False,
             'childs': {
                 'type': str
             }
