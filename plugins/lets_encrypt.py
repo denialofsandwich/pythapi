@@ -1195,7 +1195,7 @@ def add_certificate(reqHandler, p, args, body):
         if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-    log.access('{} certificate with the domains {} requested'.format(api_environment_variables()['transaction_id'], domain_list))
+    log.access('{} certificate with domains {} created'.format(api_environment_variables()['transaction_id'], domain_list))
 
     return {
         'cert_id': e_add_certificate(i_domains_to_punycode(domain_list))
@@ -1274,23 +1274,12 @@ def check_certificates(reqHandler, p, args, body):
             }
         },
         'fingerprints': {
-            'type': list,
+            'type': dict,
             'f_name': {
-                'EN': "Domain list",
-                'DE': "Domainliste"
+                'EN': "Fingerprints",
+                'DE': "Fingerabdrücke"
             },
-            'default': [],
-            'childs': {
-                'type': dict,
-                'childs': {
-                    'cert': {
-                        'type': str
-                    },
-                    'key': {
-                        'type': str
-                    }
-                }
-            }
+            'default': {}
         }
     },
     'f_name': {
@@ -1317,12 +1306,7 @@ def request_certificates(reqHandler, p, args, body):
     config = api_config()[plugin.name]
     domaindir_path = os.path.join(config['base_key_directory'], 'domains')
 
-    # Build cert- and key-fingerprint-lists
-    certfp_list = []
-    keyfp_list = []
-    for fp in body['fingerprints']:
-        certfp_list.append(fp['cert'])
-        keyfp_list.append(fp['key'])
+    log.access('{} certificates with domains {} requested'.format(api_environment_variables()['transaction_id'], domain_list))
 
     tmp_cert_dict = {}
     for domain in domain_list:
@@ -1343,13 +1327,14 @@ def request_certificates(reqHandler, p, args, body):
             continue
         
         tmp_cert_dict[cert_id] = {}
+        tmp_cert_dict[cert_id]['id'] = cert_id
         tmp_cert_dict[cert_id]['domains'] = [domain]
 
         with open(os.path.join(cert_path, 'certfile.pem')) as certfile:
             cert = certfile.read()
 
         cert_fingerprint = hashlib.sha256(cert.encode('ascii')).hexdigest()
-        if cert_fingerprint in certfp_list:
+        if cert_fingerprint == body.get('fingerprints', {}).get(cert_id, {}).get('cert', ''):
             tmp_cert_dict[cert_id]['cert'] = cert_fingerprint
             cert_valid = True
         else:
@@ -1360,7 +1345,7 @@ def request_certificates(reqHandler, p, args, body):
             key = keyfile.read()
 
         key_fingerprint = hashlib.sha256(key.encode('ascii')).hexdigest()
-        if key_fingerprint in keyfp_list:
+        if key_fingerprint == body.get('fingerprints', {}).get(cert_id, {}).get('key', ''):
             tmp_cert_dict[cert_id]['key'] = key_fingerprint
             key_valid = True
         else:
