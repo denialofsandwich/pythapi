@@ -1195,7 +1195,7 @@ def add_certificate(reqHandler, p, args, body):
         if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-    log.access('{} certificate with the domains {} requested'.format(api_environment_variables()['transaction_id'], domain_list))
+    log.access('{} certificate with domains {} created'.format(api_environment_variables()['transaction_id'], domain_list))
 
     return {
         'cert_id': e_add_certificate(i_domains_to_punycode(domain_list))
@@ -1305,6 +1305,8 @@ def request_certificates(reqHandler, p, args, body):
 
     config = api_config()[plugin.name]
     domaindir_path = os.path.join(config['base_key_directory'], 'domains')
+
+    log.access('{} certificates with domains {} requested'.format(api_environment_variables()['transaction_id'], domain_list))
 
     tmp_cert_dict = {}
     for domain in domain_list:

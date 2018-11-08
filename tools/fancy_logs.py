@@ -24,6 +24,7 @@
 import os
 import sys
 import logging
+import datetime
 
 color_codes = {
     'DEBUG':    '[\033[94m{}\033[0m]',
@@ -80,17 +81,12 @@ class fancy_logger(logging.Logger):
         logging.addLevelName(22, 'BEGIN')
         logging.addLevelName(25, 'SUCCESS')
         logging.Logger.__init__(self, 'pythapi')
-        
-        self.loglevel = loglevel
-        
-        if loglevel > 6:
-            loglevel = 6
-        
-        loglevel = tr_loglevel[loglevel]
-        
-        self.setLevel(loglevel)
+
+        self.setLoglevel(loglevel)
 
         if logging_enabled:
+            logfile_path = logfile_path.replace('[time]', datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
+
             self.fout = logging.FileHandler(logfile_path)
             self.fout.setLevel(logging.DEBUG)
             self.fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
@@ -99,11 +95,7 @@ class fancy_logger(logging.Logger):
         self.sout = logging.StreamHandler(sys.stdout)
         self.sout.setLevel(logging.DEBUG)
 
-        if fancy_mode:
-            self.sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy = True))
-
-        else:
-            self.sout.setFormatter(ColoredFormatter('%(levelname)s %(message)s', fancy = False))
+        self.setFancy(fancy_mode)
 
         self.addHandler(LoggingFunctionExecutor())
         self.addHandler(self.sout)

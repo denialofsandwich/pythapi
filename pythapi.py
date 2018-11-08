@@ -617,8 +617,6 @@ def main():
             sys.exit(1)
 
     # Initialize fancy_logs
-    api_plugin.config['core.general']['logfile'] = api_plugin.config['core.general']['logfile'].replace('[time]', datetime.datetime.now().strftime('%m-%d-%Y'))
-    
     api_plugin.log = tools.fancy_logs.fancy_logger(
         api_plugin.config['core.general']['colored_logs'],
         api_plugin.config['core.general']['loglevel'],
