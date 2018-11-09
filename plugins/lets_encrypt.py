@@ -119,6 +119,7 @@ jws_header = None
 adtheaders = None
 joseheaders = None
 dns_resolver = None
+nonce_age = None
 
 cert_dict = {}
 preverification_handler_list = []
@@ -166,12 +167,20 @@ def _send_signed_request(url, payload):
     global jws_nonce
     global acme_config
     global jws_header
-    
+    global nonce_age
+
     config = api_config()[plugin.name]
     keyfile_path = os.path.join(config['base_key_directory'], 'account/keyfile.pem')
+
     payload64 = _b64(json.dumps(payload).encode("utf8"))
     protected = copy.deepcopy(jws_header)
-    protected["nonce"] = jws_nonce or requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
+
+    if jws_nonce == None or (datetime.datetime.now() -nonce_age).days > 0:
+        jws_nonce = requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
+        nonce_age = datetime.datetime.now()
+
+    protected["nonce"] = jws_nonce
+
     protected["url"] = url
     if url == acme_config["newAccount"]:
         del protected["kid"]

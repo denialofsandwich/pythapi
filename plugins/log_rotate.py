@@ -135,13 +135,3 @@ def load():
     time_plugin.e_register_timed_static_event('_log_rotate_job', et_rotate_logfiles, [], enabled=1, repeat=1, **time_dict)
 
     return 1
-
-
-@api_action(plugin, {
-    'path': 'rotate',
-    'method': 'POST',
-})
-def log_rotate(reqHandler, p, args, body):
-    et_rotate_logfiles()
-    return {}
-
