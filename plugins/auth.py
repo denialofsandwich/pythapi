@@ -309,7 +309,7 @@ def i_get_client_ip(reqHandler):
 def i_clean_expired_sessions():
     global session_counter
     
-    for session_id in session_dict.keys():
+    for session_id in list(session_dict.keys()):
         session = session_dict[session_id]
         if time.time() > session['expiration_time']:
             e_delete_session(session_id)
