@@ -1813,6 +1813,25 @@ def global_preexecution_hook(reqHandler, action):
                 unauthorized_error(401, 'unauthorized', 'AUTH_INVALID_USER_TOKEN', remote_ip)
 
     if action['name'] == "auth.create_session":
+        raw_body = reqHandler.request.body.decode('utf8')
+        try:
+            if raw_body == "":
+                body = {}
+            else:
+                body = tornado.escape.json_decode(raw_body)
+
+        except ValueError as e:
+            raise WebRequestException(400, 'error', 'GENERAL_MALFORMED_JSON')
+
+        if 'username' in body and 'password' in body and body['username'] in users_dict:
+            if (e_hash_password(body['username'], body['password']) == users_dict[body['username']]['h_password']):
+
+                current_user = body['username']
+                auth_type = "basic"
+                if i_is_permitted(current_user, action):
+                    i_reset_ban_time(remote_ip)
+                    return
+
         raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
      
     session_id = reqHandler.get_cookie("session_id")
