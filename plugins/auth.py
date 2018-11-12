@@ -1823,8 +1823,9 @@ def global_preexecution_hook(reqHandler, action):
         except ValueError as e:
             raise WebRequestException(400, 'error', 'GENERAL_MALFORMED_JSON')
 
-        if 'username' in body and 'password' in body and body['username'] in users_dict:
-            if (e_hash_password(body['username'], body['password']) == users_dict[body['username']]['h_password']):
+        if 'username' in body and 'password' in body:
+            time.sleep(bf_basic_auth_delay)
+            if body['username'] in users_dict and e_hash_password(body['username'], body['password']) == users_dict[body['username']]['h_password']:
 
                 current_user = body['username']
                 auth_type = "basic"
