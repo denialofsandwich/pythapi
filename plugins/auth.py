@@ -134,7 +134,7 @@ plugin.translation_dict = {
     
     'AUTH_WRONG_PASSWORD_OR_USERNAME': {
         'EN': 'Invalid username or password.',
-        'DE': 'Ungültiger Username oder Passwort.'
+        'DE': 'Falscher Benutzername oder Passwort.'
     },
     
     'AUTH_INVALID_USER_TOKEN': {
@@ -1832,6 +1832,7 @@ def global_preexecution_hook(reqHandler, action):
                 if i_is_permitted(current_user, action):
                     i_reset_ban_time(remote_ip)
                     return
+            unauthorized_error(401, 'unauthorized', 'AUTH_WRONG_PASSWORD_OR_USERNAME', remote_ip)
 
         raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
      
