@@ -460,6 +460,11 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             cert_dict[cert_id]['status'] = 'running_pre_verify_handler:' +v_handler.__name__
             v_handler(domain_list, token_dict)
 
+            if kwargs['_t_event'].is_set():
+                try: cert_dict[cert_id]['status'] = 'job_terminated'
+                except: pass # If terminated due to a certificate deletion
+                return
+
         # Pre-verification
         # Check via DNS resolver before Let's Encrypt verification
         cert_dict[cert_id]['status'] = 'waiting_for_local_verification'
@@ -489,7 +494,8 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
     
                 kwargs['_t_event'].wait(2)
                 if kwargs['_t_event'].is_set():
-                    cert_dict[cert_id]['status'] = 'job_terminated'
+                    try: cert_dict[cert_id]['status'] = 'job_terminated'
+                    except: pass # If terminated due to a certificate deletion
                     return
 
         cert_dict[cert_id]['status'] = 'waiting_for_acme_verification'
@@ -527,7 +533,8 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                 if challenge_status["status"] == "pending":
                     kwargs['_t_event'].wait(2)
                     if kwargs['_t_event'].is_set():
-                        cert_dict[cert_id]['status'] = 'job_terminated'
+                        try: cert_dict[cert_id]['status'] = 'job_terminated'
+                        except: pass # If terminated due to a certificate deletion
                         return
     
                 elif challenge_status["status"] == "valid":
@@ -759,7 +766,7 @@ def e_add_certificate(domain_list):
 
     if write_through_cache_enabled:
         if cert_id in cert_dict:
-            raise WebRequestException(400, 'error', 'LE_CERT_EXIST')
+            raise WebRequestException(400, 'error', 'LE_CERT_EXIST', {'cert_id': cert_id})
 
     else:
         if os.path.isdir(new_domain_path):

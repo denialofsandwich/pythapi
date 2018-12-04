@@ -154,7 +154,6 @@ def i_data_subset_intersection_handler(ruleset, subset):
                 return_subset[section_name].append(ss_rule)
                 break
 
-    log.debug(return_subset)
     return return_subset
 
 def i_resolve_user_id_from_path(path):
