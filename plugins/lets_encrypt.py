@@ -122,6 +122,7 @@ dns_resolver = None
 nonce_age = None
 
 cert_dict = {}
+initverification_handler_list = []
 preverification_handler_list = []
 postverification_handler_list = []
 write_through_cache_enabled = False
@@ -175,7 +176,7 @@ def _send_signed_request(url, payload):
     payload64 = _b64(json.dumps(payload).encode("utf8"))
     protected = copy.deepcopy(jws_header)
 
-    if jws_nonce == None or (datetime.datetime.now() -nonce_age).days > 0:
+    if jws_nonce == None or (datetime.datetime.now() -nonce_age).seconds > 600:
         jws_nonce = requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
         nonce_age = datetime.datetime.now()
 
@@ -322,6 +323,21 @@ def i_le_subset_intersection_handler(ruleset, subset):
 
     return return_subset
 
+def i_le_job_termination_handler(job, e):
+
+    if job.func == it_complete_challenges:
+        cert_id = i_get_cert_id(job.func_args[0])
+        log.error("Verification of certificate {} failed.".format(cert_id), exc_info=e)
+        cert_dict[cert_id]['status'] = 'verification_failed'
+
+    elif job.func == it_add_certificate:
+        cert_id = i_get_cert_id(job.func_args[0])
+        log.error("Creation of certificate {} failed.".format(cert_id), exc_info=e)
+        cert_dict[cert_id]['status'] = 'creation_failed'
+
+    else:
+        api_plugin()['job'].e_default_termination_handler(job, e)
+
 @api_external_function(plugin)
 def e_list_certificates():
     if write_through_cache_enabled:
@@ -411,6 +427,10 @@ def e_get_certificate(cert_id):
     return return_json
 
 @api_external_function(plugin)
+def e_add_initverfication_handler(f):
+    initverification_handler_list.append(f)
+
+@api_external_function(plugin)
 def e_add_preverfication_handler(f):
     preverification_handler_list.append(f)
 
@@ -456,43 +476,57 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
 
     if order['status'] == 'pending':
 
-        for v_handler in preverification_handler_list:
-            cert_dict[cert_id]['status'] = 'running_pre_verify_handler:' +v_handler.__name__
+        for v_handler in initverification_handler_list:
+            cert_dict[cert_id]['status'] = 'iv_handler:' +v_handler.__name__
             v_handler(domain_list, token_dict)
+
+            if kwargs['_t_event'].is_set():
+                try: cert_dict[cert_id]['status'] = 'job_terminated'
+                except: pass # If terminated due to a certificate deletion
+                return
 
         # Pre-verification
         # Check via DNS resolver before Let's Encrypt verification
-        cert_dict[cert_id]['status'] = 'waiting_for_local_verification'
+        cert_dict[cert_id]['status'] = 'wait_for_correct_challenge'
         for name, keydigest64 in token_dict.items():
             
             api_log().debug("Pre-verification: Waiting for correct key of {}...".format(name))
             while True:
-                preVerified = 0
-                for dns_server in config['dns_verification_servers']:
-                    try:
-                        dns_resolver.nameservers = [dns_server]
-                        dns_results = dns_resolver.query(name, 'TXT')
-        
-                    except dns.resolver.NoAnswer:
-                        dns_results = []
-        
-                    except dns.resolver.NXDOMAIN:
-                        dns_results = []
-                    
-                    for dns_result in dns_results:
-                        if str(dns_result).strip('"') in keydigest64:
-                            preVerified += 1
-                            break
+                try:
+                    dns_results = dns_resolver.query(name, 'TXT')
     
-                if preVerified >= len(config['dns_verification_servers']):
+                except dns.resolver.NoAnswer:
+                    dns_results = []
+    
+                except dns.resolver.NXDOMAIN:
+                    dns_results = []
+
+                preVerified = False
+                for dns_result in dns_results:
+                    if str(dns_result).strip('"') in keydigest64:
+                        preVerified = True
+                        break
+
+                if preVerified:
                     break
-    
+
                 kwargs['_t_event'].wait(2)
                 if kwargs['_t_event'].is_set():
-                    cert_dict[cert_id]['status'] = 'job_terminated'
+                    try: cert_dict[cert_id]['status'] = 'job_terminated'
+                    except: pass # If terminated due to a certificate deletion
                     return
 
-        cert_dict[cert_id]['status'] = 'waiting_for_acme_verification'
+        # Pre-verify handler
+        for v_handler in preverification_handler_list:
+            cert_dict[cert_id]['status'] = 'pv_handler:' +v_handler.__name__
+            v_handler(domain_list, token_dict)
+
+            if kwargs['_t_event'].is_set():
+                try: cert_dict[cert_id]['status'] = 'job_terminated'
+                except: pass # If terminated due to a certificate deletion
+                return
+
+        cert_dict[cert_id]['status'] = 'wait_for_acme_verify'
         jws_nonce = None
         for authz in order["authorizations"]:
     
@@ -527,7 +561,8 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                 if challenge_status["status"] == "pending":
                     kwargs['_t_event'].wait(2)
                     if kwargs['_t_event'].is_set():
-                        cert_dict[cert_id]['status'] = 'job_terminated'
+                        try: cert_dict[cert_id]['status'] = 'job_terminated'
+                        except: pass # If terminated due to a certificate deletion
                         return
     
                 elif challenge_status["status"] == "valid":
@@ -632,7 +667,7 @@ def e_renew_certificate(cert_id):
     else:
         raise ValueError("Error getting new Order: {0} {1}".format(code, result))
 
-    job.e_create_job('le_request:{}'.format(cert_id), it_complete_challenges, [domain_list, order, order_location])
+    job.e_create_job('le_request:{}'.format(cert_id), it_complete_challenges, [domain_list, order, order_location], {}, i_le_job_termination_handler)
 
 @api_external_function(plugin)
 def et_check_certificates():
@@ -759,14 +794,14 @@ def e_add_certificate(domain_list):
 
     if write_through_cache_enabled:
         if cert_id in cert_dict:
-            raise WebRequestException(400, 'error', 'LE_CERT_EXIST')
+            raise WebRequestException(400, 'error', 'LE_CERT_EXIST', {'cert_id': cert_id})
 
     else:
         if os.path.isdir(new_domain_path):
             raise WebRequestException(400, 'error', 'LE_CERT_EXIST')
 
     job = api_plugins()['job']
-    job.e_create_job('add_crt:{}'.format(cert_id), it_add_certificate, [domain_list])
+    job.e_create_job('add_crt:{}'.format(cert_id), it_add_certificate, [domain_list], {}, i_le_job_termination_handler)
 
     return cert_id
 
@@ -1042,7 +1077,8 @@ def load():
         jws_header['kid'] = keyid_file.read()
 
     dns_resolver = dns.resolver.Resolver()
-    
+    dns_resolver.nameservers = config['dns_verification_servers']
+
     # Initialize cache
     certdir_path = os.path.join(config['base_key_directory'], 'certs')
     certpath_list = glob.glob(certdir_path +'/*')
@@ -1133,6 +1169,7 @@ def list_certificates(reqHandler, p, args, body):
         {
             'name': "cert_id",
             'type': str,
+            'regex': '^[a-zA-Z0-9-_]{27}$',
             'f_name': {
                 'EN': "Certificate ID",
                 'DE': "Zertifikats ID"
@@ -1179,7 +1216,8 @@ def get_certificate(reqHandler, p, args, body):
             "allow_empty": False,
             'allow_duplicates': False,
             'childs': {
-                'type': str
+                'type': str,
+                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
             }
         }
     },
@@ -1194,7 +1232,7 @@ def get_certificate(reqHandler, p, args, body):
     }
 })
 def add_certificate(reqHandler, p, args, body):
-
+    
     auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     domain_list = body['domains']
@@ -1204,7 +1242,7 @@ def add_certificate(reqHandler, p, args, body):
         if not auth.e_check_custom_permissions_of_current_user(plugin.name +'_allowed_domains', domain, i_domain_permission_validator):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-    log.access('{} certificate with domains {} created'.format(api_environment_variables()['transaction_id'], domain_list))
+    log.access('{} certificate with domains {} and id {} created'.format(api_environment_variables()['transaction_id'], domain_list, i_get_cert_id(domain_list)))
 
     return {
         'cert_id': e_add_certificate(i_domains_to_punycode(domain_list))
@@ -1217,6 +1255,7 @@ def add_certificate(reqHandler, p, args, body):
         {
             'name': "cert_id",
             'type': str,
+            'regex': '^[a-zA-Z0-9-_]{27}$',
             'f_name': {
                 'EN': "Certificate ID",
                 'DE': "Zertifikats ID"
@@ -1279,7 +1318,8 @@ def check_certificates(reqHandler, p, args, body):
             'allow_empty': False,
             'allow_duplicates': False,
             'childs': {
-                'type': str
+                'type': str,
+                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
             }
         },
         'fingerprints': {
