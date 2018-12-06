@@ -176,7 +176,7 @@ def _send_signed_request(url, payload):
     payload64 = _b64(json.dumps(payload).encode("utf8"))
     protected = copy.deepcopy(jws_header)
 
-    if jws_nonce == None or (datetime.datetime.now() -nonce_age).days > 0:
+    if jws_nonce == None or (datetime.datetime.now() -nonce_age).seconds > 600:
         jws_nonce = requests.get(acme_config["newNonce"]).headers['Replay-Nonce']
         nonce_age = datetime.datetime.now()
 
@@ -1169,6 +1169,7 @@ def list_certificates(reqHandler, p, args, body):
         {
             'name': "cert_id",
             'type': str,
+            'regex': '^[a-zA-Z0-9-_]{27}$',
             'f_name': {
                 'EN': "Certificate ID",
                 'DE': "Zertifikats ID"
@@ -1215,7 +1216,8 @@ def get_certificate(reqHandler, p, args, body):
             "allow_empty": False,
             'allow_duplicates': False,
             'childs': {
-                'type': str
+                'type': str,
+                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
             }
         }
     },
@@ -1230,7 +1232,7 @@ def get_certificate(reqHandler, p, args, body):
     }
 })
 def add_certificate(reqHandler, p, args, body):
-
+    
     auth = api_plugins()['auth']
     current_user = auth.e_get_current_user()
     domain_list = body['domains']
@@ -1253,6 +1255,7 @@ def add_certificate(reqHandler, p, args, body):
         {
             'name': "cert_id",
             'type': str,
+            'regex': '^[a-zA-Z0-9-_]{27}$',
             'f_name': {
                 'EN': "Certificate ID",
                 'DE': "Zertifikats ID"
@@ -1315,7 +1318,8 @@ def check_certificates(reqHandler, p, args, body):
             'allow_empty': False,
             'allow_duplicates': False,
             'childs': {
-                'type': str
+                'type': str,
+                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
             }
         },
         'fingerprints': {
