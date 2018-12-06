@@ -63,14 +63,20 @@ plugin.translation_dict = {
 
 job_dict = {}
 
+@api_external_function(plugin)
+def e_default_termination_handler(job, e):
+    log.error("The job {} crashed.".format(job.name), exc_info=e)
+    job.status = 'crashed'
+
 class AsyncJob():
-    def __init__(self, name, func, func_args=[], func_kwargs={}):
+    def __init__(self, name, func, func_args=[], func_kwargs={}, termination_handler=e_default_termination_handler):
 
         self.status = 'initializing'
         self.name = name
         self.func = func
         self.func_args = func_args
         self.func_kwargs = func_kwargs
+        self.termination_handler = termination_handler
         self.return_value = None
         self.data = {}
 
@@ -94,8 +100,7 @@ class AsyncJob():
                 self.status = 'terminated'
 
         except Exception as e:
-            log.error("The job {} crashed.".format(self.name), exc_info=e)
-            self.status = 'crashed'
+            self.termination_handler(self, e)
 
         finally:
             if api_config()[plugin.name]['remove_on_termination']:
@@ -107,11 +112,11 @@ class AsyncJob():
         self.status = 'terminating'
 
 @api_external_function(plugin)
-def e_create_job(job_name, func, func_args=[], func_kwargs={}):
+def e_create_job(job_name, func, func_args=[], func_kwargs={}, termination_handler=e_default_termination_handler):
     if job_name in job_dict and (job_dict[job_name].status != 'done' and job_dict[job_name].status != 'terminated'):
         raise WebRequestException(400, 'error', 'JOB_JOB_EXISTS')
 
-    job_dict[job_name] = AsyncJob(job_name, func, func_args, func_kwargs)
+    job_dict[job_name] = AsyncJob(job_name, func, func_args, func_kwargs, termination_handler)
     return job_dict[job_name]
 
 @api_external_function(plugin)
