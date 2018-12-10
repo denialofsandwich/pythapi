@@ -131,7 +131,7 @@ def try_convert_value(section, key, value, skel):
         else:
             raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
                 'section': 'param',
-                'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                'value': key if section != "param" else "{} ({})".format(key, skel['name']),
                 'expect': skel['type'].__name__
             })
 
@@ -142,17 +142,17 @@ def try_convert_value(section, key, value, skel):
                     if 'allow_empty' in skel and skel['allow_empty'] == False and len(value) == 0:
                         raise WebRequestException(400, 'error', 'GENERAL_LIST_EMPTY', {
                             'section': section,
-                            'value': key if section != "param" else "{} ({})".format(key +1, skel['name'])
+                            'value': key if section != "param" else "{} ({})".format(key, skel['name'])
                         })
                     elif 'allow_duplicates' in skel and skel['allow_duplicates'] == False and len(value) != len(set(value)):
                         raise WebRequestException(400, 'error', 'GENERAL_DUPLICATE_IN_LIST', {
                             'section': section,
-                            'value': key if section != "param" else "{} ({})".format(key +1, skel['name'])
+                            'value': key if section != "param" else "{} ({})".format(key, skel['name'])
                         })
 
                     if 'childs' in skel:
                         for i, item in enumerate(value):
-                            value[i] = try_convert_value(section, "{}.{}".format(key, i+1), item, skel['childs'])
+                            value[i] = try_convert_value(section, "{}.{}".format(key, i), item, skel['childs'])
 
                     return value
 
@@ -176,7 +176,7 @@ def try_convert_value(section, key, value, skel):
             if 'regex' in skel and not re.match(skel['regex'], value):
                 raise WebRequestException(400, 'error', 'GENERAL_INVALID_STRING_FORMAT', {
                     'section': section,
-                    'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                    'value': key if section != "param" else "{} ({})".format(key, skel['name']),
                     'regex': skel['regex']
                 })
 
@@ -184,20 +184,20 @@ def try_convert_value(section, key, value, skel):
             if 'min' in skel and value < skel['min']:
                 raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
                     'section': section,
-                    'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                    'value': key if section != "param" else "{} ({})".format(key, skel['name']),
                     'min': skel['min']
                 })
             elif 'max' in skel and value > skel['max']:
                 raise WebRequestException(400, 'error', 'GENERAL_VALUE_RANGE_EXCEEDED', {
                     'section': section,
-                    'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+                    'value': key if section != "param" else "{} ({})".format(key, skel['name']),
                     'max': skel['max']
                 })
 
     except (TypeError, ValueError) as e:
         raise WebRequestException(400, 'error', 'GENERAL_VALUE_TYPE_ERROR', {
             'section': section,
-            'value': key if section != "param" else "{} ({})".format(key +1, skel['name']),
+            'value': key if section != "param" else "{} ({})".format(key, skel['name']),
             'expect': skel['type'].__name__
         })
     

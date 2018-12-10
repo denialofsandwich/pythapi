@@ -42,6 +42,7 @@ import re
 import dns.resolver
 import time
 import datetime
+import threading
 
 plugin = api_plugin()
 plugin.name = "lets_encrypt"
@@ -130,6 +131,14 @@ write_through_cache_enabled = False
 def _b64(b):
     return base64.urlsafe_b64encode(b).decode("utf8").rstrip("=")
 
+def synchronized(func):
+    func.__lock__ = threading.Lock()
+    def synced_func(*args, **kws):
+        with func.__lock__:
+            return func(*args, **kws)
+
+    return synced_func
+
 def i_domains_to_punycode(domain_list):
     return_list = []
     for i, domain in enumerate(domain_list):
@@ -164,6 +173,7 @@ def ir_delete_directory_tree(path):
             ir_delete_directory_tree(i_path)
     os.rmdir(path)
 
+@synchronized
 def _send_signed_request(url, payload):
     global jws_nonce
     global acme_config
@@ -439,7 +449,6 @@ def e_add_postverfication_handler(f):
     postverification_handler_list.append(f)
 
 def it_complete_challenges(domain_list, order, order_location, **kwargs):
-    global jws_nonce
     config = api_config()[plugin.name]
     cert_id = i_get_cert_id(domain_list)
     cert_path = os.path.join(config['base_key_directory'], 'certs', cert_id)
@@ -527,7 +536,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                 return
 
         cert_dict[cert_id]['status'] = 'wait_for_acme_verify'
-        jws_nonce = None
         for authz in order["authorizations"]:
     
             # get new challenge
@@ -632,7 +640,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
 @api_external_function(plugin)
 def e_renew_certificate(cert_id):
     job = api_plugins()['job']
-    
+
     try:
         running_job = job.e_get_raw_job('le_request:{}'.format(cert_id))
         running_job_status = running_job.status
