@@ -84,7 +84,6 @@ def et_rotate_logfiles():
     log.addHandler(log.sout)
 
     logfile_template = config['core.general']['logfile'].replace('[time]', '*')
-    log.debug(logfile_template)
     files = glob.glob(logfile_template) +glob.glob(logfile_template +'.gz')
 
     for i, filename in enumerate(reversed(sorted(files))):
