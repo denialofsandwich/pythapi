@@ -838,7 +838,6 @@ def it_add_certificate(domain_list, **kwargs):
 @api_external_function(plugin)
 def e_add_certificate(domain_list):
     config = api_config()[plugin.name]
-    return
 
     cert_id = i_get_cert_id(domain_list)
     new_domain_path = os.path.join(config['base_key_directory'], 'certs', cert_id)
@@ -965,6 +964,10 @@ def i_rebuild_domain_links(domain_list):
             certId_list.append('null')
 
     i_rebuild_domain_links_p2(domain_list, certId_list)
+
+@api_external_function(plugin)
+def e_search_best_cert_for_user(username, domain_list):
+    pass ### TODO: Finish implementation ################################################
 
 @api_event(plugin, 'check')
 def check():
@@ -1417,6 +1420,7 @@ def request_certificates(reqHandler, p, args, body):
                 'domain': domain
             })
 
+        # TODO: Refactor
         with open(os.path.join(cert_path, 'domains.json')) as domainfile:
             cert_domain_list = json.loads(domainfile.read())
 
