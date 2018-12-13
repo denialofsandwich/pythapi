@@ -279,57 +279,99 @@ def i_domain_permission_validator(ruleset, rule_section, target_domain):
 
     domain_list = ruleset[rule_section]
 
-    if '*' in domain_list:
+    # Every domain
+    if '**' in domain_list:
         return 1
 
     domain_r = target_domain.split('.')
 
+    # Every TLD
+    if '*' in domain_list and len(domain_r) == 1:
+        return 1
+
     for i_domain in domain_list:
         i_domain_r = i_domain.split('.')
 
+        # If equal
         if target_domain == i_domain:
             return 1
 
+        # Every subdomain
         elif i_domain_r[0] == '*' and '.'.join(domain_r[1:]) == '.'.join(i_domain_r[1:]):
             return 1
+
+        # Every subdomain at any depth
+        elif i_domain_r[0] == '**':
+            i_cut = '.'.join(i_domain_r[1:])
+            if target_domain[-len(i_cut):] == i_cut:
+                return 1
 
     return 0
 
 def i_le_permission_reduce_handler(ruleset):
+    section_name = 'lets_encrypt_allowed_domains'
 
-    if not 'lets_encrypt_allowed_domains' in ruleset:
+    if not section_name in ruleset:
         return ruleset
 
-    ruleset['lets_encrypt_allowed_domains'] = list(set(ruleset['lets_encrypt_allowed_domains']))
+    # Removes duplicates
+    ruleset[section_name] = list(set(ruleset[section_name]))
 
-    if '*' in ruleset['lets_encrypt_allowed_domains']:
-        ruleset['lets_encrypt_allowed_domains'] = ['*']
+    # Trivial case
+    if '**' in ruleset[section_name]:
+        ruleset[section_name] = ['**']
+        return ruleset
 
-    for rule in list(ruleset['lets_encrypt_allowed_domains']):
-        if rule[0] != '*':
-            continue
+    for rule in list(ruleset[section_name]):
+        # reduce redundant ** rules
+        if rule[0:2] == '**':
+            r_cut = rule[3:]
+            for rule2 in list(ruleset[section_name]):
+                if rule != rule2 and rule2[-len(r_cut):] == r_cut:
+                    ruleset[section_name].remove(rule2)
 
-        prefix = rule[1:]
-        for sub_rule in list(ruleset['lets_encrypt_allowed_domains']):
-            if re.search(re.escape(prefix) +r'$', sub_rule) and len(rule) != len(sub_rule):
-                ruleset['lets_encrypt_allowed_domains'].remove(sub_rule)
+        # reduce redundant * rules
+        elif rule[0] == '*':
+            r_depth = len(rule.split('.'))
+            r_cut = rule[2:]
+            for rule2 in list(ruleset[section_name]):
+                if rule != rule2 and rule2[-len(r_cut):] == r_cut and r_depth == len(rule2.split('.')):
+                    ruleset[section_name].remove(rule2)
 
     return ruleset
 
 def i_le_subset_intersection_handler(ruleset, subset):
+    def _safe_append(ruleset, section_name, rule):
+        if not section_name in ruleset:
+            ruleset[section_name] = []
+
+        ruleset[section_name].append(rule)
+
     section_name = 'lets_encrypt_allowed_domains'
     section = ruleset[section_name]
     return_subset = {}
 
-    if '*' in ruleset[section_name] or not section_name in subset:
+    if '**' in ruleset[section_name] or not section_name in subset:
         return copy.deepcopy(subset)
 
     for rule in list(subset[section_name]):
-        if rule in ruleset[section_name] or '*' +rule[rule.find('.'):] in ruleset[section_name]:
-            if not section_name in return_subset:
-                return_subset[section_name] = []
+        # If rules identical
+        if rule in ruleset[section_name]:
+            _safe_append(return_subset, section_name, rule)
+            continue
 
-            return_subset[section_name].append(rule)
+        # On valid * rule
+        elif rule[0:2] != '**' and '*' +rule[rule.find('.'):] in ruleset[section_name]:
+            _safe_append(return_subset, section_name, rule)
+            continue
+
+        # On valid ** rule
+        for rule2 in ruleset[section_name]:
+            if rule2[0:2] == '**':
+                r2_cut = rule2[3:]
+                if rule[-len(r2_cut):] == r2_cut:
+                    _safe_append(return_subset, section_name, rule)
+                    continue
 
     return return_subset
 
@@ -923,6 +965,10 @@ def i_rebuild_domain_links(domain_list):
 
     i_rebuild_domain_links_p2(domain_list, certId_list)
 
+@api_external_function(plugin)
+def e_search_best_cert_for_user(username, domain_list):
+    pass ### TODO: Finish implementation ################################################
+
 @api_event(plugin, 'check')
 def check():
     config = api_config()[plugin.name]
@@ -1374,6 +1420,7 @@ def request_certificates(reqHandler, p, args, body):
                 'domain': domain
             })
 
+        # TODO: Refactor
         with open(os.path.join(cert_path, 'domains.json')) as domainfile:
             cert_domain_list = json.loads(domainfile.read())
 
