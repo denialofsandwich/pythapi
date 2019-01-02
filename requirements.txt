@@ -1,4 +1,4 @@
-tornado==5.0.2
-requests==2.19.1
-dnspython==1.15.0
-telegram==0.0.1
+tornado>=5.0.2
+requests>=2.21.0
+dnspython>=1.16.0
+telegram>=0.0.1
