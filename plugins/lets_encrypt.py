@@ -398,16 +398,19 @@ def i_le_subset_intersection_handler(ruleset, subset):
     return return_subset
 
 def i_le_job_termination_handler(job, e):
+    global jws_nonce
 
     if job.func == it_complete_challenges:
         cert_id = i_get_cert_id(job.func_args[0])
         log.error("Verification of certificate {} failed.".format(cert_id), exc_info=e)
         cert_dict[cert_id]['status'] = 'verification_failed'
+        jws_nonce = None
 
     elif job.func == it_add_certificate:
         cert_id = i_get_cert_id(job.func_args[0])
         log.error("Creation of certificate {} failed.".format(cert_id), exc_info=e)
         cert_dict[cert_id]['status'] = 'creation_failed'
+        jws_nonce = None
 
     else:
         api_plugin()['job'].e_default_termination_handler(job, e)
@@ -600,7 +603,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             resp = requests.get(authz, headers=adtheaders)
             authorization = resp.json()
             if resp.status_code != 200:
-                cert_dict[cert_id]['status'] = 'verification_failed'
                 raise ValueError("Error fetching challenges: {0} {1}".format(resp.status_code, authorization))
     
             domain = authorization["identifier"]["value"]
@@ -613,7 +615,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             api_log().debug("Asking ACME server to validate challenge.")
             code, result, headers = _send_signed_request(challenge["url"], {"keyAuthorization": keyauthorization})
             if code != 200:
-                cert_dict[cert_id]['status'] = 'verification_failed'
                 raise ValueError("Error triggering challenge: {0} {1}".format(code, result))
     
             while True:
@@ -621,7 +622,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                     resp = requests.get(challenge["url"], headers=adtheaders)
                     challenge_status = resp.json()
                 except requests.exceptions.RequestException as error:
-                    cert_dict[cert_id]['status'] = 'verification_failed'
                     raise ValueError("Error during challenge validation: {0} {1}".format(
                         error.response.status_code, error.response.text()))
                 if challenge_status["status"] == "pending":
@@ -635,7 +635,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                     api_log().info("ACME has verified challenge for domain: {0}".format(domain))
                     break
                 else:
-                    cert_dict[cert_id]['status'] = 'verification_failed'
                     raise ValueError("Challenge for domain {0} did not pass: {1}".format(
                         domain, challenge_status))
 
@@ -737,6 +736,7 @@ def e_renew_certificate(cert_id):
 
 @api_external_function(plugin)
 def et_check_certificates():
+    global jws_nonce
     api_log().info("Checking certificates...")
     config = api_config()[plugin.name]
     
@@ -756,6 +756,11 @@ def et_check_certificates():
                 e_renew_certificate(cert_id)
             except WebRequestException:
                 api_log().warning("Renewing already running for {}.".format(cert_id))
+            except Exception as e:
+                log.error("Creation of certificate {} failed.".format(cert_id), exc_info=e)
+                cert_dict[cert_id]['status'] = 'renewal_failed'
+                jws_nonce = None
+
             continue
         
         else:
@@ -776,6 +781,10 @@ def et_check_certificates():
                     e_renew_certificate(cert_id)
                 except WebRequestException:
                     api_log().warning("Renewing already running for {}.".format(cert_id))
+                except Exception as e:
+                    log.error("Creation of certificate {} failed.".format(cert_id), exc_info=e)
+                    cert_dict[cert_id]['status'] = 'renewal_failed'
+                    jws_nonce = None
         
     api_log().debug("Done checking certificates.")
     pass
@@ -1446,7 +1455,6 @@ def request_certificates(reqHandler, p, args, body):
                 'domain': domain
             })
 
-        # TODO: Refactor
         with open(os.path.join(cert_path, 'properties.json')) as propfile:
             cert_domain_list = json.loads(propfile.read())['domains']
 
