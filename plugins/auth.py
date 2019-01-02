@@ -389,6 +389,13 @@ def e_get_permissions_of_token(h_token):
     return_json = copy.deepcopy(user_token_dict[h_token]['ruleset'])
     return return_json
 
+@api_external_function(plugin)
+def e_get_permissions():
+    if auth_type == "token":
+        return e_get_permissions_of_token(current_token)
+    else:
+        return e_get_permissions_of_user(e_get_current_user())
+
 def i_subset_permission_handler(ruleset, subset):
     section = ruleset['permissions']
     return_subset = {}
@@ -1946,14 +1953,9 @@ def get_current_user(reqHandler, p, args, body):
     }
 })
 def get_permissions(reqHandler, p, args, body):
-    if auth_type == "token":
-        return {
-            'data': e_get_permissions_of_token(current_token)
-        }
-    else:
-        return {
-            'data': e_get_permissions_of_user(e_get_current_user())
-        }
+    return {
+        'data': e_get_permissions()
+    }
 
 @api_action(plugin, {
     'path': 'session/list',

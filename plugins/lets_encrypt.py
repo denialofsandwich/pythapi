@@ -3,7 +3,7 @@
 #
 # Name:        pythapi: lets_encrypt.py
 # Author:      Rene Fa
-# Date:        23.07.2018
+# Date:        18.12.2018
 # Version:     0.7
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -139,30 +139,52 @@ def synchronized(func):
 
     return synced_func
 
+def i_domain_to_punycode(domain):
+    domain_r = domain.strip('.').split('.')
+    for j, level in enumerate(domain_r):
+        plain_punycode = level.encode('punycode').decode('utf8')
+        
+        if plain_punycode[-1] != '-':
+            converted_level = 'xn--' +plain_punycode
+        else:
+            converted_level = plain_punycode.rstrip('-')
+
+        domain_r[j] = converted_level
+
+    return '.'.join(domain_r)
+
 def i_domains_to_punycode(domain_list):
     return_list = []
-    for i, domain in enumerate(domain_list):
-        domain_r = domain.strip('.').split('.')
-        
-        for j, level in enumerate(domain_r):
-            plain_punycode = level.encode('punycode').decode('utf8')
-            
-            if plain_punycode[-1] != '-':
-                converted_level = 'xn--' +plain_punycode
-            else:
-                converted_level = plain_punycode.rstrip('-')
-
-            domain_r[j] = converted_level
-
-        return_list.append('.'.join(domain_r))
+    for domain in domain_list:
+        return_list.append(i_domain_to_punycode(domain))
 
     return return_list
+
+def i_domain_formatter(value, rule):
+    return i_domain_to_punycode(value)
 
 def i_get_cert_id(domains):
     domain_str = json.dumps(sorted(domains), sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha1(domain_str.encode('utf8')).digest()
     b64_str = base64.urlsafe_b64encode(digest).decode('utf8')
     return b64_str.rstrip('=')
+
+def i_safe_cert_properties(cert_id):
+    config = api_config()[plugin.name]
+
+    prop_dict = {}
+    if 'domains' in cert_dict[cert_id]:
+        prop_dict['domains'] =  cert_dict[cert_id]['domains']
+
+    if 'tokens' in cert_dict[cert_id]:
+        prop_dict['tokens'] =  cert_dict[cert_id]['tokens']
+
+    if 'criticality' in cert_dict[cert_id]:
+        prop_dict['criticality'] =  cert_dict[cert_id]['criticality']
+
+    cert_path = os.path.join(config['base_key_directory'], 'certs', cert_id)
+    with open(os.path.join(cert_path, 'properties.json'), 'w') as propfile:
+        propfile.write(json.dumps(prop_dict))
 
 def ir_delete_directory_tree(path):
     path_list = glob.glob(os.path.join(path, '*'))
@@ -376,16 +398,19 @@ def i_le_subset_intersection_handler(ruleset, subset):
     return return_subset
 
 def i_le_job_termination_handler(job, e):
+    global jws_nonce
 
     if job.func == it_complete_challenges:
         cert_id = i_get_cert_id(job.func_args[0])
         log.error("Verification of certificate {} failed.".format(cert_id), exc_info=e)
         cert_dict[cert_id]['status'] = 'verification_failed'
+        jws_nonce = None
 
     elif job.func == it_add_certificate:
         cert_id = i_get_cert_id(job.func_args[0])
         log.error("Creation of certificate {} failed.".format(cert_id), exc_info=e)
         cert_dict[cert_id]['status'] = 'creation_failed'
+        jws_nonce = None
 
     else:
         api_plugin()['job'].e_default_termination_handler(job, e)
@@ -419,13 +444,8 @@ def i_get_direct_certificate(cert_id):
 
     return_json = {}
     
-    with open(os.path.join(cert_path, 'domains.json'), 'r') as domain_file:
-        return_json['domains'] = json.loads(domain_file.read())
-
-    tokenfile_path = os.path.join(cert_path, 'token.json')
-    if os.path.isfile(tokenfile_path):
-        with open(tokenfile_path, 'r') as token_file:
-            return_json['tokens'] = json.loads(token_file.read())
+    with open(os.path.join(cert_path, 'properties.json'), 'r') as propfile:
+        return_json.update(json.loads(propfile.read()))
 
     certfile_path = os.path.join(cert_path, 'certfile.pem')
     if os.path.isfile(certfile_path):
@@ -522,8 +542,7 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
         api_log().info("Register this: {} at _acme-challenge.{}".format(keydigest64, domain))
     
     cert_dict[cert_id]['tokens'] = token_dict
-    with open(os.path.join(cert_path, 'token.json'), 'w') as tokenfile:
-        tokenfile.write(json.dumps(token_dict))
+    i_safe_cert_properties(cert_id)
 
     if order['status'] == 'pending':
 
@@ -584,7 +603,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             resp = requests.get(authz, headers=adtheaders)
             authorization = resp.json()
             if resp.status_code != 200:
-                cert_dict[cert_id]['status'] = 'verification_failed'
                 raise ValueError("Error fetching challenges: {0} {1}".format(resp.status_code, authorization))
     
             domain = authorization["identifier"]["value"]
@@ -597,7 +615,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
             api_log().debug("Asking ACME server to validate challenge.")
             code, result, headers = _send_signed_request(challenge["url"], {"keyAuthorization": keyauthorization})
             if code != 200:
-                cert_dict[cert_id]['status'] = 'verification_failed'
                 raise ValueError("Error triggering challenge: {0} {1}".format(code, result))
     
             while True:
@@ -605,7 +622,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                     resp = requests.get(challenge["url"], headers=adtheaders)
                     challenge_status = resp.json()
                 except requests.exceptions.RequestException as error:
-                    cert_dict[cert_id]['status'] = 'verification_failed'
                     raise ValueError("Error during challenge validation: {0} {1}".format(
                         error.response.status_code, error.response.text()))
                 if challenge_status["status"] == "pending":
@@ -619,7 +635,6 @@ def it_complete_challenges(domain_list, order, order_location, **kwargs):
                     api_log().info("ACME has verified challenge for domain: {0}".format(domain))
                     break
                 else:
-                    cert_dict[cert_id]['status'] = 'verification_failed'
                     raise ValueError("Challenge for domain {0} did not pass: {1}".format(
                         domain, challenge_status))
 
@@ -697,8 +712,8 @@ def e_renew_certificate(cert_id):
     config = api_config()[plugin.name]
     cert_path = os.path.join(config['base_key_directory'], 'certs', cert_id)
     
-    with open(os.path.join(cert_path, 'domains.json'), 'r') as domains_file:
-        domain_list = json.loads(domains_file.read())
+    with open(os.path.join(cert_path, 'properties.json'), 'r') as propfile:
+        domain_list = json.loads(propfile.read())['domains']
     
     # new order
     new_order = {
@@ -721,6 +736,7 @@ def e_renew_certificate(cert_id):
 
 @api_external_function(plugin)
 def et_check_certificates():
+    global jws_nonce
     api_log().info("Checking certificates...")
     config = api_config()[plugin.name]
     
@@ -740,6 +756,11 @@ def et_check_certificates():
                 e_renew_certificate(cert_id)
             except WebRequestException:
                 api_log().warning("Renewing already running for {}.".format(cert_id))
+            except Exception as e:
+                log.error("Creation of certificate {} failed.".format(cert_id), exc_info=e)
+                cert_dict[cert_id]['status'] = 'renewal_failed'
+                jws_nonce = None
+
             continue
         
         else:
@@ -760,6 +781,10 @@ def et_check_certificates():
                     e_renew_certificate(cert_id)
                 except WebRequestException:
                     api_log().warning("Renewing already running for {}.".format(cert_id))
+                except Exception as e:
+                    log.error("Creation of certificate {} failed.".format(cert_id), exc_info=e)
+                    cert_dict[cert_id]['status'] = 'renewal_failed'
+                    jws_nonce = None
         
     api_log().debug("Done checking certificates.")
     pass
@@ -778,6 +803,7 @@ def it_add_certificate(domain_list, **kwargs):
 
     i_entry = {}
     i_entry['domains'] = domain_list
+    i_entry['criticality'] = i_rate_certificate(domain_list)
     i_entry['status'] = 'generating_keyfile'
     cert_dict[cert_id] = i_entry
 
@@ -791,8 +817,7 @@ def it_add_certificate(domain_list, **kwargs):
     
     os.chmod(keyfile_path, 0o600)
 
-    with open(os.path.join(new_domain_path, 'domains.json'), 'w') as domainsfile:
-        domainsfile.write(json.dumps(domain_list))
+    i_safe_cert_properties(cert_id)
 
     subject_str = "/CN={cn}"
     
@@ -965,9 +990,17 @@ def i_rebuild_domain_links(domain_list):
 
     i_rebuild_domain_links_p2(domain_list, certId_list)
 
-@api_external_function(plugin)
-def e_search_best_cert_for_user(username, domain_list):
-    pass ### TODO: Finish implementation ################################################
+def i_rate_certificate(domain_list):
+    cert_score = 0
+    for domain in domain_list:
+        domain_r = domain.split('.')
+
+        if domain_r[0] == '*':
+            cert_score += 100
+        else:
+            cert_score += 1
+
+    return cert_score
 
 @api_event(plugin, 'check')
 def check():
@@ -995,7 +1028,7 @@ def install():
 
     auth.e_create_role( plugin.name +'_admin', {
         plugin.name +'_allowed_domains':  [
-            '*'
+            '**'
         ]
     })
 
@@ -1271,7 +1304,8 @@ def get_certificate(reqHandler, p, args, body):
             'allow_duplicates': False,
             'childs': {
                 'type': str,
-                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
+                'regex': r'^(?=.{1,253}$)((^\*\.)|([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(\.(?!$)|(?!\.)$)){2,}$',
+                'formatter': i_domain_formatter
             }
         }
     },
@@ -1373,7 +1407,8 @@ def check_certificates(reqHandler, p, args, body):
             'allow_duplicates': False,
             'childs': {
                 'type': str,
-                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
+                'regex': r'^(?=.{1,253}$)((^\*\.)|([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(\.(?!$)|(?!\.)$)){2,}$',
+                'formatter': i_domain_formatter
             }
         },
         'fingerprints': {
@@ -1420,9 +1455,8 @@ def request_certificates(reqHandler, p, args, body):
                 'domain': domain
             })
 
-        # TODO: Refactor
-        with open(os.path.join(cert_path, 'domains.json')) as domainfile:
-            cert_domain_list = json.loads(domainfile.read())
+        with open(os.path.join(cert_path, 'properties.json')) as propfile:
+            cert_domain_list = json.loads(propfile.read())['domains']
 
         cert_id = i_get_cert_id(cert_domain_list)
 

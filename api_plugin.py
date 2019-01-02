@@ -109,7 +109,7 @@ def api_tr(text_id):
 
 def try_convert_value(section, key, value, skel):
     desired_type = skel['type']
-    
+
     if section == 'args' and type(value) == bytes:
         value = value.decode('utf8')
 
@@ -171,6 +171,9 @@ def try_convert_value(section, key, value, skel):
                     raise TypeError()
         
         value = desired_type(value)
+
+        if 'formatter' in skel:
+            value = skel['formatter'](value, skel)
 
         if desired_type == str:
             if 'regex' in skel and not re.match(skel['regex'], value):
