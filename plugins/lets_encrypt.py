@@ -139,24 +139,29 @@ def synchronized(func):
 
     return synced_func
 
+def i_domain_to_punycode(domain):
+    domain_r = domain.strip('.').split('.')
+    for j, level in enumerate(domain_r):
+        plain_punycode = level.encode('punycode').decode('utf8')
+        
+        if plain_punycode[-1] != '-':
+            converted_level = 'xn--' +plain_punycode
+        else:
+            converted_level = plain_punycode.rstrip('-')
+
+        domain_r[j] = converted_level
+
+    return '.'.join(domain_r)
+
 def i_domains_to_punycode(domain_list):
     return_list = []
-    for i, domain in enumerate(domain_list):
-        domain_r = domain.strip('.').split('.')
-        
-        for j, level in enumerate(domain_r):
-            plain_punycode = level.encode('punycode').decode('utf8')
-            
-            if plain_punycode[-1] != '-':
-                converted_level = 'xn--' +plain_punycode
-            else:
-                converted_level = plain_punycode.rstrip('-')
-
-            domain_r[j] = converted_level
-
-        return_list.append('.'.join(domain_r))
+    for domain in domain_list:
+        return_list.append(i_domain_to_punycode(domain))
 
     return return_list
+
+def i_domain_formatter(value, rule):
+    return i_domain_to_punycode(value)
 
 def i_get_cert_id(domains):
     domain_str = json.dumps(sorted(domains), sort_keys=True, separators=(",", ":"))
@@ -1290,7 +1295,8 @@ def get_certificate(reqHandler, p, args, body):
             'allow_duplicates': False,
             'childs': {
                 'type': str,
-                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
+                'regex': r'^(?=.{1,253}$)((^\*\.)|([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(\.(?!$)|(?!\.)$)){2,}$',
+                'formatter': i_domain_formatter
             }
         }
     },
@@ -1392,7 +1398,8 @@ def check_certificates(reqHandler, p, args, body):
             'allow_duplicates': False,
             'childs': {
                 'type': str,
-                'regex': r'^([^!\'();:@&=+$,/?#\[\]\n](?!\.\.)){1,253}$'
+                'regex': r'^(?=.{1,253}$)((^\*\.)|([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(\.(?!$)|(?!\.)$)){2,}$',
+                'formatter': i_domain_formatter
             }
         },
         'fingerprints': {
