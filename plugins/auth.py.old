@@ -3,8 +3,8 @@
 #
 # Name:        pythapi: _auth.py
 # Author:      Rene Fa
-# Date:        26.09.2018
-# Version:     0.8
+# Date:        03.01.2019
+# Version:     1.6
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -196,7 +196,7 @@ plugin.translation_dict = {
 current_user = "anonymous"
 auth_type = "none"
 current_token = None
-used_tables = ["user","user_token","role","role_member"]
+used_tables = ["user","token","role"]
 users_dict = {}
 user_token_dict = {}
 session_dict = {}
@@ -1551,7 +1551,11 @@ def install():
             CREATE TABLE """ +db_prefix +"""user (
                 id INT NOT NULL AUTO_INCREMENT,
                 name VARCHAR(32) NOT NULL,
-                password VARCHAR(64) NOT NULL,
+                type VARCHAR(8) NOT NULL DEFAULT 'default',
+                h_password VARCHAR(64) NOT NULL,
+                ruleset TEXT NOT NULL,
+                time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY( id ),
                 UNIQUE ( name )
             ) ENGINE = InnoDB;
@@ -1560,24 +1564,12 @@ def install():
         api_log().debug("Table '" +db_prefix +"user' created.")
 
         sql = """
-            CREATE TABLE """ +db_prefix +"""user_token (
-                id INT NOT NULL AUTO_INCREMENT,
-                token_name VARCHAR(32) NOT NULL,
-                user_key VARCHAR(64) NOT NULL,
-                user_id INT NOT NULL,
-                data TEXT NOT NULL,
-                PRIMARY KEY (id),
-                UNIQUE (token_name, user_id)
-            ) ENGINE = InnoDB;
-            """
-        dbc.execute(sql)
-        api_log().debug("Table '" +db_prefix +"user_token' created.")
-        
-        sql = """
             CREATE TABLE """ +db_prefix +"""role (
                 id INT NOT NULL AUTO_INCREMENT,
                 name VARCHAR(32) NOT NULL,
-                data TEXT NOT NULL,
+                ruleset TEXT NOT NULL,
+                time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 UNIQUE (name)
             ) ENGINE = InnoDB;
@@ -1586,103 +1578,87 @@ def install():
         api_log().debug("Table '" +db_prefix +"role' created.")
         
         sql = """
-            CREATE TABLE """ +db_prefix +"""role_member (
+            CREATE TABLE """ +db_prefix +"""token (
                 id INT NOT NULL AUTO_INCREMENT,
-                role_id INT NOT NULL,
+                token_name VARCHAR(32) NOT NULL,
                 user_id INT NOT NULL,
+                h_token VARCHAR(64) NOT NULL,
+                ruleset TEXT NOT NULL,
+                time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
-                UNIQUE (role_id, user_id)
+                UNIQUE (token_name, user_id)
             ) ENGINE = InnoDB;
             """
         dbc.execute(sql)
-        api_log().debug("Table '" +db_prefix +"role_member' created.")
+        api_log().debug("Table '" +db_prefix +"token' created.")
         
         sql = """
-            ALTER TABLE """ +db_prefix +"""user_token
-                ADD CONSTRAINT """ +db_prefix +"""user_token_to_user
+            ALTER TABLE """ +db_prefix +"""token
+                ADD CONSTRAINT """ +db_prefix +"""token_to_user
                 FOREIGN KEY ( user_id )
                 REFERENCES """ +db_prefix +"""user ( id )
                 ON DELETE CASCADE
                 ON UPDATE CASCADE;
             """
         dbc.execute(sql)
-        
-        sql = """
-            ALTER TABLE """ +db_prefix +"""role_member
-                ADD CONSTRAINT """ +db_prefix +"""role_member_to_role
-                FOREIGN KEY (role_id)
-                REFERENCES """ +db_prefix +"""role(id)
-                ON DELETE CASCADE
-                ON UPDATE CASCADE;
-            """
-        dbc.execute(sql)
-        
-        sql = """
-            ALTER TABLE """ +db_prefix +"""role_member
-                ADD CONSTRAINT """ +db_prefix +"""role_member_to_user
-                FOREIGN KEY (user_id)
-                REFERENCES """ +db_prefix +"""user(id)
-                ON DELETE CASCADE
-                ON UPDATE CASCADE;
-            """
-        dbc.execute(sql)
         api_log().debug("Constraints created.")
     
-    e_create_role('admin', {
-        "permissions":  [
-            "*"
-        ]
-    })
-    
-    e_create_role('auth_default', {
-        "permissions":  [
-            "auth.list_sessions",
-            "auth.create_session",
-            "auth.delete_session",
-            "auth.delete_all_sessions",
-            
-            "auth.get_user_token",
-            "auth.list_user_tokens",
-            "auth.create_user_token",
-            "auth.edit_user_token",
-            "auth.delete_user_token",
-            
-            "auth.change_password",
-            "auth.get_permissions",
-            "auth.get_current_user"
-        ]
-    })
-    
-    e_create_role('anonymous', {
-        "permissions":  []
-    })
-    
-    e_create_role('default', {
-        "inherit":  [
-            "anonymous",
-            "auth_default"
-        ],
-        "permissions": []
-    })
-    
-    if api_config()['auth']['first_user_password'] != "":
-        password = api_config()['auth']['first_user_password']
-    else:
-        password = getpass.getpass('Enter new admin password: ')
-
-    e_create_user('admin', {
-        'password': password
-    })
-    
-    e_create_user('anonymous', {
-        'password': e_generate_random_string(cookie_length)
-    })
-    
-    e_remove_member_from_role('default', 'admin')
-    e_add_member_to_role('admin', 'admin')
-    
-    e_remove_member_from_role('default', 'anonymous')
-    e_add_member_to_role('anonymous', 'anonymous')
+#    e_create_role('admin', {
+#        "permissions":  [
+#            "*"
+#        ]
+#    })
+#    
+#    e_create_role('auth_default', {
+#        "permissions":  [
+#            "auth.list_sessions",
+#            "auth.create_session",
+#            "auth.delete_session",
+#            "auth.delete_all_sessions",
+#            
+#            "auth.get_user_token",
+#            "auth.list_user_tokens",
+#            "auth.create_user_token",
+#            "auth.edit_user_token",
+#            "auth.delete_user_token",
+#            
+#            "auth.change_password",
+#            "auth.get_permissions",
+#            "auth.get_current_user"
+#        ]
+#    })
+#    
+#    e_create_role('anonymous', {
+#        "permissions":  []
+#    })
+#    
+#    e_create_role('default', {
+#        "inherit":  [
+#            "anonymous",
+#            "auth_default"
+#        ],
+#        "permissions": []
+#    })
+#    
+#    if api_config()['auth']['first_user_password'] != "":
+#        password = api_config()['auth']['first_user_password']
+#    else:
+#        password = getpass.getpass('Enter new admin password: ')
+#
+#    e_create_user('admin', {
+#        'password': password
+#    })
+#    
+#    e_create_user('anonymous', {
+#        'password': e_generate_random_string(cookie_length)
+#    })
+#    
+#    e_remove_member_from_role('default', 'admin')
+#    e_add_member_to_role('admin', 'admin')
+#    
+#    e_remove_member_from_role('default', 'anonymous')
+#    e_add_member_to_role('anonymous', 'anonymous')
     
     api_log().debug("Initial data created.")
     return 1
@@ -1772,7 +1748,7 @@ def i_is_token_permitted(h_token, action):
     
     raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-@api_event(plugin, 'global_preexecution_hook')
+#@api_event(plugin, 'global_preexecution_hook')
 def global_preexecution_hook(reqHandler, action):
     global current_user
     global auth_type

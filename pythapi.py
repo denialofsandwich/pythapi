@@ -234,7 +234,7 @@ class MainHandler(tornado.web.RequestHandler):
                         if not 'status' in return_json:
                             return_json['status'] = 'success'
                         
-                        return_json = json.dumps(return_json) + '\n'
+                        return_json = json.dumps(api_plugin.r_serializable_dict(return_json)) + '\n'
                     
                     self.set_header('Server', "pythapi/{}".format(version))
                     self.set_header('Content-Type', action['content_type'])
@@ -640,7 +640,7 @@ def main():
     # Plugin loader
     log.begin("Loading Plugins...")
 
-    dir_r = glob.glob("plugins/*.py")
+    dir_r = glob.glob("plugins/*")
     log.debug("Plugins found: " +str(len(dir_r) -1) )
     
     plugin_whitelist = None
@@ -650,18 +650,24 @@ def main():
     log.debug("Importing and initializing plugins...")
     for i_dir in dir_r:
         
-        module_name = re.search('^plugins/(.*)\.py$', i_dir).group(1)
-        if(module_name == "__init__"): continue
+        raw_module_name = re.search('^plugins/(.*)$', i_dir).group(1)
+        if raw_module_name[-3:] == '.py':
+            module_name = raw_module_name[:-3]
+        else:
+            module_name = raw_module_name
+            
+        if module_name in ['__init__', '__pycache__']:
+            continue
         
         if plugin_whitelist != None and len(plugin_whitelist) and not module_name in plugin_whitelist:
-            log.debug("{}.py is disabled.".format(module_name))
+            log.debug("{} is disabled.".format(raw_module_name))
             continue
         
         plugin = importlib.import_module("plugins." +module_name).plugin
         
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
-    
+
     log.info("Plugins enabled: " +str(len(api_plugin.plugin_dict)))
     for plugin_name in api_plugin.plugin_dict:
         if not plugin_name in api_plugin.dependency_list and not 'i_error' in api_plugin.plugin_dict[plugin_name].info:
@@ -802,8 +808,12 @@ def main():
         logging.getLogger("tornado.application").propagate = False
 
         log.success("pythapi successfully started.")
-        log.info("Entering main loop...")
         
+        ### DEBUG!!!!
+        import code
+        code.interact(local=dict(globals(), **locals()))
+
+        log.info("Entering main loop...")
         IOLoop.instance().start()
 
 if __name__ == "__main__":

@@ -193,7 +193,8 @@ def ir_delete_directory_tree(path):
             os.remove(i_path)
         else:
             ir_delete_directory_tree(i_path)
-    os.rmdir(path)
+    try: os.rmdir(path)
+    except: pass
 
 @synchronized
 def _send_signed_request(url, payload):
