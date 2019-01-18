@@ -28,6 +28,7 @@ import json
 import copy
 
 from .header import *
+from . import rulesets
 
 import datetime
 
@@ -38,25 +39,13 @@ def e_get_current_user():
 @api_external_function(plugin)
 def e_get_current_user_info():
     return_json = copy.deepcopy(e_get_user(auth_globals.current_user))
-#    return_json['auth_type'] = auth_type
-#    
-#    if auth_type == "token":
-#        return_json['token_name'] = user_token_dict[current_token]['token_name']
-#        return_json['ruleset'] = user_token_dict[current_token]['ruleset']
-#        del return_json['roles']
-
-    return return_json
-
-@api_external_function(plugin)
-def e_get_permissions_of_user(username):
-    if not username in auth_globals.users_dict:
-        raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
-
-    return_json = {}
-    for parent in auth_globals.users_dict[username]['roles']:
-        update_2(return_json, ir_merge_permissions(parent))
+    return_json['auth_type'] = auth_globals.auth_type
     
-    return_json = i_reduce_ruleset(return_json)
+    if auth_globals.auth_type == "token":
+        return_json['token_name'] = auth_globals.user_token_dict[auth_globals.current_token]['token_name']
+        return_json['ruleset'] = auth_globals.user_token_dict[auth_globals.current_token]['ruleset']
+        del return_json['roles']
+
     return return_json
 
 def i_get_db_user(username):
@@ -216,9 +205,6 @@ def e_create_user(username, user_type, data):
     if not 'permissions' in ruleset:
         ruleset['permissions'] = []
     
-    if not 'apps' in ruleset:
-        ruleset['apps'] = []
-
     if not 'default' in ruleset['inherit']:
         ruleset['inherit'].append('default')
     
@@ -251,8 +237,10 @@ def e_create_user(username, user_type, data):
             'time_created': db_result[5],
             'time_modified': db_result[6]
         }
+
+        rulesets.i_apply_ruleset(username, 'u')
     
-    return user_id
+    return db_result[0]
 
 @api_external_function(plugin)
 def e_edit_user(username, data):
@@ -302,9 +290,6 @@ def e_edit_user(username, data):
         if not 'permissions' in ruleset:
             ruleset['permissions'] = []
         
-        if not 'apps' in ruleset:
-            ruleset['apps'] = []
-
         with db:
             sql = """
                 UPDATE """ +db_prefix +"""user
@@ -319,10 +304,12 @@ def e_edit_user(username, data):
             except MySQLdb.IntegrityError as e:
                 api_log().error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
                 raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-        
+
         if auth_globals.write_through_cache_enabled:
             auth_globals.users_dict[username]['time_modified'] = datetime.datetime.now()
             auth_globals.users_dict[username]['ruleset'] = ruleset
+
+            rulesets.i_apply_ruleset(username, 'u')
 
 @api_external_function(plugin)
 def e_delete_user(username):
@@ -350,17 +337,19 @@ def e_delete_user(username):
         except MySQLdb.IntegrityError as e:
             api_log().error("e_delete_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
             raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-    
+
     if auth_globals.write_through_cache_enabled:
-#        for i in range(len(auth_globals.users_dict[username]['keys'])):
-#            key = auth_globals.users_dict[username]['keys'][i]
-#            del user_token_dict[key]
-#            del auth_globals.users_dict[username]['keys'][i]
+        rulesets.i_apply_ruleset(username, 'u', delete_only=True)
+
+        for i in range(len(auth_globals.users_dict[username]['token'])):
+            key = auth_globals.users_dict[username]['token'][i]
+            del auth_globals.user_token_dict[key]
+            del auth_globals.users_dict[username]['token'][i]
         
-#        for i in range(len(auth_globals.users_dict[username]['sessions'])):
-#            key = auth_globals.users_dict[username]['sessions'][i]
-#            del session_dict[key]
-#            del auth_globals.users_dict[username]['sessions'][i]
+        for i in range(len(auth_globals.users_dict[username]['sessions'])):
+            key = auth_globals.users_dict[username]['sessions'][i]
+            del auth_globals.session_dict[key]
+            del auth_globals.users_dict[username]['sessions'][i]
         
         del auth_globals.users_dict[username]
 
@@ -382,25 +371,6 @@ def get_current_user(reqHandler, p, args, body):
     return {
         'data': e_get_current_user_info()
     }
-
-# TODO: Refactor
-#@api_action(plugin, {
-#    'path': 'permissions',
-#    'method': 'GET',
-#    'f_name': {
-#        'EN': 'Get permissions',
-#        'DE': 'Zeige Berechtigungen'
-#    },
-#
-#    'f_description': {
-#        'EN': 'Returns a merged list of all permissions.',
-#        'DE': 'Gibt eine zusammengesetzte Liste mit allen Berechtigungen zurück.'
-#    }
-#})
-#def get_permissions(reqHandler, p, args, body):
-#    return {
-#        'data': e_get_permissions()
-#    }
 
 @api_action(plugin, {
     'path': 'user/list',
@@ -462,9 +432,6 @@ def list_users(reqHandler, p, args, body):
     }
 })
 def change_password(reqHandler, p, args, body):
-    
-    if not 'password' in body:
-        raise WebRequestException(400, 'error', 'AUTH_PASSWORD_MISSING')
     
     e_edit_user(auth_globals.current_user, {'password': body['password']})
     return {}
@@ -546,9 +513,6 @@ def get_user(reqHandler, p, args, body):
 })
 def create_user(reqHandler, p, args, body):
         
-    if (p[0] == ""):
-        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
-    
     return {
         'id': str(e_create_user(p[0], 'default', body))
     }
@@ -580,9 +544,6 @@ def create_user(reqHandler, p, args, body):
 })
 def edit_user(reqHandler, p, args, body):
         
-    if (p[0] == ""):
-        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
-    
     e_edit_user(p[0], body)
     return {}
 
@@ -612,9 +573,6 @@ def edit_user(reqHandler, p, args, body):
     }
 })
 def delete_user(reqHandler, p, args, body):
-    
-    if (p[0] == ""):
-        raise WebRequestException(400, 'error', 'AUTH_USERNAME_MISSING')
     
     e_delete_user(p[0])
     return {}

@@ -28,6 +28,7 @@ import json
 import copy
 
 from .header import *
+from . import rulesets
 from . import manage_users
 
 import datetime
@@ -143,9 +144,6 @@ def e_create_role(role_name, ruleset):
     if not 'permissions' in ruleset:
         ruleset['permissions'] = []
 
-    if not 'apps' in ruleset:
-        ruleset['apps'] = []
-   
     with db:
         sql = """
             INSERT INTO """ +db_prefix +"""role (
@@ -171,7 +169,7 @@ def e_create_role(role_name, ruleset):
             'time_modified': db_result[4]
         }
         
-        #i_apply_ruleset(role_name)
+        rulesets.i_apply_ruleset(role_name, 'r')
     
     return db_result[0]
 
@@ -204,9 +202,6 @@ def e_edit_role(role_name, ruleset):
     if not 'permissions' in ruleset:
         ruleset['permissions'] = []
 
-    if not 'apps' in ruleset:
-        ruleset['apps'] = []
-
     if role_name == 'list':
         raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
 
@@ -223,7 +218,7 @@ def e_edit_role(role_name, ruleset):
 
     if auth_globals.write_through_cache_enabled:
         auth_globals.roles_dict[role_name]['time_modified'] = datetime.datetime.now()
-        #i_apply_ruleset(role_name)
+        rulesets.i_apply_ruleset(role_name, 'r')
 
 def i_delete_db_role(role_name):
     db_prefix = api_config()['core.mysql']['prefix']
@@ -266,7 +261,7 @@ def e_delete_role(role_name):
         
         del auth_globals.roles_dict[role_name]
         
-        #i_apply_ruleset(role_name, delete=True)
+        rulesets.i_apply_ruleset(role_name, 'r')
 
 @api_external_function(plugin)
 def e_add_role_to_user(username, role_name):

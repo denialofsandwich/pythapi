@@ -30,19 +30,39 @@ from .header import *
 from . import manage_users
 from . import manage_roles
 from . import manage_token
+from . import rulesets
+from . import interfaces
+
+def i_build_permission_to_action_tree():
+    for plugin_name, action_dict in action_tree.items():
+        for action_name, action_data in action_dict.items():
+            try:
+                action_data['permission'] = plugin_name +'.' +action_data['permission']
+            except:
+                action_data['permission'] = plugin_name +'.' +action_name
+            
+            hierarchy = action_data['permission'].split('.')
+
+            i_dict = auth_globals.permission_to_action_tree
+            for i_dir in hierarchy:
+                i_dict = i_dict.setdefault(i_dir, {})
+
+            if hierarchy[-1] in i_dict:
+                log.warning("Inconsistent permissions. Permission structure broken at: {}".format(action_data['permission']))
+            i_dict['_data'] = action_data
 
 @api_event(auth_globals.plugin, 'load')
 def load():
     global bf_basic_auth_delay
     global bf_temporary_ban_enabled
 
-#    e_add_subset_intersection_handler(i_subset_permission_handler)
-#    e_add_permission_reduce_handler(i_permission_reduce_handler)
+    rulesets.e_add_subset_intersection_handler(interfaces.i_subset_permission_handler)
+    rulesets.e_add_permission_reduce_handler(interfaces.i_permission_reduce_handler)
 
     for plugin_name in action_tree:
         for action_name in action_tree[plugin_name]:
-            action_tree[plugin_name][action_name]['users'] = []
-            action_tree[plugin_name][action_name]['token'] = []
+            action_tree[plugin_name][action_name]['users'] = set()
+            action_tree[plugin_name][action_name]['token'] = set()
 
     for row in manage_users.i_list_db_user():
         auth_globals.users_dict[row[1]] = {
@@ -65,7 +85,7 @@ def load():
             'time_modified': row[6]
         }
         auth_globals.users_dict[row[1]]['token'].append(row[3])
-#
+
     for row in manage_roles.i_list_db_roles():
         auth_globals.roles_dict[row[1]] = {
             'id': row[0],
@@ -74,17 +94,18 @@ def load():
             'time_modified': row[4]
         }
 
-    for username, user_data in auth_globals.users_dict.items():
-        i_apply_ruleset(username, user_data['ruleset'], 0)
+    i_build_permission_to_action_tree()
 
-    for h_token, token_data in auth_globals.user_token_dict.items():
-        i_apply_ruleset(h_token, token_data['ruleset'], 1)
+    for username in auth_globals.users_dict:
+        rulesets.i_apply_ruleset(username, 'u')
 
-    bf_basic_auth_delay = api_config()[plugin.name]['bf_basic_auth_delay']
-    bf_temporary_ban_enabled = api_config()[plugin.name]['bf_temporary_ban_enabled']
+    for h_token in auth_globals.user_token_dict:
+        rulesets.i_apply_ruleset(h_token, 't')
+
+    auth_globals.bf_basic_auth_delay = api_config()[plugin.name]['bf_basic_auth_delay']
+    auth_globals.bf_temporary_ban_enabled = api_config()[plugin.name]['bf_temporary_ban_enabled']
 
     auth_globals.write_through_cache_enabled = True
-
     
     return 1
 

@@ -151,16 +151,6 @@ plugin.translation_dict = {
         'DE': 'Passwort leer.'
     },
     
-    'AUTH_USERNAME_MISSING': {
-        'EN': 'Username missing.',
-        'DE': 'Username leer.'
-    },
-    
-    'AUTH_ROLE_MISSING': {
-        'EN': 'Role missing.',
-        'DE': 'Rollenname leer.'
-    },
-    
     'AUTH_SYNTAX_ERROR_1': {
         'EN': 'Auth: Syntax error in role {}: {}',
         'DE': 'Auth: Syntaxfehler in der Rolle {}: {}'
@@ -203,6 +193,17 @@ class auth_globals:
     permission_reduce_handlers = []
     subset_intersection_handlers = []
     plugin = plugin
+    permission_to_action_tree = {}
+
+def i_get_client_ip(reqHandler):
+    
+    if reqHandler.request.remote_ip == "127.0.0.1":
+        x_real_ip = reqHandler.request.headers.get("X-Real-IP")
+        x_forwarded_for = reqHandler.request.headers.get("X-Forwarded-For")
+        return x_real_ip or x_forwarded_for or reqHandler.request.remote_ip
+    
+    else:
+        return reqHandler.request.remote_ip
 
 @api_external_function(plugin)
 def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digits):

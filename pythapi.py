@@ -809,10 +809,6 @@ def main():
 
         log.success("pythapi successfully started.")
         
-        ### DEBUG!!!!
-        import code
-        code.interact(local=dict(globals(), **locals()))
-
         log.info("Entering main loop...")
         IOLoop.instance().start()
 

@@ -27,6 +27,7 @@ import MySQLdb
 from api_plugin import *
 
 from .header import *
+from . import rulesets
 from . import manage_users
 
 import copy
@@ -165,9 +166,33 @@ def e_list_user_token(username):
         
         return return_json
 
+def i_verify_and_reduce_token_ruleset(username, ruleset):
+    user_ruleset = auth_globals.users_dict[username]['ruleset']
+    
+    if not 'inherit' in ruleset:
+        ruleset['inherit'] = []
+
+    if not 'permissions' in ruleset:
+        ruleset['permissions'] = []
+    
+    inherit_all = False
+    if '*' in ruleset['inherit']:
+        inherit_all = True
+        ruleset['inherit'].remove('*')
+
+    intersected = rulesets.e_intersect_subset(user_ruleset, ruleset)
+    if intersected != ruleset:
+        raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
+
+    if inherit_all:
+        ruleset = {'inherit': ['*']}
+    else:
+        ruleset = rulesets.i_reduce_ruleset(ruleset)
+
+    return ruleset
+
 @api_external_function(plugin)
 def e_create_user_token(username, token_name, ruleset = {}):
-
     if token_name == 'list':
         raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
 
@@ -183,26 +208,8 @@ def e_create_user_token(username, token_name, ruleset = {}):
     
     else:
         user_id = manage_users.i_get_db_user(username)[0]
-    
-    if ruleset != {}:
-        #user_ruleset = e_get_permissions_of_user(username)
-        
-        if not 'inherit' in ruleset:
-            ruleset['inherit'] = []
 
-        if not 'permissions' in ruleset:
-            ruleset['permissions'] = []
-        
-        if not 'apps' in ruleset:
-            ruleset['apps'] = []
-
-#        intersected = e_intersect_subset(user_ruleset, ruleset)
-#        if intersected != ruleset:
-#            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
-#
-#    else:
-#        # TODO: Auch hier geht es besser.
-#        ruleset = manage_users.e_get_permissions_of_user(username)
+    ruleset = i_verify_and_reduce_token_ruleset(username, ruleset)
 
     new_token = e_generate_random_string(cookie_length)
     h_new_token = e_hash_password('', new_token)
@@ -237,7 +244,7 @@ def e_create_user_token(username, token_name, ruleset = {}):
         }
         auth_globals.users_dict[username]['token'].append(h_new_token)
 
-    #i_apply_ruleset(h_new_token, is_token=True)
+        rulesets.i_apply_ruleset(h_new_token, 't')
     
     return new_token
 
@@ -260,27 +267,7 @@ def e_edit_user_token(username, token_name, ruleset):
     else:
         user_id = manage_users.i_get_db_user(username)[0]
     
-    if ruleset != {}:
-#        user_ruleset = e_get_permissions_of_user(username)
-#        try: del ruleset['inherit']
-#        except KeyError: pass
-
-        if not 'inherit' in ruleset:
-            ruleset['inherit'] = []
-
-        if not 'permissions' in ruleset:
-            ruleset['permissions'] = []
-        
-        if not 'apps' in ruleset:
-            ruleset['apps'] = []
-        
-#        intersected = e_intersect_subset(user_ruleset, ruleset)
-#        if intersected != ruleset:
-#            raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
-#
-#    else:
-#        # TODO: Das geht auch besser
-#        ruleset = manage_users.e_get_permissions_of_user(username)
+    ruleset = i_verify_and_reduce_token_ruleset(username, ruleset)
 
     # Check if the token exists
     i_get_db_user_token(username, token_name)
@@ -305,7 +292,7 @@ def e_edit_user_token(username, token_name, ruleset):
             if auth_globals.user_token_dict[h_token]['token_name'] == token_name:
                 auth_globals.user_token_dict[h_token]['ruleset'] = ruleset
                 auth_globals.user_token_dict[h_token]['time_modified'] = datetime.datetime.now()
-                #i_apply_ruleset(h_token, is_token=True)
+                rulesets.i_apply_ruleset(h_new_token, 't')
                 break
 
 @api_external_function(plugin)
@@ -349,7 +336,8 @@ def e_delete_user_token(username, token_name):
             key = auth_globals.users_dict[username]['token'][i]
             if auth_globals.user_token_dict[key]['token_name'] == token_name:
                 h_token = key
-                #i_apply_ruleset(h_token, is_token=True, delete=True)
+
+                rulesets.i_apply_ruleset(h_new_token, 't', delete_only=True)
 
                 del auth_globals.user_token_dict[key]
                 del auth_globals.users_dict[username]['token'][i]
@@ -358,7 +346,7 @@ def e_delete_user_token(username, token_name):
 @api_action(plugin, {
     'path': 'token/list',
     'method': 'GET',
-    'permission': 'token.get.all',
+    'permission': 'self.token.get.all',
     'args': {
         'verbose': {
             'type': bool,
@@ -380,7 +368,7 @@ def e_delete_user_token(username, token_name):
     }
 })
 def list_user_tokens(reqHandler, p, args, body):
-    full_token_list = e_list_user_token(current_user)
+    full_token_list = e_list_user_token(auth_globals.current_user)
     
     if args['verbose']:
         return {
@@ -399,7 +387,7 @@ def list_user_tokens(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'GET',
-    'permission': 'token.get',
+    'permission': 'self.token.get',
     'params': [
         {
             'name': "token_name",
@@ -423,13 +411,13 @@ def list_user_tokens(reqHandler, p, args, body):
 })
 def get_user_token(reqHandler, p, args, body):
     return {
-        'data': e_get_user_token(current_user, p[0])
+        'data': e_get_user_token(auth_globals.current_user, p[0])
     }
 
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'POST',
-    'permission': 'token.create',
+    'permission': 'self.token.create',
     'params': [
         {
             'name': "token_name",
@@ -453,13 +441,13 @@ def get_user_token(reqHandler, p, args, body):
 })
 def create_user_token(reqHandler, p, args, body):
     return {
-        'token': e_create_user_token(current_user, p[0], body)
+        'token': e_create_user_token(auth_globals.current_user, p[0], body)
     }
 
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'PUT',
-    'permission': 'token.edit',
+    'permission': 'self.token.edit',
     'params': [
         {
             'name': "token_name",
@@ -482,13 +470,13 @@ def create_user_token(reqHandler, p, args, body):
     }
 })
 def edit_user_token(reqHandler, p, args, body):
-    e_edit_user_token(current_user, p[0], body)
+    e_edit_user_token(auth_globals.current_user, p[0], body)
     return {}
 
 @api_action(plugin, {
     'path': 'token/*',
     'method': 'DELETE',
-    'permission': 'token.delete',
+    'permission': 'self.token.delete',
     'params': [
         {
             'name': "token_name",
@@ -511,5 +499,5 @@ def edit_user_token(reqHandler, p, args, body):
     }
 })
 def delete_user_token(reqHandler, p, args, body):
-    e_delete_user_token(current_user, p[0])
+    e_delete_user_token(auth_globals.current_user, p[0])
     return {}

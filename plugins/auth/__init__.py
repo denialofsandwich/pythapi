@@ -24,7 +24,18 @@
 import os, sys
 from api_plugin import *
 
-__all__ = ['header', 'install', 'manage_users', 'init', 'manage_roles']
+__all__ = [
+    'header',
+    'init',
+    'gpex_event',
+    'rulesets',
+    'interfaces',
+    'manage_users',
+    'manage_roles',
+    'manage_token',
+    'manage_sessions',
+    'install'
+]
 
 from .header import *
 from . import *

@@ -23,9 +23,13 @@
 
 import sys
 from api_plugin import *
+
 import MySQLdb
+import getpass
 
 from .header import *
+from . import manage_users
+from . import manage_roles
 
 used_tables = ["user","token","role"]
 
@@ -115,62 +119,53 @@ def install():
         dbc.execute(sql)
         api_log().debug("Constraints created.")
     
-#    e_create_role('admin', {
-#        "permissions":  [
-#            "*"
-#        ]
-#    })
-#    
-#    e_create_role('auth_default', {
-#        "permissions":  [
-#            "auth.list_sessions",
-#            "auth.create_session",
-#            "auth.delete_session",
-#            "auth.delete_all_sessions",
-#            
-#            "auth.get_user_token",
-#            "auth.list_user_tokens",
-#            "auth.create_user_token",
-#            "auth.edit_user_token",
-#            "auth.delete_user_token",
-#            
-#            "auth.change_password",
-#            "auth.get_permissions",
-#            "auth.get_current_user"
-#        ]
-#    })
-#    
-#    e_create_role('anonymous', {
-#        "permissions":  []
-#    })
-#    
-#    e_create_role('default', {
-#        "inherit":  [
-#            "anonymous",
-#            "auth_default"
-#        ],
-#        "permissions": []
-#    })
-#    
-#    if api_config()['auth']['first_user_password'] != "":
-#        password = api_config()['auth']['first_user_password']
-#    else:
-#        password = getpass.getpass('Enter new admin password: ')
-#
-#    e_create_user('admin', {
-#        'password': password
-#    })
-#    
-#    e_create_user('anonymous', {
-#        'password': e_generate_random_string(cookie_length)
-#    })
-#    
-#    e_remove_member_from_role('default', 'admin')
-#    e_add_member_to_role('admin', 'admin')
-#    
-#    e_remove_member_from_role('default', 'anonymous')
-#    e_add_member_to_role('anonymous', 'anonymous')
+    manage_roles.e_create_role('auth_default', {
+        "permissions":  [
+            "auth.self.session.*",
+            "auth.self.token.*",
+            
+            "auth.user.edit.self.password",
+            "auth.self.get.permissions",
+            "auth.user.get.self"
+        ]
+    })
     
+    manage_roles.e_create_role('default', {
+        "inherit":  [
+            "auth_default"
+        ],
+        "permissions": []
+    })
+    
+    if api_config()['auth']['first_user_password'] != "":
+        password = api_config()['auth']['first_user_password']
+    else:
+        password = getpass.getpass('Enter new admin password: ')
+
+    manage_users.e_create_user('admin', 'default', {
+        'password': password,
+        'ruleset': {
+            'permissions': [
+                '*'
+            ]
+        }
+    })
+    
+    manage_users.e_create_user('anonymous', 'intern',{
+        'password': e_generate_random_string(cookie_length)
+    })
+    manage_users.e_edit_user('anonymous', {'ruleset': {}}) # To remove the default role
+    
+    # TODO: DEBUG
+    manage_users.e_create_user('rene', 'default',{
+        'password': 'test123',
+        'ruleset': {
+            'permissions': [
+                'auth.*'
+            ]
+        }
+    })
+
     api_log().debug("Initial data created.")
     return 1
 
