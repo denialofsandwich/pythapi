@@ -169,14 +169,8 @@ def e_list_user_token(username):
 def i_verify_and_reduce_token_ruleset(username, ruleset):
     user_ruleset = auth_globals.users_dict[username]['ruleset']
     
-    if not 'inherit' in ruleset:
-        ruleset['inherit'] = []
-
-    if not 'permissions' in ruleset:
-        ruleset['permissions'] = []
-    
     inherit_all = False
-    if '*' in ruleset['inherit']:
+    if 'inherit' in ruleset and '*' in ruleset['inherit']:
         inherit_all = True
         ruleset['inherit'].remove('*')
 
@@ -192,7 +186,7 @@ def i_verify_and_reduce_token_ruleset(username, ruleset):
     return ruleset
 
 @api_external_function(plugin)
-def e_create_user_token(username, token_name, ruleset = {}):
+def e_create_user_token(username, token_name, ruleset = {'inherit': ['*']}):
     if token_name == 'list':
         raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
 
@@ -292,7 +286,7 @@ def e_edit_user_token(username, token_name, ruleset):
             if auth_globals.user_token_dict[h_token]['token_name'] == token_name:
                 auth_globals.user_token_dict[h_token]['ruleset'] = ruleset
                 auth_globals.user_token_dict[h_token]['time_modified'] = datetime.datetime.now()
-                rulesets.i_apply_ruleset(h_new_token, 't')
+                rulesets.i_apply_ruleset(h_token, 't')
                 break
 
 @api_external_function(plugin)
@@ -337,9 +331,9 @@ def e_delete_user_token(username, token_name):
             if auth_globals.user_token_dict[key]['token_name'] == token_name:
                 h_token = key
 
-                rulesets.i_apply_ruleset(h_new_token, 't', delete_only=True)
+                rulesets.i_apply_ruleset(h_token, 't', delete_only=True)
 
-                del auth_globals.user_token_dict[key]
+                del auth_globals.user_token_dict[h_token]
                 del auth_globals.users_dict[username]['token'][i]
                 break
 

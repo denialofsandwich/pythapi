@@ -30,34 +30,36 @@ from .header import *
 import copy
 
 @api_external_function(plugin)
-def i_default_permission_validator(ruleset, rule_section, target_rule):
-    
-    if not rule_section in ruleset:
+def i_default_permission_validator(ruleset, section, target_rule):
+
+    if not section in ruleset:
         return 0
     
-    if '*' in ruleset[rule_section]:
+    if '*' in ruleset[section]:
         return 1
-    
-    if target_rule.split('.')[0] in ruleset[rule_section]:
+
+    if target_rule in ruleset[section]:
         return 1
-    
-    if target_rule in ruleset[rule_section]:
-        return 1
-    
+
+    for rule in list(ruleset[section]):
+        if rule[-1] == '*' and rule[:-2] == target_rule[:len(rule)-2]:
+            return 1
+
     return 0
 
 def i_permission_reduce_handler(ruleset):
     section = 'permissions'
-    ruleset[section] = list(set(ruleset[section]))
+    if section in ruleset:
+        ruleset[section] = list(set(ruleset[section]))
 
-    if '*' in ruleset[section]:
-        ruleset[section] = ['*']
-    else:
-        for rule in list(ruleset[section]):
-            if rule[-1] == '*':
-                for sub_rule in list(ruleset[section]):
-                    if sub_rule != rule and rule[:-2] in [sub_rule, sub_rule[:len(rule)-2]]:
-                        ruleset[section].remove(sub_rule)
+        if '*' in ruleset[section]:
+            ruleset[section] = ['*']
+        else:
+            for rule in list(ruleset[section]):
+                if rule[-1] == '*':
+                    for sub_rule in list(ruleset[section]):
+                        if sub_rule != rule and rule[:-2] in [sub_rule, sub_rule[:len(rule)-2]]:
+                            ruleset[section].remove(sub_rule)
 
     section = 'inherit'
     if section in ruleset:
@@ -69,18 +71,19 @@ def i_subset_permission_handler(ruleset, subset):
     return_subset = {}
 
     section = 'permissions'
-    if '*' in ruleset[section]:
-        return_subset[section] = list(subset[section])
-    
-    return_subset[section] = []
+    if section in ruleset and section in subset:
+        if '*' in ruleset[section]:
+            return_subset[section] = list(subset[section])
+        else:
+            return_subset[section] = []
 
-    for rule in ruleset[section]:
-        if rule[-1] == '*':
-            for ss_rule in list(subset[section]):
-                if rule[:-2] in [ss_rule, ss_rule[:len(rule)-2]]:
-                    return_subset[section].append(ss_rule)
-        elif rule in subset[section]:
-            return_subset[section].append(rule)
+        for rule in ruleset[section]:
+            if rule[-1] == '*':
+                for ss_rule in list(subset[section]):
+                    if rule[:-2] in [ss_rule, ss_rule[:len(rule)-2]]:
+                        return_subset[section].append(ss_rule)
+            elif rule in subset[section]:
+                return_subset[section].append(rule)
 
     section = 'inherit'
     if section in ruleset and section in subset:

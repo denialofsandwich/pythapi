@@ -641,8 +641,13 @@ def main():
     log.begin("Loading Plugins...")
 
     dir_r = glob.glob("plugins/*")
-    log.debug("Plugins found: " +str(len(dir_r) -1) )
-    
+    try: dir_r.remove('plugins/__pycache__')
+    except: pass
+    try: dir_r.remove('plugins/__init__.py')
+    except: pass
+
+    log.debug("Plugins found: " +str(len(dir_r)))
+
     plugin_whitelist = None
     if api_plugin.config['core.general']['enabled_plugins'] != ['*']:
         plugin_whitelist = api_plugin.config['core.general']['enabled_plugins']
@@ -656,9 +661,6 @@ def main():
         else:
             module_name = raw_module_name
             
-        if module_name in ['__init__', '__pycache__']:
-            continue
-        
         if plugin_whitelist != None and len(plugin_whitelist) and not module_name in plugin_whitelist:
             log.debug("{} is disabled.".format(raw_module_name))
             continue

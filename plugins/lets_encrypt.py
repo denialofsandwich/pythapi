@@ -371,8 +371,12 @@ def i_le_subset_intersection_handler(ruleset, subset):
         ruleset[section_name].append(rule)
 
     section_name = 'lets_encrypt_allowed_domains'
-    section = ruleset[section_name]
     return_subset = {}
+
+    if section_name not in ruleset or section_name not in subset:
+        return return_subset
+
+    section = ruleset[section_name]
 
     if '**' in ruleset[section_name] or not section_name in subset:
         return copy.deepcopy(subset)
@@ -1033,13 +1037,13 @@ def install():
         ]
     })
 
-    ruleset = auth.e_get_role('admin')['ruleset']
+    ruleset = auth.e_get_user('admin')['ruleset']
 
     try:
-        if not plugin.name +'_admin' in ruleset['inherit']:
+        if 'inherit' in ruleset and not plugin.name +'_admin' in ruleset['inherit']:
             ruleset['inherit'].append(plugin.name +'_admin')
 
-        auth.e_edit_role('admin', ruleset)
+        auth.e_edit_user('admin', {'ruleset': ruleset})
         log.debug("Permissions applied.")
     except WebRequestException as e:
         api_log().error('Editing the admin role failed!')
@@ -1115,11 +1119,11 @@ def uninstall():
 
     auth = api_plugins()['auth']
     if auth.events['check']():
-        ruleset = auth.e_get_role('admin')['ruleset']
+        ruleset = auth.e_get_user('admin')['ruleset']
 
         try:
             ruleset['inherit'].remove(plugin.name +'_admin')
-            auth.e_edit_role('admin', ruleset)
+            auth.e_edit_user('admin', {'ruleset': ruleset})
         except: pass
 
         try:

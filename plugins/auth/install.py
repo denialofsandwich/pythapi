@@ -156,16 +156,6 @@ def install():
     })
     manage_users.e_edit_user('anonymous', {'ruleset': {}}) # To remove the default role
     
-    # TODO: DEBUG
-    manage_users.e_create_user('rene', 'default',{
-        'password': 'test123',
-        'ruleset': {
-            'permissions': [
-                'auth.*'
-            ]
-        }
-    })
-
     api_log().debug("Initial data created.")
     return 1
 

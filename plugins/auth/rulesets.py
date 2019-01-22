@@ -32,44 +32,24 @@ import datetime
 import json
 import copy
 
-def ir_check_custom_permissions(role_name, rule_section, target_rule, f, depth = 0):
-    
-    if depth > len(auth_globals.roles_dict):
-        raise WebRequestException(400, 'error', 'GENERAL_RECURSIVE_LOOP')
-    
-    if f(auth_globals.roles_dict[role_name]['ruleset'], rule_section, target_rule):
-        return 1
-    
-    if 'inherit' in auth_globals.roles_dict[role_name]['ruleset']:
-        parents = auth_globals.roles_dict[role_name]['ruleset']['inherit']
-        for parent in parents:
-            if ir_check_custom_permissions(parent, rule_section, target_rule, f, depth +1):
-                return 1
-
-    return 0
-
 @api_external_function(plugin)
 def e_check_custom_permissions(username, rule_section, target_rule, f = interfaces.i_default_permission_validator):
     
     if not username in auth_globals.users_dict:
         raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
     
-    for role_name in auth_globals.users_dict[username]['roles']:
-        if ir_check_custom_permissions(role_name, rule_section, target_rule, f):
-            return 1
+    if f(e_get_permissions_of_user(username), rule_section, target_rule):
+        return 1
 
     return 0
 
 @api_external_function(plugin)
 def e_check_custom_permissions_of_current_user(rule_section, target_rule, f = interfaces.i_default_permission_validator):
 
-    if auth_type == "token":
-        if f(e_get_permissions_of_token(current_token), rule_section, target_rule):
-            return 1
+    if auth_globals.auth_type == "token":
+        return f(e_get_permissions_of_token(auth_globals.current_token), rule_section, target_rule)
     else:
-        for role_name in auth_globals.users_dict[current_user]['roles']:
-            if ir_check_custom_permissions(role_name, rule_section, target_rule, f):
-                    return 1
+        return f(e_get_permissions_of_user(auth_globals.current_user, reduced=False), rule_section, target_rule)
 
     return 0
 
@@ -89,10 +69,11 @@ def ir_merge_permissions(ruleset, depth=-1):
     if depth > len(auth_globals.roles_dict)+1:
         raise WebRequestException(400, 'error', 'GENERAL_RECURSIVE_LOOP')
 
-    parent_list = ruleset['inherit']
+    parent_list = ruleset.get('inherit', [])
 
     return_json = copy.deepcopy(ruleset)
-    del return_json['inherit']
+    try: del return_json['inherit']
+    except: pass
 
     for parent in parent_list:
         try:
@@ -115,13 +96,15 @@ def i_reduce_ruleset(ruleset):
     return ruleset
 
 @api_external_function(plugin)
-def e_get_permissions_of_user(username):
+def e_get_permissions_of_user(username, reduced=True):
     if not username in auth_globals.users_dict:
         raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
 
     return_json = ir_merge_permissions(auth_globals.users_dict[username]['ruleset'])
 
-    return_json = i_reduce_ruleset(return_json)
+    if reduced:
+        return_json = i_reduce_ruleset(return_json)
+
     return return_json
 
 @api_external_function(plugin)
@@ -129,13 +112,18 @@ def e_get_permissions_of_token(h_token):
     if not h_token in auth_globals.user_token_dict:
         raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
 
-    return_json = copy.deepcopy(auth_globals.user_token_dict[h_token]['ruleset'])
+    token_data = copy.deepcopy(auth_globals.user_token_dict[h_token])
+    return_json = token_data['ruleset']
+
+    if 'inherit' in token_data['ruleset'] and '*' in token_data['ruleset']['inherit']:
+        return_json = auth_globals.users_dict[token_data['username']]['ruleset']
+
     return return_json
 
 @api_external_function(plugin)
 def e_get_permissions():
     if auth_type == "token":
-        return e_get_permissions_of_token(current_token)
+        return e_get_permissions_of_token(auth_globals.current_token)
     else:
         return e_get_permissions_of_user(e_get_current_user())
 
@@ -174,7 +162,7 @@ def i_apply_ruleset(ent_name, ent_type, delete_only=False):
 
     # Full rebuild of all rulsets, if ent_type='r'
     if ent_type == 'r':
-        for username in auth_global.users_dict:
+        for username in auth_globals.users_dict:
             i_apply_ruleset(username, 'u', delete_only)
 
         for h_token in auth_globals.user_token_dict:
@@ -207,7 +195,7 @@ def i_apply_ruleset(ent_name, ent_type, delete_only=False):
         log.error('Unknown ent_type: {}'.format(ent_type))
         return
 
-    for permission in ruleset['permissions']:
+    for permission in ruleset.get('permissions', []):
         # Get action and set user as permitted entity
         try:
             wildcard = False

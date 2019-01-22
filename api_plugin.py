@@ -262,7 +262,7 @@ def r_serializable_dict(d, depth = 0):
         for k, v in old_d.items():
             d[k] = r_serializable_dict(v, depth+1)
 
-    elif type(d) in [str, int, float, bool]:
+    elif type(d) in [str, int, float, bool] or d == None:
         return d
 
     elif type(d) == datetime.datetime:

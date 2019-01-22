@@ -42,9 +42,11 @@ def e_get_current_user_info():
     return_json['auth_type'] = auth_globals.auth_type
     
     if auth_globals.auth_type == "token":
-        return_json['token_name'] = auth_globals.user_token_dict[auth_globals.current_token]['token_name']
-        return_json['ruleset'] = auth_globals.user_token_dict[auth_globals.current_token]['ruleset']
-        del return_json['roles']
+        token_data = auth_globals.user_token_dict[auth_globals.current_token]
+        return_json['token_name'] = token_data['token_name']
+
+        if not 'inherit' in token_data['ruleset'] or not '*' in token_data['ruleset']['inherit']:
+            return_json['ruleset'] = token_data['ruleset']
 
     return return_json
 
@@ -198,16 +200,8 @@ def e_create_user(username, user_type, data):
         }
 
     ruleset = data['ruleset']
+    ruleset = rulesets.i_reduce_ruleset(ruleset)
 
-    if not 'inherit' in ruleset:
-        ruleset['inherit'] = []
-
-    if not 'permissions' in ruleset:
-        ruleset['permissions'] = []
-    
-    if not 'default' in ruleset['inherit']:
-        ruleset['inherit'].append('default')
-    
     h_password = e_hash_password(username, data['password'])
     
     with db:
@@ -230,6 +224,7 @@ def e_create_user(username, user_type, data):
     if auth_globals.write_through_cache_enabled:
         auth_globals.users_dict[username] = {
             'id': db_result[0],
+            'type': user_type,
             'h_password': h_password,
             'ruleset': ruleset,
             'token': [],
@@ -283,13 +278,8 @@ def e_edit_user(username, data):
     if 'ruleset' in data:
 
         ruleset = data['ruleset']
+        ruleset = rulesets.i_reduce_ruleset(ruleset)
 
-        if not 'inherit' in ruleset:
-            ruleset['inherit'] = []
-
-        if not 'permissions' in ruleset:
-            ruleset['permissions'] = []
-        
         with db:
             sql = """
                 UPDATE """ +db_prefix +"""user
@@ -488,17 +478,13 @@ def get_user(reqHandler, p, args, body):
                 'DE': "Passwort"
             }
         },
-        'roles': {
-            'type': list,
+        'ruleset': {
+            'type': dict,
             'f_name': {
-                'EN': "Roles",
-                'DE': "Rollen"
+                'EN': "Ruleset",
+                'DE': "Regelsatz"
             },
-            'allow_duplicates': False,
-            'default': [],
-            'childs': {
-                'type': str
-            }
+            'default': {}
         }
     },
     'f_name': {

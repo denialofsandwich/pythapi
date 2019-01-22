@@ -151,21 +151,6 @@ plugin.translation_dict = {
         'DE': 'Passwort leer.'
     },
     
-    'AUTH_SYNTAX_ERROR_1': {
-        'EN': 'Auth: Syntax error in role {}: {}',
-        'DE': 'Auth: Syntaxfehler in der Rolle {}: {}'
-    },
-    
-    'AUTH_SYNTAX_ERROR_2': {
-        'EN': 'Auth: Error in role {}: Plugin {} not found.',
-        'DE': 'Auth: Fehler in der Rolle {}: Plugin {} nicht gefunden.'
-    },
-    
-    'AUTH_SYNTAX_ERROR_3': {
-        'EN': 'Auth: Error in role {}: Action {} not found.',
-        'DE': 'Auth: Fehler in der Rolle {}: Action {} nicht gefunden.'
-    },
-
     'AUTH_SESSION_NOT_FOUND': {
         'EN': 'Session not found or already closed.',
         'DE': 'Session nicht gefunden oder bereits beendet.'

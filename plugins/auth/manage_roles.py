@@ -138,11 +138,7 @@ def e_create_role(role_name, ruleset):
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    if not 'inherit' in ruleset:
-        ruleset['inherit'] = []
-    
-    if not 'permissions' in ruleset:
-        ruleset['permissions'] = []
+    ruleset = rulesets.i_reduce_ruleset(ruleset)
 
     with db:
         sql = """
@@ -196,12 +192,6 @@ def i_edit_db_role(role_name, ruleset):
 @api_external_function(plugin)
 def e_edit_role(role_name, ruleset):
 
-    if not 'inherit' in ruleset:
-        ruleset['inherit'] = []
-    
-    if not 'permissions' in ruleset:
-        ruleset['permissions'] = []
-
     if role_name == 'list':
         raise WebRequestException(400, 'error', 'AUTH_EXECUTION_DENIED')
 
@@ -214,6 +204,8 @@ def e_edit_role(role_name, ruleset):
     else:
         i_get_db_role(role_name)
     
+    ruleset = rulesets.i_reduce_ruleset(ruleset)
+
     i_edit_db_role(role_name, ruleset)
 
     if auth_globals.write_through_cache_enabled:
@@ -283,14 +275,14 @@ def e_remove_role_from_user(username, role_name):
     # To check if role exists
     e_get_role(role_name)
 
-    ruleset = copy.deepcopy(e_get_user(username))['ruleset']
+    ruleset = copy.deepcopy(manage_users.e_get_user(username))['ruleset']
 
     try:
         ruleset['inherit'].remove(role_name)
     except:
         raise WebRequestException(400, 'error', 'AUTH_USER_IS_NOT_MEMBER')
 
-    e_edit_user(username, {'ruleset': ruleset})
+    manage_users.e_edit_user(username, {'ruleset': ruleset})
 
 @api_action(plugin, {
     'path': 'role/list',

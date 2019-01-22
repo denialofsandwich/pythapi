@@ -129,6 +129,9 @@ def i_data_subset_intersection_handler(ruleset, subset):
     section_name = 'data_permissions'
     return_subset = {}
 
+    if section_name not in ruleset or section_name not in subset:
+        return return_subset
+
     if '/ rw' in ruleset[section_name] or not section_name in subset:
         return copy.deepcopy(subset)
 
@@ -337,7 +340,7 @@ def install():
 
     auth.e_create_role('data_default', {
         'permissions':  [
-            'data'
+            'data.*'
         ],
         'data_permissions': [
             '/user/#username rw',
@@ -348,6 +351,9 @@ def install():
     ruleset = auth.e_get_role('default')['ruleset']
 
     try:
+        if 'inherit' not in ruleset:
+            ruleset['inherit'] = []
+
         if not 'data_default' in ruleset['inherit']:
             ruleset['inherit'].append('data_default')
 
@@ -358,20 +364,23 @@ def install():
 
     auth.e_create_role('data_admin', {
         'permissions':  [
-            'data'
+            'data.*'
         ],
         'data_permissions': [
             '/ rw',
         ]
     })
 
-    ruleset = auth.e_get_role('admin')['ruleset']
+    ruleset = auth.e_get_user('admin')['ruleset']
 
     try:
+        if 'inherit' not in ruleset:
+            ruleset['inherit'] = []
+
         if not 'data_admin' in ruleset['inherit']:
             ruleset['inherit'].append('data_admin')
 
-        auth.e_edit_role('admin', ruleset)
+        auth.e_edit_user('admin', {'ruleset': ruleset})
     except WebRequestException as e:
         api_log().error('Editing the admin role failed!')
         return 0
@@ -384,16 +393,23 @@ def uninstall():
     auth = api_plugins()['auth']
 
     if auth.events['check']():
-        ruleset = auth.e_get_role('default')['ruleset']
-
         try:
+            ruleset = auth.e_get_role('default')['ruleset']
             ruleset['inherit'].remove('data_default')
-            ruleset['inherit'].remove('data_admin')
             auth.e_edit_role('default', ruleset)
         except: pass
 
         try:
-            auth.e_delete_role('userdata_default')
+            auth.e_delete_role('data_default')
+        except: pass
+
+        try:
+            ruleset = auth.e_get_user('admin')['ruleset']
+            ruleset['inherit'].remove('data_admin')
+            auth.e_edit_user('admin', {'ruleset': ruleset})
+        except: pass
+
+        try:
             auth.e_delete_role('data_admin')
         except: pass
 
@@ -428,6 +444,7 @@ def load():
 @api_action(plugin, {
     'regex': r'^' +re.escape(plugin.name) +r'(/.*)$',
     'method': 'GET',
+    'permission': 'read',
     'f_name': {
         'EN': 'Read data',
         'DE': 'Daten lesen'
@@ -450,6 +467,7 @@ def read_data(reqHandler, p, args, body):
 @api_action(plugin, {
     'regex': r'^' +re.escape(plugin.name) +r'(/.*)$',
     'method': 'POST',
+    'permission': 'write',
     'f_name': {
         'EN': 'Write data',
         'DE': 'Schreibe Daten'
@@ -472,6 +490,7 @@ def write_data(reqHandler, p, args, body):
 @api_action(plugin, {
     'regex': r'^' +re.escape(plugin.name) +r'(/.*)$',
     'method': 'DELETE',
+    'permission': 'delete',
     'f_name': {
         'EN': 'Delete data',
         'DE': 'Daten löschen'
