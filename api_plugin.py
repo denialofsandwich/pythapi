@@ -25,6 +25,8 @@ import MySQLdb
 import collections
 import sys
 
+import datetime
+
 import tools.fancy_logs as log # Logging
 
 config = {}
@@ -243,6 +245,33 @@ def add_config_defaults_and_convert(config_defaults):
 
             except KeyError as e:
                 config[section_name][k] = v
+
+def r_serializable_dict(d, depth = 0):
+    if depth > 100:
+        raise WebRequestException(400, 'error', 'GENERAL_RECURSIVE_LOOP')
+
+    if type(d) == list:
+        old_d = d
+        d = []
+        for i, v in enumerate(old_d):
+            d.append(r_serializable_dict(v, depth+1))
+
+    elif type(d) == dict:
+        old_d = d
+        d = {}
+        for k, v in old_d.items():
+            d[k] = r_serializable_dict(v, depth+1)
+
+    elif type(d) in [str, int, float, bool] or d == None:
+        return d
+
+    elif type(d) == datetime.datetime:
+        d = d.strftime('%H:%M:%S %d.%m.%Y')
+
+    else:
+        return str(d)
+
+    return d
 
 class api_plugin():
 

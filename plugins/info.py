@@ -110,7 +110,7 @@ def i_format_action(action):
         auth = api_plugins()['auth']
         current_user = auth.e_get_current_user()
         
-        if auth.e_check_custom_permissions(current_user, 'permissions', action['name']):
+        if auth.e_check_custom_permissions_of_current_user('permissions', action['permission']):
             action['permitted'] = True
         
         else:
@@ -166,19 +166,20 @@ def i_get_action_of_plugin(plugin_name, action_name):
     if not action_name in api_action_tree()[plugin_name]:
         raise WebRequestException(400, 'error', 'INFO_ACTION_NOT_FOUND')
     
+    action = dict(api_action_tree()[plugin_name][action_name])
+
     if 'auth' in api_plugins():
         auth = api_plugins()['auth']
         current_user = auth.e_get_current_user()
         
         if (api_config()[plugin.name]['hide_prohibited_actions'] and
-            not auth.e_check_custom_permissions(current_user, 'permissions', plugin_name +'.' +action_name)):
+            not auth.e_check_custom_permissions_of_current_user('permissions', action['permission'])):
             raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
-    tmp_action = dict(api_action_tree()[plugin_name][action_name])
-    del tmp_action['func']
-    del tmp_action['c_regex']
+    del action['func']
+    del action['c_regex']
         
-    return i_format_action(copy.deepcopy(tmp_action))
+    return i_format_action(copy.deepcopy(action))
 
 def i_list_actions_of_plugin(plugin_name):
     
@@ -193,7 +194,7 @@ def i_list_actions_of_plugin(plugin_name):
             current_user = auth.e_get_current_user()
             
             if (api_config()[plugin.name]['hide_prohibited_actions'] and
-                not auth.e_check_custom_permissions(current_user, 'permissions', i_action['name'])):
+                not auth.e_check_custom_permissions_of_current_user('permissions', i_action['permission'])):
                 continue
         
         tmp_action = dict(i_action)
@@ -220,7 +221,7 @@ def install():
         
         auth.e_create_role('info_default', {
             'permissions':  [
-                'info'
+                'info.*'
             ]
         })
         
@@ -261,13 +262,20 @@ def uninstall():
 
 @api_event(plugin, 'load')
 def load():
+    global action_property_blacklist
+    global plugin_property_blacklist
+
     action_property_blacklist.extend(api_config()[plugin.name]['action_property_blacklist'])
     plugin_property_blacklist.extend(api_config()[plugin.name]['plugin_property_blacklist'])
+
+    action_property_blacklist.extend(['token','users'])
+    action_property_blacklist = list(set(action_property_blacklist))
     return 1
 
 @api_action(plugin, {
     'path': 'list',
     'method': 'GET',
+    'permission': 'plugin.get.all',
     'args': {
         'verbose': {
             'type': bool,
@@ -303,6 +311,7 @@ def list_plugins(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*',
     'method': 'GET',
+    'permission': 'plugin.get',
     'params': [
         {
             'name': "plugin_name",
@@ -331,6 +340,7 @@ def get_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/list',
     'method': 'GET',
+    'permission': 'action.get.all',
     'args': {
         'verbose': {
             'type': bool,
@@ -382,6 +392,7 @@ def list_actions_of_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'path': '*/*',
     'method': 'GET',
+    'permission': 'action.get',
     'params': [
         {
             'name': "plugin_name",
@@ -418,6 +429,7 @@ def get_action_of_plugin(reqHandler, p, args, body):
 @api_action(plugin, {
     'regex': '^' +plugin.name +'/search/([^/]*)/(.*)$',
     'method': 'GET',
+    'permission': 'action.get.by_path',
     'params': [
         {
             'name': "method",
@@ -454,6 +466,7 @@ def get_action_by_path(reqHandler, p, args, body):
 @api_action(plugin, {
     'regex': '^' +plugin.name,
     'method': 'GET',
+    'permission': 'get',
     'f_name': {
         'EN': 'Get basic informations',
         'DE': 'Zeige Basisinformationen'
