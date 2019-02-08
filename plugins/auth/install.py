@@ -40,12 +40,13 @@ def check():
     db = api_mysql_connect()
     dbc = db.cursor()
 
-    with db:
-        # Checks if all tables exist.
-        result = 1
-        for table in used_tables:
-            sql = "SHOW TABLES LIKE '" +db_prefix +table +"'"
-            result *= dbc.execute(sql)
+    # Checks if all tables exist.
+    result = 1
+    for table in used_tables:
+        sql = "SHOW TABLES LIKE '" +db_prefix +table +"'"
+        result *= dbc.execute(sql)
+
+    db.close()
 
     if(result == 0):
         return 0
@@ -61,63 +62,63 @@ def install():
     
     api_log().info("Create new Tables...")
     
-    with db:
-        sql = """
-            CREATE TABLE """ +db_prefix +"""user (
-                id INT NOT NULL AUTO_INCREMENT,
-                name VARCHAR(32) NOT NULL,
-                type VARCHAR(8) NOT NULL DEFAULT 'default',
-                h_password VARCHAR(64) NOT NULL,
-                ruleset TEXT NOT NULL,
-                time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY( id ),
-                UNIQUE ( name )
-            ) ENGINE = InnoDB;
-            """
-        dbc.execute(sql)
-        api_log().debug("Table '" +db_prefix +"user' created.")
+    sql = """
+        CREATE TABLE """ +db_prefix +"""user (
+            id INT NOT NULL AUTO_INCREMENT,
+            name VARCHAR(32) NOT NULL,
+            type VARCHAR(8) NOT NULL DEFAULT 'default',
+            h_password VARCHAR(64) NOT NULL,
+            ruleset TEXT NOT NULL,
+            time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY( id ),
+            UNIQUE ( name )
+        ) ENGINE = InnoDB;
+        """
+    dbc.execute(sql)
+    api_log().debug("Table '" +db_prefix +"user' created.")
 
-        sql = """
-            CREATE TABLE """ +db_prefix +"""role (
-                id INT NOT NULL AUTO_INCREMENT,
-                name VARCHAR(32) NOT NULL,
-                ruleset TEXT NOT NULL,
-                time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                UNIQUE (name)
-            ) ENGINE = InnoDB;
-            """
-        dbc.execute(sql)
-        api_log().debug("Table '" +db_prefix +"role' created.")
-        
-        sql = """
-            CREATE TABLE """ +db_prefix +"""token (
-                id INT NOT NULL AUTO_INCREMENT,
-                token_name VARCHAR(32) NOT NULL,
-                user_id INT NOT NULL,
-                h_token VARCHAR(64) NOT NULL,
-                ruleset TEXT NOT NULL,
-                time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                UNIQUE (token_name, user_id)
-            ) ENGINE = InnoDB;
-            """
-        dbc.execute(sql)
-        api_log().debug("Table '" +db_prefix +"token' created.")
-        
-        sql = """
-            ALTER TABLE """ +db_prefix +"""token
-                ADD CONSTRAINT """ +db_prefix +"""token_to_user
-                FOREIGN KEY ( user_id )
-                REFERENCES """ +db_prefix +"""user ( id )
-                ON DELETE CASCADE
-                ON UPDATE CASCADE;
-            """
-        dbc.execute(sql)
-        api_log().debug("Constraints created.")
+    sql = """
+        CREATE TABLE """ +db_prefix +"""role (
+            id INT NOT NULL AUTO_INCREMENT,
+            name VARCHAR(32) NOT NULL,
+            ruleset TEXT NOT NULL,
+            time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE (name)
+        ) ENGINE = InnoDB;
+        """
+    dbc.execute(sql)
+    api_log().debug("Table '" +db_prefix +"role' created.")
+    
+    sql = """
+        CREATE TABLE """ +db_prefix +"""token (
+            id INT NOT NULL AUTO_INCREMENT,
+            token_name VARCHAR(32) NOT NULL,
+            user_id INT NOT NULL,
+            h_token VARCHAR(64) NOT NULL,
+            ruleset TEXT NOT NULL,
+            time_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            time_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE (token_name, user_id)
+        ) ENGINE = InnoDB;
+        """
+    dbc.execute(sql)
+    api_log().debug("Table '" +db_prefix +"token' created.")
+    
+    sql = """
+        ALTER TABLE """ +db_prefix +"""token
+            ADD CONSTRAINT """ +db_prefix +"""token_to_user
+            FOREIGN KEY ( user_id )
+            REFERENCES """ +db_prefix +"""user ( id )
+            ON DELETE CASCADE
+            ON UPDATE CASCADE;
+        """
+    dbc.execute(sql)
+    api_log().debug("Constraints created.")
+    db.close()
     
     manage_roles.e_create_role('auth_default', {
         "permissions":  [
@@ -177,6 +178,6 @@ def uninstall():
             
         api_log().debug("Table '" +db_prefix +table +"' deleted.")
     
-    dbc.close()
+    db.close()
     return 1
 

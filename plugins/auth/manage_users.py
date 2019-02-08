@@ -77,19 +77,18 @@ def i_list_db_user():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            SELECT * FROM """ +db_prefix +"""user;
-        """
+    sql = """
+        SELECT * FROM """ +db_prefix +"""user;
+    """
+    
+    try:
+        dbc.execute(sql)
         
-        try:
-            dbc.execute(sql)
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_list_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-        
-        return dbc.fetchall()
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_list_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    
+    return dbc.fetchall()
 
 def i_local_get_user(username):
     if not username in auth_globals.users_dict:

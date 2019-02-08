@@ -292,12 +292,13 @@ def check():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        # Checks if all tables exist.
-        result = 1
-        for table in used_tables:
-            sql = "SHOW TABLES LIKE '" +db_prefix +table +"'"
-            result *= dbc.execute(sql)
+    # Checks if all tables exist.
+    result = 1
+    for table in used_tables:
+        sql = "SHOW TABLES LIKE '" +db_prefix +table +"'"
+        result *= dbc.execute(sql)
+
+    db.close()
     
     if(result == 0):
         return 0

@@ -61,19 +61,18 @@ def i_list_db_roles():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            SELECT * FROM """ +db_prefix +"""role;
-        """
-        
-        try:
-            dbc.execute(sql)
-        
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_list_db_roles: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501,'error','GENERAL_SQL_ERROR')
-        
-        return dbc.fetchall()
+    sql = """
+        SELECT * FROM """ +db_prefix +"""role;
+    """
+    
+    try:
+        dbc.execute(sql)
+    
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_list_db_roles: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501,'error','GENERAL_SQL_ERROR')
+    
+    return dbc.fetchall()
 
 def i_get_local_role(role_name):
     if not role_name in auth_globals.roles_dict:

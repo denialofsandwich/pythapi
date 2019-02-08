@@ -93,22 +93,21 @@ def i_list_db_token():
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            SELECT """ +db_prefix +"""token.id, name, token_name, h_token, """ +db_prefix +"""token.ruleset, """ +db_prefix +"""token.time_created, """ +db_prefix +"""token.time_modified
-                FROM """ +db_prefix +"""token
-                JOIN """ +db_prefix +"""user
-                ON user_id = """ +db_prefix +"""user.id;
-        """
+    sql = """
+        SELECT """ +db_prefix +"""token.id, name, token_name, h_token, """ +db_prefix +"""token.ruleset, """ +db_prefix +"""token.time_created, """ +db_prefix +"""token.time_modified
+            FROM """ +db_prefix +"""token
+            JOIN """ +db_prefix +"""user
+            ON user_id = """ +db_prefix +"""user.id;
+    """
+    
+    try:
+        dbc.execute(sql)
         
-        try:
-            dbc.execute(sql)
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_list_db_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-        
-        return dbc.fetchall()
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_list_db_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    
+    return dbc.fetchall()
 
 def i_get_local_user_token(username, token_name):
     for key in auth_globals.users_dict[username]['token']:

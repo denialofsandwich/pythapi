@@ -27,11 +27,11 @@
 import sys
 import getpass
 import signal
-import configparser # apt
-import MySQLdb # apt
+import configparser
+import MySQLdb
 import tools.fancy_logs
 import importlib
-from tornado import httpserver # apt
+from tornado import httpserver
 from tornado.ioloop import IOLoop
 import tornado.web
 import glob
@@ -546,22 +546,8 @@ def r_read_child_configs(config, depth = 0):
                 if not r_read_child_configs(config, depth +1):
                     return False
 
-def main():
+def main(args, debug_mode=False):
     global log
-    signal.signal(signal.SIGINT, termination_handler)
-    signal.signal(signal.SIGTERM, termination_handler)
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
-    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
-    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
-    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
-    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
-    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
-    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
-    parser.add_argument('--config', '-c', help="Add config-file")
-
-    args = parser.parse_args()
     
     api_plugin.config = ConvertableConfigParser()
     
@@ -572,6 +558,9 @@ def main():
     
     r_read_child_configs(api_plugin.config)
     
+    if args.debug_override_config != None:
+        api_plugin.config.read(args.debug_override_config)
+
     api_plugin.config = api_plugin.config.as_dict()
     api_plugin.add_config_defaults_and_convert(config_defaults)
 
@@ -810,9 +799,26 @@ def main():
         logging.getLogger("tornado.application").propagate = False
 
         log.success("pythapi successfully started.")
-        
-        log.info("Entering main loop...")
-        IOLoop.instance().start()
+
+        if not debug_mode:
+            log.info("Entering main loop...")
+            IOLoop.instance().start()
 
 if __name__ == "__main__":
-    main()
+    signal.signal(signal.SIGINT, termination_handler)
+    signal.signal(signal.SIGTERM, termination_handler)
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
+    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
+    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
+    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
+    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
+    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
+    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
+    parser.add_argument('--config', '-c', help="Add config-file")
+
+    args = parser.parse_args()
+    args.debug_override_config = None
+
+    main(args)
