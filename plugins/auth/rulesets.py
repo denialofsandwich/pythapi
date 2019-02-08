@@ -140,6 +140,38 @@ def e_intersect_subset(ruleset, subset):
 
     return return_subset
 
+def evaluate_and_update_token(username, h_token):
+    user_ruleset = e_get_permissions_of_user(username)
+    user_ruleset['inherit'] = auth_globals.users_dict[username]['ruleset'].get('inherit', [])
+
+    ruleset = auth_globals.user_token_dict[h_token]['ruleset']
+    
+    still_valid = True
+
+    if 'inherit' in ruleset and '*' in ruleset['inherit']:
+        return
+
+    intersected = e_intersect_subset(user_ruleset, ruleset)
+
+    if ruleset.get('inherit', []) != intersected.get('inherit', []) and '*' in user_ruleset.get('permissions', []):
+        pass
+    elif intersected != ruleset:
+        still_valid = False
+
+    if not still_valid:
+        log.debug("OLD: {}\nNEW: {}".format(ruleset, intersected))
+        token_name = auth_globals.user_token_dict[h_token]['token_name']
+        plugin.e_edit_user_token(username, token_name, intersected) # Workaround to supress import-loop
+
+def evaluate_token_of_user(username):
+    for username, user_data in auth_globals.users_dict.items():
+        for h_token in user_data['token']:
+            evaluate_and_update_token(username, h_token)
+
+def evalueate_token_of_all_users():
+    for username in auth_globals.users_dict:
+        evaluate_token_of_user(username)
+
 def ir_add_entity_to_access_list(d, ent_name, ent_type, depth = 0):
     if depth > 64:
         raise WebRequestException(400, 'error', 'GENERAL_RECURSIVE_LOOP')

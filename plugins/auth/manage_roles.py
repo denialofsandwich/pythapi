@@ -212,6 +212,8 @@ def e_edit_role(role_name, ruleset):
         auth_globals.roles_dict[role_name]['time_modified'] = datetime.datetime.now()
         rulesets.i_apply_ruleset(role_name, 'r')
 
+    rulesets.evalueate_token_of_all_users()
+
 def i_delete_db_role(role_name):
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()

@@ -301,6 +301,9 @@ def e_edit_user(username, data):
 
             rulesets.i_apply_ruleset(username, 'u')
 
+        # After a change of the Ruleset, the Token rulesets have to be revalidated
+        rulesets.evaluate_token_of_user(username)
+
 @api_external_function(plugin)
 def e_delete_user(username):
 
@@ -334,12 +337,10 @@ def e_delete_user(username):
         for i in range(len(auth_globals.users_dict[username]['token'])):
             key = auth_globals.users_dict[username]['token'][i]
             del auth_globals.user_token_dict[key]
-            del auth_globals.users_dict[username]['token'][i]
         
         for i in range(len(auth_globals.users_dict[username]['sessions'])):
             key = auth_globals.users_dict[username]['sessions'][i]
             del auth_globals.session_dict[key]
-            del auth_globals.users_dict[username]['sessions'][i]
         
         del auth_globals.users_dict[username]
 

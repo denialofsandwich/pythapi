@@ -167,7 +167,8 @@ def e_list_user_token(username):
         return return_json
 
 def i_verify_and_reduce_token_ruleset(username, ruleset):
-    user_ruleset = auth_globals.users_dict[username]['ruleset']
+    user_ruleset = rulesets.e_get_permissions_of_user(username)
+    user_ruleset['inherit'] = auth_globals.users_dict[username]['ruleset'].get('inherit', [])
     
     inherit_all = False
     if 'inherit' in ruleset and '*' in ruleset['inherit']:
@@ -175,7 +176,12 @@ def i_verify_and_reduce_token_ruleset(username, ruleset):
         ruleset['inherit'].remove('*')
 
     intersected = rulesets.e_intersect_subset(user_ruleset, ruleset)
-    if intersected != ruleset:
+    log.debug(ruleset)
+    log.debug(intersected)
+
+    if ruleset.get('inherit', []) != intersected.get('inherit', []) and '*' in user_ruleset.get('permissions', []):
+        pass
+    elif intersected != ruleset:
         raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
 
     if inherit_all:
