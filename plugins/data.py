@@ -4,7 +4,7 @@
 # Name:        pythapi: data.py
 # Author:      Rene Fa
 # Date:        13.04.2018
-# Version:     0.4
+# Version:     1.0
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -22,9 +22,8 @@
 #
 
 import sys
-sys.path.append("..")
-import MySQLdb # MySQL
-from api_plugin import * # Essential Plugin
+import MySQLdb
+from api_plugin import *
 import json
 import re
 import os

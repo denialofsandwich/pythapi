@@ -3,8 +3,8 @@
 #
 # Name:        pythapi: async_jobs.py
 # Author:      Rene Fa
-# Date:        13.07.2018
-# Version:     0.3
+# Date:        10.01.2019
+# Version:     0.8
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -22,15 +22,14 @@
 #
 
 import sys
-sys.path.append("..")
-import MySQLdb # MySQL
-from api_plugin import * # Essential Plugin
+import MySQLdb
+from api_plugin import *
 import threading
 import time
 
 plugin = api_plugin()
 plugin.name = "job"
-plugin.version = "0.1"
+plugin.version = "0.8"
 plugin.essential = False
 plugin.info['f_name'] = {
     'EN': 'Asynchronous Jobs',

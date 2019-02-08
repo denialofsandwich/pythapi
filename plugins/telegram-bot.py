@@ -22,10 +22,8 @@
 #
 
 import sys
-sys.path.append("..")
-import MySQLdb # MySQL
-from api_plugin import * # Essential Plugin
-import tornado # For POST Body decoding
+import MySQLdb
+from api_plugin import *
 
 import telegram
 from telegram.ext import Updater
