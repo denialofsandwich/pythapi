@@ -22,7 +22,6 @@
 #
 
 import sys
-sys.path.append("..")
 from api_plugin import *
 import smtplib
 from email.mime.text import MIMEText

@@ -22,8 +22,7 @@
 #
 
 import sys
-sys.path.append("..")
-from api_plugin import * # Essential Plugin
+from api_plugin import *
 import time
 import datetime
 from threading import Timer
@@ -33,7 +32,7 @@ import json
 
 plugin = api_plugin()
 plugin.name = "time"
-plugin.version = "0.1"
+plugin.version = "0.4"
 plugin.essential = False
 plugin.info['f_name'] = {
     'EN': 'Time control',

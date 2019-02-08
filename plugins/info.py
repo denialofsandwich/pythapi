@@ -4,7 +4,7 @@
 # Name:        pythapi: info.py
 # Author:      Rene Fa
 # Date:        10.07.2018
-# Version:     0.9
+# Version:     1.0
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -22,9 +22,8 @@
 #
 
 import sys
-sys.path.append("..")
-import MySQLdb # MySQL
-from api_plugin import * # Essential Plugin
+import MySQLdb
+from api_plugin import *
 import copy
 
 plugin = api_plugin()

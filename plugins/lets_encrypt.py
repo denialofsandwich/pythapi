@@ -26,8 +26,7 @@
 
 
 import sys
-sys.path.append("..")
-from api_plugin import * # Essential Plugina
+from api_plugin import *
 import os
 import requests
 import json
@@ -46,7 +45,7 @@ import threading
 
 plugin = api_plugin()
 plugin.name = "lets_encrypt"
-plugin.version = "0.1"
+plugin.version = "0.7"
 plugin.essential = False
 plugin.info['f_name'] = {
     'EN': 'Let\'s Encrypt'

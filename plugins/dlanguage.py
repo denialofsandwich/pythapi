@@ -4,7 +4,7 @@
 # Name:        pythapi: dynamic_language.py
 # Author:      Rene Fa
 # Date:        26.04.2018
-# Version:     0.1
+# Version:     1.0
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
@@ -22,8 +22,7 @@
 #
 
 import sys
-sys.path.append("..")
-from api_plugin import * # Essential Plugin
+from api_plugin import *
 import json
 
 plugin = api_plugin()
