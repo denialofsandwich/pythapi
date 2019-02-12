@@ -813,7 +813,7 @@ def it_add_certificate(domain_list, **kwargs):
 
 
     api_log().debug("Generating keyfile....")
-    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, str(config['rsa_keysize']), '-nodes'])
+    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, str(config['rsa_keysize'])])
     
     if sysout == None:
         api_log().error("Can\'t generate keyfile.")
@@ -1081,7 +1081,7 @@ def install():
 
     api_log().debug("Generating keyfile....")
     keyfile_path = os.path.join(config['base_key_directory'], 'account/keyfile.pem')
-    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, str(config['rsa_keysize']), '-nodes'])
+    sysout = i_exec_openssl(['genrsa', '-out', keyfile_path, str(config['rsa_keysize'])])
     
     if sysout == None:
         api_log().error("Can\'t generate keyfile.")
