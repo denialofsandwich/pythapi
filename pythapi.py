@@ -654,7 +654,6 @@ def main(args, skip_loop=False):
     
     log.debug("Importing and initializing plugins...")
     for i_dir in dir_r:
-        
         raw_module_name = re.search('^plugins/(.*)$', i_dir).group(1)
         if raw_module_name[-3:] == '.py':
             module_name = raw_module_name[:-3]
@@ -767,7 +766,7 @@ def main(args, skip_loop=False):
         http_ip    = api_plugin.config['core.web']['bind_ip']
         for port in http_ports:
             try:
-                app.listen(port,http_ip)
+                http_server.listen(port,http_ip)
                 open_ports += 1
                 log.debug('HTTP started at: {}:{}'.format(http_ip,port))
             except OSError as e:

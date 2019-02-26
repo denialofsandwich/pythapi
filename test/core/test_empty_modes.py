@@ -26,13 +26,15 @@
 # Requires:    pytest coverage pytest-cov
 #
 
-import pythapi
+import pytest
+import importlib
 
+import pythapi
 import argparse
 
-import pytest
-
 def test_startup():
+
+    pythapi = importlib.reload(importlib.import_module('pythapi'))
 
     args = argparse.Namespace()
     args.config = None
@@ -43,7 +45,7 @@ def test_startup():
     args.plugin = ''
     args.reinstall = False
     args.verbosity = None
-    args.debug_override_config = "test/core/config/base_conf.ini"
+    args.debug_override_config = "test/core/configs/base_conf.ini"
 
     pythapi.main(args, skip_loop=True)
 
@@ -52,5 +54,6 @@ def test_startup():
 
     assert pytest_wrapped_e.type == SystemExit
     assert pytest_wrapped_e.value.code == 0
+    assert 1 == 0
 
 
