@@ -159,7 +159,6 @@ def evaluate_and_update_token(username, h_token):
         still_valid = False
 
     if not still_valid:
-        log.debug("OLD: {}\nNEW: {}".format(ruleset, intersected))
         token_name = auth_globals.user_token_dict[h_token]['token_name']
         plugin.e_edit_user_token(username, token_name, intersected) # Workaround to supress import-loop
 

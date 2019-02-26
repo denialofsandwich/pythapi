@@ -86,10 +86,15 @@ def global_preexecution_hook(reqHandler, action):
                 # User exists
                 if (e_hash_password(credentials[0], credentials[1]) == auth_globals.users_dict[credentials[0]]['h_password']):
                     # Passwort correct
-
                     auth_globals.current_user = credentials[0]
                     auth_globals.auth_type = "basic"
-                    if auth_globals.current_user in action['users']:
+
+                    if not 'users' in action:
+                        log.error('Permission lookup table not found.')
+                        log.debug('You likely have a duplicated function name ({}).'.format(action['name']))
+                        raise WebRequestException(500, 'error', 'GENERAL_INTERNAL_SERVER_ERROR')
+
+                    elif auth_globals.current_user in action['users']:
                         # User permitted
                         i_log_access('authorized as {} via {}'.format(auth_globals.current_user, auth_globals.auth_type))
                         i_reset_ban_time(remote_ip)
@@ -102,14 +107,19 @@ def global_preexecution_hook(reqHandler, action):
         elif(r_auth_header[0] == "Bearer"):
             # Generate Hash
             h_token = e_hash_password('', r_auth_header[1])
-            
+
             if h_token in auth_globals.user_token_dict:
                 # Token exists/correct
                 auth_globals.current_user = auth_globals.user_token_dict[h_token]['username']
                 auth_globals.auth_type = "token"
                 auth_globals.current_token = h_token
 
-                if h_token in action['token']:
+                if not 'token' in action:
+                    log.error('Permission lookup table not found.')
+                    log.debug('You likely have a duplicated function name ({}).'.format(action['name']))
+                    raise WebRequestException(500, 'error', 'GENERAL_INTERNAL_SERVER_ERROR')
+
+                elif h_token in action['token']:
                     # Token permitted
                     i_log_access('authorized as {} via token {}'.format(auth_globals.current_user, auth_globals.user_token_dict[h_token]['token_name']))
                     i_reset_ban_time(remote_ip)
@@ -164,8 +174,13 @@ def global_preexecution_hook(reqHandler, action):
             if time.time() > auth_globals.session_dict[session_id]['expiration_time']:
                 i_clean_expired_sessions()
                 raise WebRequestException(401, 'unauthorized', 'AUTH_SESSION_EXPIRED')
-            
-            if auth_globals.current_user in action['users']:
+
+            if not 'users' in action:
+                log.error('Permission lookup table not found.')
+                log.debug('You likely have a duplicated function name ({}).'.format(action['name']))
+                raise WebRequestException(500, 'error', 'GENERAL_INTERNAL_SERVER_ERROR')
+
+            elif auth_globals.current_user in action['users']:
                 # User permitted
                 i_log_access('authorized as {} via {}'.format(auth_globals.current_user, auth_globals.auth_type))
                 i_reset_ban_time(remote_ip)
@@ -173,7 +188,12 @@ def global_preexecution_hook(reqHandler, action):
 
     auth_globals.current_user = "anonymous"
     auth_globals.auth_type = "none"
-    if auth_globals.current_user in action['users']:
+    if not 'users' in action:
+        log.error('Permission lookup table not found.')
+        log.debug('You likely have a duplicated function name ({}).'.format(action['name']))
+        raise WebRequestException(500, 'error', 'GENERAL_INTERNAL_SERVER_ERROR')
+
+    elif auth_globals.current_user in action['users']:
         return
 
     raise WebRequestException(401, 'unauthorized', 'AUTH_PERMISSIONS_DENIED')
