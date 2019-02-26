@@ -176,8 +176,6 @@ def i_verify_and_reduce_token_ruleset(username, ruleset):
         ruleset['inherit'].remove('*')
 
     intersected = rulesets.e_intersect_subset(user_ruleset, ruleset)
-    log.debug(ruleset)
-    log.debug(intersected)
 
     if ruleset.get('inherit', []) != intersected.get('inherit', []) and '*' in user_ruleset.get('permissions', []):
         pass

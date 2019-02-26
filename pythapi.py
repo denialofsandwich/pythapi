@@ -125,7 +125,12 @@ translation_dict = {
     'GENERAL_INVALID_STRING_FORMAT': {
         'EN': 'String format invalid.',
         'DE': 'Invalides Stringformat.'
-    }
+    },
+
+    'GENERAL_INTERNAL_SERVER_ERROR': {
+        'EN': 'An internal server error occured.',
+        'DE': 'Ein interner Serverfehler wurde verursacht.'
+    },
 }
 
 def i_get_client_ip(reqHandler):
@@ -143,13 +148,16 @@ class MainHandler(tornado.web.RequestHandler):
     
     def write_error(self, status_code, **kwargs):
         if status_code == 500:
+            error_id = 'GENERAL_INTERNAL_SERVER_ERROR'
+
             self.set_status(status_code)
             self.set_header("Content-Type", 'application/json')
-            self.log_access_error('internal_server_error', status_code, 'GENERAL_INTERNAL_SERVER_ERROR')
+            self.log_access_error('internal_server_error', status_code, GENERAL_INTERNAL_SERVER_ERROR)
             
             return_json = {}
-            return_json['status'] = "internal_server_error"
-            return_json['error_id'] = 'GENERAL_INTERNAL_SERVER_ERROR'
+            return_json['status'] = "error"
+            return_json['error_id'] = error_id
+            return_json['message'] = api_plugin.api_tr(error_id)
             
             return_value = json.dumps(return_json) + '\n'
             self.finish(return_value)
