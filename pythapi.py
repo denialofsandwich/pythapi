@@ -128,6 +128,9 @@ translation_dict = {
     }
 }
 
+http_server = None
+https_server = None
+
 def i_get_client_ip(reqHandler):
     
     if reqHandler.request.remote_ip == "127.0.0.1":
@@ -508,6 +511,12 @@ def i_removeBrokenPlugins():
             i += 1
 
 def terminate_application():
+    log.info("Terminating Webservers...")
+    if http_server:
+        http_server.stop()    
+    if https_server:
+        https_server.stop()
+
     log.info("Terminate all active plugins...")
     
     for plugin_name in reversed(api_plugin.dependency_list):
@@ -546,8 +555,10 @@ def r_read_child_configs(config, depth = 0):
                 if not r_read_child_configs(config, depth +1):
                     return False
 
-def main(args, debug_mode=False):
+def main(args, skip_loop=False):
     global log
+    global http_server
+    global https_server
     
     api_plugin.config = ConvertableConfigParser()
     
@@ -750,6 +761,8 @@ def main(args, debug_mode=False):
         
         open_ports = 0
 
+        http_server = tornado.httpserver.HTTPServer(app)
+
         http_ports = api_plugin.config['core.web']['http_port']
         http_ip    = api_plugin.config['core.web']['bind_ip']
         for port in http_ports:
@@ -800,7 +813,7 @@ def main(args, debug_mode=False):
 
         log.success("pythapi successfully started.")
 
-        if not debug_mode:
+        if not skip_loop:
             log.info("Entering main loop...")
             IOLoop.instance().start()
 

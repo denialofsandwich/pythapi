@@ -43,11 +43,9 @@ def test_startup():
     args.plugin = ''
     args.reinstall = False
     args.verbosity = None
-    args.debug_override_config = "test/override_configs/base_conf.ini"
+    args.debug_override_config = "test/core/config/base_conf.ini"
 
-    pythapi.main(args, debug_mode=True)
-    #import api_plugin
-    #print(api_plugin.config['core.general']['loglevel'])
+    pythapi.main(args, skip_loop=True)
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         pythapi.terminate_application()

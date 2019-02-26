@@ -1,0 +1,13 @@
+#!/usr/share/python3
+
+import pytest
+
+storage = {}
+
+@pytest.fixture
+def test_storage():
+    return storage
+
+@pytest.fixture(scope="session", autouse=True)
+def execute_before_any_test():
+    pass
