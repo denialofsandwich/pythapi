@@ -72,8 +72,6 @@ plugin.translation_dict = {
     }
 }
 
-event_dict = {}
-
 class TimedIntervalEvent():
     def __init__(self,
                  name,
@@ -308,9 +306,12 @@ def etv_action_request_template(current_user, method, path, body={}):
 #def uninstall():
 #    return 1
 #
-#@api_event(plugin, 'load')
-#def load():
-#    return 1
+@api_event(plugin, 'load')
+def load():
+    global event_dict
+    event_dict = {}
+
+    return 1
 
 @api_event(plugin, 'terminate')
 def terminate():

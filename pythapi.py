@@ -43,9 +43,6 @@ import datetime
 import os
 import argparse
 
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
-version = 0.9
-
 config_defaults = {
     'core.general': {
         'loglevel': 5,
@@ -559,7 +556,12 @@ def main(args, skip_loop=False):
     global log
     global http_server
     global https_server
+    global version
     
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+    version = 0.9
+
+    api_plugin.init() # Initialize all Variables
     api_plugin.config = ConvertableConfigParser()
     
     if args.config == None:

@@ -60,8 +60,6 @@ plugin.translation_dict = {
 
 }
 
-job_dict = {}
-
 @api_external_function(plugin)
 def e_default_termination_handler(job, e):
     log.error("The job {} crashed.".format(job.name), exc_info=e)
@@ -163,6 +161,13 @@ def e_list_jobs():
         return_json.append(i_entry)
 
     return return_json
+
+@api_event(plugin, 'load')
+def load():
+    global job_dict
+    job_dict = {}
+
+    return 1
 
 @api_event(plugin, 'terminate')
 def terminate():

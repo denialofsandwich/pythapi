@@ -29,18 +29,32 @@ import datetime
 
 import tools.fancy_logs as log # Logging
 
-config = {}
-plugin_dict = {}
-action_call_dict = {}
-action_tree = {}
-global_preexecution_hook_list = []
-global_postexecution_hook_list = []
-dependency_list = []
-reverse_dependency_list = []
-indices_generated = False
-translation_dict = {}
-environment_variables = {}
-log = None
+def init():
+    global config
+    global plugin_dict
+    global action_call_dict
+    global action_tree
+    global global_preexecution_hook_list
+    global global_postexecution_hook_list
+    global dependency_list
+    global reverse_dependency_list
+    global indices_generated
+    global translation_dict
+    global environment_variables
+    global log
+
+    config = {}
+    plugin_dict = {}
+    action_call_dict = {}
+    action_tree = {}
+    global_preexecution_hook_list = []
+    global_postexecution_hook_list = []
+    dependency_list = []
+    reverse_dependency_list = []
+    indices_generated = False
+    translation_dict = {}
+    environment_variables = {}
+    log = None
 
 def update(d, u):
     for k, v in u.items():

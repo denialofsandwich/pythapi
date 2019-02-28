@@ -56,6 +56,23 @@ def load():
     global bf_basic_auth_delay
     global bf_temporary_ban_enabled
 
+    api_globals.current_user = "anonymous"
+    api_globals.auth_type = "none"
+    api_globals.current_token = None
+    api_globals.users_dict = {}
+    api_globals.user_token_dict = {}
+    api_globals.session_dict = {}
+    api_globals.roles_dict = {}
+    api_globals.write_through_cache_enabled = False
+    api_globals.bf_blacklist = {}
+    api_globals.bf_basic_auth_delay = 0
+    api_globals.bf_temporary_ban_enabled = True
+    api_globals.session_counter = 0
+    api_globals.permission_reduce_handlers = []
+    api_globals.subset_intersection_handlers = []
+    api_globals.plugin = plugin
+    api_globals.permission_to_action_tree = {}
+
     rulesets.e_add_subset_intersection_handler(interfaces.i_subset_permission_handler)
     rulesets.e_add_permission_reduce_handler(interfaces.i_permission_reduce_handler)
 

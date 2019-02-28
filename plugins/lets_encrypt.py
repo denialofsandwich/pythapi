@@ -113,20 +113,6 @@ plugin.translation_dict = {
     }
 }
 
-acme_config = None
-jws_nonce = None
-jws_header = None
-adtheaders = None
-joseheaders = None
-dns_resolver = None
-nonce_age = None
-
-cert_dict = {}
-initverification_handler_list = []
-preverification_handler_list = []
-postverification_handler_list = []
-write_through_cache_enabled = False
-
 def _b64(b):
     return base64.urlsafe_b64encode(b).decode("utf8").rstrip("=")
 
@@ -1155,8 +1141,32 @@ def i_format_time_value(config, key, minv, maxv):
 
 @api_event(plugin, 'load')
 def load():
+    global acme_config
+    global jws_nonce
+    global jws_header
+    global adtheaders
+    global joseheaders
     global dns_resolver
+    global nonce_age
+    global cert_dict
+    global initverification_handler_list
+    global preverification_handler_list
+    global postverification_handler_list
     global write_through_cache_enabled
+
+    acme_config = None
+    jws_nonce = None
+    jws_header = None
+    adtheaders = None
+    joseheaders = None
+    dns_resolver = None
+    nonce_age = None
+
+    cert_dict = {}
+    initverification_handler_list = []
+    preverification_handler_list = []
+    postverification_handler_list = []
+    write_through_cache_enabled = False
 
     config = api_config()[plugin.name]
     account_path = os.path.join(config['base_key_directory'], 'account')

@@ -94,12 +94,6 @@ plugin.translation_dict = {
 
 used_tables = ["telegram_bot_channel"]
 
-bot = None
-updater = None
-dispatcher = None
-channel_dict = {}
-write_trough_cache_enabled = False
-
 def i_get_db_channel(channel_name):
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
@@ -426,7 +420,14 @@ def load():
     global bot
     global updater
     global dispatcher
+    global channel_dict
     global write_trough_cache_enabled
+
+    bot = None
+    updater = None
+    dispatcher = None
+    channel_dict = {}
+    write_trough_cache_enabled = False
     
     try: bot = telegram.Bot(api_config()[plugin.name]['bot_token'])
     except:

@@ -1,9 +1,7 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
 #
 # Name:        pythapi: unittests
 # Author:      Rene Fa
-# Date:        08.02.2019
+# Date:        28.02.2019
 # Version:     0.1
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
@@ -19,34 +17,27 @@
 #
 #              You should have received a copy of the GNU Affero General Public License
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
-#
-# Usage:       PYTHONPATH=. pytest --cov .
-#       Use in project root directory
-#
-# Requires:    pytest coverage pytest-cov
-#
-
-# TODO: Test config parser
-# TODO: Test arg parser
-# TODO: Test Empty Request
-    # : Test Parameter fail validation
 
 import pytest
 import importlib
 
 import argparse
-import test.tools.pythapi_testing_tools as ptt
 
-@pytest.fixture(scope="module")
-def pythapi(request):
-    pythapi_instance = ptt.start_pythapi(
-        debug_override_config="test/core/configs/base_conf.ini"
-    )
+def start_pythapi(**kwargs):
 
-    yield pythapi_instance
+    pythapi = importlib.reload(importlib.import_module('pythapi'))
 
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        pythapi_instance.terminate_application()
+    args = argparse.Namespace()
+    args.config = kwargs.get('config', None)
+    args.config_data = kwargs.get('config_data', [])
+    args.force = kwargs.get('force', False)
+    args.mode = kwargs.get('mode', 'run')
+    args.no_fancy = kwargs.get('no_fancy', False)
+    args.plugin = kwargs.get('plugin', '')
+    args.reinstall = kwargs.get('reinstall', False)
+    args.verbosity = kwargs.get('verbosity', None)
+    args.debug_override_config = kwargs.get('debug_override_config', None)
 
-def test_basic_request(pythapi):
-    assert 1 == 1
+    pythapi.main(args, skip_loop=True)
+
+    return pythapi
