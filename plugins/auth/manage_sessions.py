@@ -29,8 +29,6 @@ import time
 
 from .header import *
 
-# TODO: ACHTUNG! Ich habe die globale Variable Session_counter entfernt
-
 def i_clean_expired_sessions():
     
     for session_id in list(auth_globals.session_dict.keys()):
@@ -63,12 +61,13 @@ def e_create_session(reqHandler, username, options):
         raise WebRequestException(400, 'error', 'AUTH_SESSION_LIMIT_EXCEEDED')
     
     new_session_id = e_generate_random_string(cookie_length)
+    expiration_time = time.time() +api_config()[plugin.name]['session_expiration_time']
     
     auth_globals.session_dict[new_session_id] = {
         'username': username,
         'remote_ip': i_get_client_ip(reqHandler),
         'creation_time': time.time(),
-        'expiration_time': time.time() +api_config()[plugin.name]['session_expiration_time']
+        'expiration_time': expiration_time,
     }
     
     auth_globals.session_counter += 1
@@ -82,7 +81,11 @@ def e_create_session(reqHandler, username, options):
     
     auth_globals.users_dict[username]['sessions'].append(new_session_id)
     
-    reqHandler.set_cookie("session_id", new_session_id)
+    kwargs = {}
+    if 'persistent' in options and options['persistent'] == True:
+      kwargs['expires'] = expiration_time
+    
+    reqHandler.set_cookie("session_id", new_session_id, **kwargs)
 
 @api_external_function(plugin)
 def e_delete_session(session_id):
