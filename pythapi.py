@@ -56,7 +56,7 @@ config_defaults = {
         'default_language': 'EN',
         'enabled_plugins': ['*'],
         'proxy_enabled': False,
-        'proxy': 'http://localhost:8080'
+        'proxy': 'http://localhost:8080',
     },
     'core.mysql': {
         'hostname': 'localhost',
@@ -72,7 +72,8 @@ config_defaults = {
         'http_port': [8123],
         'https_port': [8124],
         'ssl_cert_file': 'certfile_missing',
-        'ssl_key_file': 'keyfile_missing'
+        'ssl_key_file': 'keyfile_missing',
+        'additional_header': 'Cache-Control: no-cache',
     }
 }
 
@@ -177,6 +178,7 @@ class MainHandler(tornado.web.RequestHandler):
             match = action['c_regex'].match(path)
             if match:
                 try:
+                      
                     api_plugin.environment_variables = {}
                     api_plugin.environment_variables['transaction_id'] = transaction_id
                     self.log_access(method, path)
@@ -184,6 +186,9 @@ class MainHandler(tornado.web.RequestHandler):
                     transaction_id += 1
                     if transaction_id >= 65535:
                         transaction_id = 0
+                        
+                    for k, v in additional_header_dict.items():
+                      self.set_header(k, v)
                     
                     for hook in api_plugin.global_preexecution_hook_list:
                         hook['func'](self, action)
@@ -251,6 +256,9 @@ class MainHandler(tornado.web.RequestHandler):
                 
                 except api_plugin.WebRequestException as e:
                     self.set_status(e.error_code)
+                    for k, v in additional_header_dict.items():
+                      self.set_header(k, v)
+
                     self.set_header('Server', "pythapi/{}".format(version))
                     self.set_header('Content-Type', "application/json")
                     self.log_access_error(e.error_type, e.error_code, e.text_id)
@@ -270,6 +278,9 @@ class MainHandler(tornado.web.RequestHandler):
                     raise
         
         self.set_status(404)
+        for k, v in additional_header_dict.items():
+          self.set_header(k, v)
+
         self.set_header("Content-Type", 'application/json')
         
         return_json = {
@@ -556,6 +567,8 @@ def r_read_child_configs(config, depth = 0):
 
 def main():
     global log
+    global additional_header_dict
+    
     signal.signal(signal.SIGINT, termination_handler)
     signal.signal(signal.SIGTERM, termination_handler)
     
@@ -762,6 +775,13 @@ def main():
                         sys.exit(1)
         
         i_removeBrokenPlugins()
+        
+        additional_header_dict = {}
+        for raw_header in api_plugin.config['core.web']['additional_header'].split('\n'):
+            header_r = raw_header.split(':')
+            name = header_r[0].strip()
+            value = header_r[1].strip()
+            additional_header_dict[name] = value
         
         app = tornado.web.Application([
             (r"/(.*)?", MainHandler)
