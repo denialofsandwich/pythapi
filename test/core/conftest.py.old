@@ -1,9 +1,0 @@
-#!/usr/share/python3
-
-import pytest
-
-@pytest.fixture(scope="session", autouse=True)
-def execute_before_any_test():
-    print("##### START")
-    yield
-    print("##### STOP")

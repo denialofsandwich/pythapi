@@ -23,6 +23,7 @@
 
 import sys
 from api_plugin import *
+import api_plugin
 import MySQLdb
 import json
 
@@ -51,27 +52,27 @@ def i_build_permission_to_action_tree():
                 log.warning("Inconsistent permissions. Permission structure broken at: {}".format(action_data['permission']))
             i_dict['_data'] = action_data
 
-@api_event(auth_globals.plugin, 'load')
+@api_event(plugin, 'load')
 def load():
     global bf_basic_auth_delay
     global bf_temporary_ban_enabled
 
-    api_globals.current_user = "anonymous"
-    api_globals.auth_type = "none"
-    api_globals.current_token = None
-    api_globals.users_dict = {}
-    api_globals.user_token_dict = {}
-    api_globals.session_dict = {}
-    api_globals.roles_dict = {}
-    api_globals.write_through_cache_enabled = False
-    api_globals.bf_blacklist = {}
-    api_globals.bf_basic_auth_delay = 0
-    api_globals.bf_temporary_ban_enabled = True
-    api_globals.session_counter = 0
-    api_globals.permission_reduce_handlers = []
-    api_globals.subset_intersection_handlers = []
-    api_globals.plugin = plugin
-    api_globals.permission_to_action_tree = {}
+    auth_globals.current_user = "anonymous"
+    auth_globals.auth_type = "none"
+    auth_globals.current_token = None
+    auth_globals.users_dict = {}
+    auth_globals.user_token_dict = {}
+    auth_globals.session_dict = {}
+    auth_globals.roles_dict = {}
+    auth_globals.write_through_cache_enabled = False
+    auth_globals.bf_blacklist = {}
+    auth_globals.bf_basic_auth_delay = 0
+    auth_globals.bf_temporary_ban_enabled = True
+    auth_globals.session_counter = 0
+    auth_globals.permission_reduce_handlers = []
+    auth_globals.subset_intersection_handlers = []
+    auth_globals.plugin = plugin
+    auth_globals.permission_to_action_tree = {}
 
     rulesets.e_add_subset_intersection_handler(interfaces.i_subset_permission_handler)
     rulesets.e_add_permission_reduce_handler(interfaces.i_permission_reduce_handler)

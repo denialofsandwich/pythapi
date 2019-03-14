@@ -24,18 +24,13 @@
 import os, sys
 from api_plugin import *
 
-__all__ = [
-    'header',
-    'init',
-    'gpex_event',
-    'rulesets',
-    'interfaces',
-    'manage_users',
-    'manage_roles',
-    'manage_token',
-    'manage_sessions',
-    'install'
-]
-
 from .header import *
-from . import *
+from .init import *
+from .gpex_event import *
+from .rulesets import *
+from .interfaces import *
+from .manage_users import *
+from .manage_roles import *
+from .manage_token import *
+from .manage_sessions import *
+from .install import *

@@ -127,6 +127,7 @@ translation_dict = {
 
 http_server = None
 https_server = None
+ready = False
 
 def i_get_client_ip(reqHandler):
     
@@ -434,6 +435,7 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     elif check_successful and event_name == 'install':
         plugin.info['i_loaded'] = 1
         return 1
+
     if event_name in plugin.events:
         log.debug('Execute event "' +event_name +'" from ' +plugin_name)
 
@@ -467,7 +469,7 @@ def i_build_indices():
                 'plugin': plugin.name,
                 'func': plugin.events['global_postexecution_hook']
             })
-        
+
         api_plugin.action_tree[plugin_name] = {}
         for action in plugin.actions:
             if not action['method'] in api_plugin.action_call_dict:
@@ -509,6 +511,7 @@ def i_removeBrokenPlugins():
 
 def terminate_application():
     log.info("Terminating Webservers...")
+
     if http_server:
         http_server.stop()    
     if https_server:
@@ -552,11 +555,13 @@ def r_read_child_configs(config, depth = 0):
                 if not r_read_child_configs(config, depth +1):
                     return False
 
-def main(args, skip_loop=False):
+def main(args, test_mode=False):
     global log
     global http_server
     global https_server
     global version
+    global ready
+    global module_dict
     
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     version = 0.9
@@ -655,6 +660,7 @@ def main(args, skip_loop=False):
         plugin_whitelist = api_plugin.config['core.general']['enabled_plugins']
     
     log.debug("Importing and initializing plugins...")
+    module_dict = {}
     for i_dir in dir_r:
         raw_module_name = re.search('^plugins/(.*)$', i_dir).group(1)
         if raw_module_name[-3:] == '.py':
@@ -666,7 +672,9 @@ def main(args, skip_loop=False):
             log.debug("{} is disabled.".format(raw_module_name))
             continue
         
-        plugin = importlib.import_module("plugins." +module_name).plugin
+        module = importlib.import_module("plugins." +module_name)
+        plugin = module.plugin
+        module_dict[plugin.name] = module # Only for Test-mode
         
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
@@ -813,8 +821,12 @@ def main(args, skip_loop=False):
         logging.getLogger("tornado.application").propagate = False
 
         log.success("pythapi successfully started.")
+        ready = True
 
-        if not skip_loop:
+        if test_mode:
+            pass
+            
+        else:
             log.info("Entering main loop...")
             IOLoop.instance().start()
 
@@ -831,8 +843,8 @@ if __name__ == "__main__":
     parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
     parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
     parser.add_argument('--config', '-c', help="Add config-file")
+    parser.add_argument('--debug-override-config', help="Just for debugging purposes")
 
     args = parser.parse_args()
-    args.debug_override_config = None
 
     main(args)

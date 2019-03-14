@@ -1104,9 +1104,9 @@ def uninstall():
 
     auth = api_plugins()['auth']
     if auth.events['check']():
-        ruleset = auth.e_get_user('admin')['ruleset']
 
         try:
+            ruleset = auth.e_get_user('admin')['ruleset']
             ruleset['inherit'].remove(plugin.name +'_admin')
             auth.e_edit_user('admin', {'ruleset': ruleset})
         except: pass

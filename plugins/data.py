@@ -301,6 +301,7 @@ def check():
     db.close()
     
     if(result == 0):
+        log.debug("Required tables not found! Try to install this plugin first.")
         return 0
     
     return 1

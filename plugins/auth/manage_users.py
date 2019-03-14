@@ -55,22 +55,21 @@ def i_get_db_user(username):
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            SELECT * FROM """ +db_prefix +"""user WHERE name = %s;
-        """
-        
-        try:
-            dbc.execute(sql, [username])
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_get_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-        
-        result = dbc.fetchone()
-        if result == None:
-            raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
-        
-        return result
+    sql = """
+        SELECT * FROM """ +db_prefix +"""user WHERE name = %s;
+    """
+    
+    try:
+        dbc.execute(sql, [username])
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_get_db_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    
+    result = dbc.fetchone()
+    if result == None:
+        raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
+    
+    return result
 
 def i_list_db_user():
     db_prefix = api_config()['core.mysql']['prefix']
@@ -203,20 +202,19 @@ def e_create_user(username, user_type, data):
 
     h_password = e_hash_password(username, data['password'])
     
-    with db:
-        sql = """
-            INSERT INTO """ +db_prefix +"""user (
-                    name, type, h_password, ruleset
-                )
-                VALUES (%s, %s, %s, %s);
-        """
+    sql = """
+        INSERT INTO """ +db_prefix +"""user (
+                name, type, h_password, ruleset
+            )
+            VALUES (%s, %s, %s, %s);
+    """
+    
+    try:
+        dbc.execute(sql,[username, user_type, h_password, json.dumps(ruleset)])
+        db.commit()
         
-        try:
-            dbc.execute(sql,[username, user_type, h_password, json.dumps(ruleset)])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400, 'error', 'AUTH_USER_EXISTS')
+    except MySQLdb.IntegrityError as e:
+        raise WebRequestException(400, 'error', 'AUTH_USER_EXISTS')
     
     db_result = i_get_db_user(username)
     
@@ -256,20 +254,19 @@ def e_edit_user(username, data):
     if 'password' in data:
         h_password = e_hash_password(username, data['password'])
     
-        with db:
-            sql = """
-                UPDATE """ +db_prefix +"""user
-                    SET h_password = %s
-                    WHERE name = %s;
-            """
+        sql = """
+            UPDATE """ +db_prefix +"""user
+                SET h_password = %s
+                WHERE name = %s;
+        """
+        
+        try:
+            dbc.execute(sql,[h_password, username])
+            db.commit()
             
-            try:
-                dbc.execute(sql,[h_password, username])
-                db.commit()
-                
-            except MySQLdb.IntegrityError as e:
-                api_log().error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
-                raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+        except MySQLdb.IntegrityError as e:
+            api_log().error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
         
         if auth_globals.write_through_cache_enabled:
             auth_globals.users_dict[username]['h_password'] = h_password
@@ -279,20 +276,19 @@ def e_edit_user(username, data):
         ruleset = data['ruleset']
         ruleset = rulesets.i_reduce_ruleset(ruleset)
 
-        with db:
-            sql = """
-                UPDATE """ +db_prefix +"""user
-                    SET ruleset = %s
-                    WHERE name = %s;
-            """
+        sql = """
+            UPDATE """ +db_prefix +"""user
+                SET ruleset = %s
+                WHERE name = %s;
+        """
+        
+        try:
+            dbc.execute(sql,[json.dumps(ruleset), username])
+            db.commit()
             
-            try:
-                dbc.execute(sql,[json.dumps(ruleset), username])
-                db.commit()
-                
-            except MySQLdb.IntegrityError as e:
-                api_log().error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
-                raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+        except MySQLdb.IntegrityError as e:
+            api_log().error("e_edit_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
         if auth_globals.write_through_cache_enabled:
             auth_globals.users_dict[username]['time_modified'] = datetime.datetime.now()
@@ -316,19 +312,18 @@ def e_delete_user(username):
     if auth_globals.write_through_cache_enabled and not username in auth_globals.users_dict:
         raise WebRequestException(400, 'error', 'AUTH_USER_NOT_FOUND')
     
-    with db:
-        sql = """
-            DELETE FROM """ +db_prefix +"""user 
-                WHERE name = %s;
-        """
+    sql = """
+        DELETE FROM """ +db_prefix +"""user 
+            WHERE name = %s;
+    """
+    
+    try:
+        dbc.execute(sql,[username])
+        db.commit()
         
-        try:
-            dbc.execute(sql,[username])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("e_delete_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    except MySQLdb.IntegrityError as e:
+        api_log().error("e_delete_user: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
     if auth_globals.write_through_cache_enabled:
         rulesets.i_apply_ruleset(username, 'u', delete_only=True)

@@ -38,6 +38,5 @@ def start_pythapi(**kwargs):
     args.verbosity = kwargs.get('verbosity', None)
     args.debug_override_config = kwargs.get('debug_override_config', None)
 
-    pythapi.main(args, skip_loop=True)
-
+    pythapi.main(args, test_mode=True)
     return pythapi

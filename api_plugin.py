@@ -306,7 +306,12 @@ class api_plugin():
     def init(self):
         global config
         global translation_dict
-        
+
+        try:
+            del self.info['i_loaded']
+            del self.info['i_error']
+        except: pass
+
         add_config_defaults_and_convert(self.config_defaults)
         
         update(translation_dict, self.translation_dict)
