@@ -30,6 +30,14 @@ import pytest
 import json
 import MySQLdb
 
+@pytest.fixture(scope='module', autouse=True)
+def disable_write_through_cache(pythapi):
+    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = False
+
+    yield
+
+    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = True
+
 def test_create_user(pythapi, sqldb, storage):
     username = 'peter'
     ruleset = {
@@ -39,7 +47,6 @@ def test_create_user(pythapi, sqldb, storage):
     }
 
     auth = pythapi.module_dict['auth']
-    cache = auth.auth_globals
 
     # Execute
     user_id = auth.e_create_user(username, 'default', {
@@ -49,11 +56,6 @@ def test_create_user(pythapi, sqldb, storage):
 
     # Test Return Value
     assert type(user_id) == int
-
-    # Test Local Cache
-    assert username in cache.users_dict
-    user = cache.users_dict[username]
-    assert user['id'] == user_id
 
     # Test Database
     dbc = sqldb.cursor()
@@ -72,14 +74,8 @@ def test_create_user(pythapi, sqldb, storage):
     assert result[0] ==  user_id
     assert result[1] == username
     storage['uc_pwhash'] = result[2]
+    storage['uc_id'] = result[0]
     assert json.loads(result[4]) == ruleset
-
-    # Test permissions-index
-    p_index = cache.permission_to_action_tree
-    assert username in p_index['auth']['user']['get']['self']['_data']['users']
-    assert username in p_index['auth']['user']['edit']['self']['password']['_data']['users']
-
-    assert username not in p_index['auth']['user']['create']['_data']['users']
 
 def test_edit_user(pythapi, sqldb, storage):
     username = 'peter'
@@ -93,7 +89,6 @@ def test_edit_user(pythapi, sqldb, storage):
     }
 
     auth = pythapi.module_dict['auth']
-    cache = auth.auth_globals
 
     # Execute
     auth.e_edit_user(username, {
@@ -101,13 +96,9 @@ def test_edit_user(pythapi, sqldb, storage):
         'ruleset': ruleset,
     })
 
-    # Test Local Cache
-    assert username in cache.users_dict
-    assert cache.users_dict[username]['ruleset'] == ruleset
-
     # Test Database
     dbc = sqldb.cursor()
-    user_id = cache.users_dict[username]['id']
+    user_id = storage['uc_id']
 
     sql = """
         SELECT * FROM """ +sqldb.prefix +"""user WHERE id = %s;
@@ -162,12 +153,9 @@ def test_delete_user(pythapi, sqldb, storage):
     username = 'peter'
 
     auth = pythapi.module_dict['auth']
-    cache = auth.auth_globals
-    user_id = cache.users_dict[username]['id']
+    user_id = storage['uc_id']
 
     auth.e_delete_user(username)
-
-    assert username not in cache.users_dict
 
     dbc = sqldb.cursor()
 
@@ -183,11 +171,5 @@ def test_delete_user(pythapi, sqldb, storage):
     result = dbc.fetchone()
     assert result == None
 
-    # Test permissions-index
-    p_index = cache.permission_to_action_tree
-    assert username not in p_index['auth']['user']['get']['self']['_data']['users']
-    assert username not in p_index['auth']['user']['edit']['self']['password']['_data']['users']
-
-    assert username not in p_index['auth']['user']['create']['_data']['users']
-
     del storage['uc_pwhash']
+    del storage['uc_id']

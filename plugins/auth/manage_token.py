@@ -47,46 +47,44 @@ def i_get_db_user_token(username, token_name):
     else:
         user_id = manage_users.i_get_db_user(username)[0]
     
-    with db:
-        sql = """
-            SELECT * FROM """ +db_prefix +"""token WHERE user_id = %s AND token_name = %s;
-        """
-        
-        try:
-            dbc.execute(sql, [user_id, token_name])
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_get_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-        
-        result = dbc.fetchone()
-        if result == None:
-            raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
+    sql = """
+        SELECT * FROM """ +db_prefix +"""token WHERE user_id = %s AND token_name = %s;
+    """
     
-        return result
+    try:
+        dbc.execute(sql, [user_id, token_name])
+        
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_get_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    
+    result = dbc.fetchone()
+    if result == None:
+        raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
+
+    return result
 
 def i_list_db_user_token(username):
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            SELECT """ +db_prefix +"""token.id, name, token_name, h_token, """ +db_prefix +"""token.ruleset, """ +db_prefix +"""token.time_created, """ +db_prefix +"""token.time_modified
-                FROM """ +db_prefix +"""token
-                JOIN """ +db_prefix +"""user
-                ON user_id = """ +db_prefix +"""user.id
-                WHERE name = %s;
-        """
+    sql = """
+        SELECT """ +db_prefix +"""token.id, name, token_name, h_token, """ +db_prefix +"""token.ruleset, """ +db_prefix +"""token.time_created, """ +db_prefix +"""token.time_modified
+            FROM """ +db_prefix +"""token
+            JOIN """ +db_prefix +"""user
+            ON user_id = """ +db_prefix +"""user.id
+            WHERE name = %s;
+    """
+    
+    try:
+        dbc.execute(sql, [username])
         
-        try:
-            dbc.execute(sql, [username])
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_list_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-        
-        return dbc.fetchall()
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_list_db_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    
+    return dbc.fetchall()
 
 def i_list_db_token():
     db_prefix = api_config()['core.mysql']['prefix']
@@ -155,7 +153,8 @@ def e_list_user_token(username):
         return_json = []
         for token in i_list_db_user_token(username):
             i_entry = {
-                'token_name': token[1],
+                'token_name': token[2],
+                'username': token[1],
                 'ruleset': json.loads(token[4]),
                 'time_created': token[5],
                 'time_modified': token[6]
@@ -213,25 +212,24 @@ def e_create_user_token(username, token_name, ruleset = {'inherit': ['*']}):
     new_token = e_generate_random_string(cookie_length)
     h_new_token = e_hash_password('', new_token)
     
-    with db:
-        sql = """
-            INSERT INTO """ +db_prefix +"""token (
-                    token_name, h_token, user_id, ruleset
-                )
-                VALUES (%s, %s, %s, %s);
-        """
+    sql = """
+        INSERT INTO """ +db_prefix +"""token (
+                token_name, h_token, user_id, ruleset
+            )
+            VALUES (%s, %s, %s, %s);
+    """
+    
+    try:
+        dbc.execute(sql,[
+            token_name,
+            h_new_token,
+            user_id,
+            json.dumps(ruleset)
+        ])
+        db.commit()
         
-        try:
-            dbc.execute(sql,[
-                token_name,
-                h_new_token,
-                user_id,
-                json.dumps(ruleset)
-            ])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400, 'error', 'AUTH_TOKEN_EXISTS')
+    except MySQLdb.IntegrityError as e:
+        raise WebRequestException(400, 'error', 'AUTH_TOKEN_EXISTS')
     
     if auth_globals.write_through_cache_enabled:
         auth_globals.user_token_dict[h_new_token] = {
@@ -271,20 +269,19 @@ def e_edit_user_token(username, token_name, ruleset):
     # Check if the token exists
     i_get_db_user_token(username, token_name)
     
-    with db:
-        sql = """
-            UPDATE """ +db_prefix +"""token
-                SET ruleset = %s
-                WHERE user_id = %s AND token_name = %s;
-        """
-            
-        try:
-            dbc.execute(sql, [json.dumps(ruleset), user_id, token_name])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("e_delete_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    sql = """
+        UPDATE """ +db_prefix +"""token
+            SET ruleset = %s
+            WHERE user_id = %s AND token_name = %s;
+    """
+        
+    try:
+        dbc.execute(sql, [json.dumps(ruleset), user_id, token_name])
+        db.commit()
+        
+    except MySQLdb.IntegrityError as e:
+        api_log().error("e_delete_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
     if auth_globals.write_through_cache_enabled:
         for i, h_token in enumerate(auth_globals.users_dict[username]['token']):
@@ -316,19 +313,18 @@ def e_delete_user_token(username, token_name):
     # Check if the token exists
     i_get_db_user_token(username, token_name)
     
-    with db:
-        sql = """
-            DELETE FROM """ +db_prefix +"""token 
-                WHERE user_id = %s AND token_name = %s;
-        """
-            
-        try:
-            dbc.execute(sql,[user_id ,token_name])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("e_delete_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    sql = """
+        DELETE FROM """ +db_prefix +"""token 
+            WHERE user_id = %s AND token_name = %s;
+    """
+        
+    try:
+        dbc.execute(sql,[user_id ,token_name])
+        db.commit()
+        
+    except MySQLdb.IntegrityError as e:
+        api_log().error("e_delete_user_token: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
     if auth_globals.write_through_cache_enabled:
         for i in range(len(auth_globals.users_dict[username]['token'])):
