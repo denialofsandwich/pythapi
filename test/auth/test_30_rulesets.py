@@ -29,40 +29,47 @@
 import pytest
 import json
 
-#def test_create_role(pythapi, sqldb, storage):
-#    role_name = 'debug_role'
+def test_merge_permissions(pythapi):
+    auth = pythapi.module_dict['auth']
+
+    ruleset = {
+        'permissions': [
+            'auth.user.get.all',
+            'data.read',
+        ],
+        'inherit': [
+            'default',
+        ],
+    }
+    default_ruleset = auth.e_get_role('auth_default')['ruleset']
+
+    return_dict = auth.ir_merge_permissions(ruleset)
+
+    for rule in ruleset['permissions']:
+        assert rule in return_dict['permissions']
+
+    for rule in default_ruleset['permissions']:
+        assert rule in return_dict['permissions']
+
+#def test_reduce_ruleset(pythapi):
+#    auth = pythapi.module_dict['auth']
+#
 #    ruleset = {
 #        'permissions': [
-#            '*'
-#        ]
+#            'auth.user.get.all',
+#            'data.read',
+#        ],
+#        'inherit': [
+#            'default',
+#        ],
 #    }
+#    default_ruleset = auth.e_get_role('auth_default')['ruleset']
 #
-#    auth = pythapi.module_dict['auth']
-#    cache = auth.auth_globals
+#    return_dict = auth.ir_merge_permissions(ruleset)
 #
-#    role_id = auth.e_create_role(role_name, ruleset)
+#    for rule in ruleset['permissions']:
+#        assert rule in return_dict['permissions']
 #
-#    # Checking local cache
-#    assert role_name in cache.roles_dict
-#    role = cache.roles_dict[role_name]
-#    assert role['id'] == role_id
-#    assert role['ruleset'] == ruleset
-#
-#    # Checking Database
-#    dbc = sqldb.cursor()
-#
-#    sql = """
-#        SELECT * FROM """ +sqldb.prefix +"""role WHERE name = %s;
-#    """
-#    
-#    try:
-#        dbc.execute(sql, [role_name])
-#    except MySQLdb.IntegrityError as e:
-#        assert 0
-#
-#    result = dbc.fetchone()
-#
-#    assert result[0] ==  role_id
-#    assert result[1] == role_name
-#    assert json.loads(result[2]) == ruleset
-#
+#    for rule in default_ruleset['permissions']:
+#        assert rule in return_dict['permissions']
+
