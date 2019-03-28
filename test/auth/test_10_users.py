@@ -124,6 +124,12 @@ def test_edit_user(pythapi, sqldb, storage):
     assert storage['uc_pwhash'] != result[3]
     assert json.loads(result[4]) == ruleset
 
+    # Test permissions-index
+    p_index = cache.permission_to_action_tree
+    assert username in p_index['auth']['user']['get']['self']['_data']['users']
+    assert username in p_index['auth']['user']['edit']['self']['password']['_data']['users']
+    assert username in p_index['auth']['user']['create']['_data']['users']
+
 def test_get_user(pythapi, storage):
     username = 'peter'
 

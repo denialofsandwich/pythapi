@@ -32,6 +32,7 @@ import json
 def test_merge_permissions(pythapi):
     auth = pythapi.module_dict['auth']
 
+    # Test 1
     ruleset = {
         'permissions': [
             'auth.user.get.all',
@@ -51,25 +52,102 @@ def test_merge_permissions(pythapi):
     for rule in default_ruleset['permissions']:
         assert rule in return_dict['permissions']
 
-#def test_reduce_ruleset(pythapi):
-#    auth = pythapi.module_dict['auth']
-#
-#    ruleset = {
-#        'permissions': [
-#            'auth.user.get.all',
-#            'data.read',
-#        ],
-#        'inherit': [
-#            'default',
-#        ],
-#    }
-#    default_ruleset = auth.e_get_role('auth_default')['ruleset']
-#
-#    return_dict = auth.ir_merge_permissions(ruleset)
-#
-#    for rule in ruleset['permissions']:
-#        assert rule in return_dict['permissions']
-#
-#    for rule in default_ruleset['permissions']:
-#        assert rule in return_dict['permissions']
+    # Test 2
+    assert {} == auth.ir_merge_permissions({})
 
+def test_reduce_ruleset(pythapi):
+    auth = pythapi.module_dict['auth']
+
+    ruleset = {
+        'permissions': [
+            'auth.self.get.permissions',
+            'auth.self.get.permissions',
+            'auth.self.session.*',
+            'auth.self.session.create',
+            'auth.self.token.create',
+        ],
+        'inherit': [
+            'default',
+            'default',
+        ],
+    }
+
+    shouldBe_ruleset = {
+        'inherit': [
+            'default',
+        ],
+        'permissions': [
+            'auth.self.get.permissions',
+            'auth.self.session.*',
+            'auth.self.token.create',
+        ],
+    }
+
+    return_dict = auth.i_reduce_ruleset(ruleset)
+
+    for section in ['permissions', 'inherit']:
+        assert set(return_dict[section]) == set(shouldBe_ruleset[section])
+
+def test_subset_intersector(pythapi):
+    auth = pythapi.module_dict['auth']
+
+    ruleset = {
+        'permissions': [
+            'auth.self.session.*',
+            'auth.self.token.*',
+            'auth.user.get.self',
+            'auth.self.get.permissions',
+            'auth.user.edit.self.password',
+            'auth.role.*',
+        ],
+        'inherit': [
+            'default'
+        ],
+    }
+
+    subset = {
+        'inherit': [
+            'default',
+        ],
+        'permissions': [
+            'auth.self.get.permissions',
+            'auth.self.session.*',
+            'auth.self.token.create',
+        ],
+    }
+
+    shouldBe_ruleset = {
+        'permissions': [
+            'auth.self.session.*',
+            'auth.self.token.create',
+            'auth.self.get.permissions',
+        ],
+        'inherit': [
+            'default'
+        ]
+    }
+
+    intersected = auth.e_intersect_subset(ruleset, subset)
+
+    for section in ['permissions', 'inherit']:
+        assert set(intersected[section]) == set(shouldBe_ruleset[section])
+
+    # Test 2: Negative Test
+    subset = {
+        'inherit': [
+            'default',
+            'not_permitted',
+        ],
+        'permissions': [
+            'auth.self.get.permissions',
+            'auth.self.session.*',
+            'auth.self.token.create',
+            'auth.self.not_permitted.*',
+            'auth.self.still_not_permitted'
+        ],
+    }
+
+    intersected = auth.e_intersect_subset(ruleset, subset)
+
+    for section in ['permissions', 'inherit']:
+        assert set(intersected[section]) == set(shouldBe_ruleset[section])

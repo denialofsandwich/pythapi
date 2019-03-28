@@ -166,7 +166,7 @@ def e_list_user_token(username):
 
 def i_verify_and_reduce_token_ruleset(username, ruleset):
     user_ruleset = rulesets.e_get_permissions_of_user(username)
-    user_ruleset['inherit'] = auth_globals.users_dict[username]['ruleset'].get('inherit', [])
+    user_ruleset['inherit'] = manage_users.e_get_user(username)['ruleset'].get('inherit', [])
     
     inherit_all = False
     if 'inherit' in ruleset and '*' in ruleset['inherit']:

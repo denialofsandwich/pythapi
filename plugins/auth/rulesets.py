@@ -108,15 +108,20 @@ def e_get_permissions_of_user(username, reduced=True):
     return return_json
 
 @api_external_function(plugin)
-def e_get_permissions_of_token(h_token):
+def e_get_permissions_of_token(h_token, reduced=True):
     if not h_token in auth_globals.user_token_dict:
         raise WebRequestException(400, 'error', 'AUTH_TOKEN_NOT_FOUND')
 
-    token_data = copy.deepcopy(auth_globals.user_token_dict[h_token])
-    return_json = token_data['ruleset']
+    token_data = auth_globals.user_token_dict[h_token]
+    ruleset = token_data['ruleset']
 
     if 'inherit' in token_data['ruleset'] and '*' in token_data['ruleset']['inherit']:
-        return_json = auth_globals.users_dict[token_data['username']]['ruleset']
+        ruleset = auth_globals.users_dict[token_data['username']]['ruleset']
+
+    return_json = ir_merge_permissions(ruleset)
+
+    if reduced:
+        return_json = i_reduce_ruleset(return_json)
 
     return return_json
 
@@ -218,9 +223,6 @@ def i_apply_ruleset(ent_name, ent_type, delete_only=False):
         ruleset = e_get_permissions_of_user(ent_name)
     elif ent_type == 't':
         ruleset = e_get_permissions_of_token(ent_name)
-        if '*' in ruleset.get('inherit', []):
-            username = auth_globals.user_token_dict[ent_name]['username']
-            ruleset = auth_globals.users_dict[username]['ruleset']
 
     else:
         log.error('Unknown ent_type: {}'.format(ent_type))

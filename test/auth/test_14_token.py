@@ -78,12 +78,11 @@ def test_create_token(pythapi, sqldb, storage):
     assert json.loads(result[4]) == ruleset
 
     # Test permissions-index
-    #p_index = cache.permission_to_action_tree
-    ## TODO: Hier ist ein potentieller Bug.
-    #assert h_token in p_index['auth']['user']['get']['self']['_data']['token']
-    #assert h_token in p_index['auth']['user']['edit']['self']['password']['_data']['token']
-    #
-    #assert h_token not in p_index['auth']['user']['create']['_data']['token']
+    p_index = cache.permission_to_action_tree
+    assert h_token in p_index['auth']['user']['get']['self']['_data']['token']
+    assert h_token in p_index['auth']['user']['edit']['self']['password']['_data']['token']
+
+    assert h_token not in p_index['auth']['user']['create']['_data']['token']
 
 def test_edit_token(pythapi, sqldb, storage):
     username = 'admin'
@@ -124,6 +123,34 @@ def test_edit_token(pythapi, sqldb, storage):
     result = dbc.fetchone()
 
     assert json.loads(result[4]) == ruleset
+
+    # Test permissions-index
+    p_index = cache.permission_to_action_tree
+    assert h_token in p_index['auth']['user']['get']['self']['_data']['token']
+    assert h_token in p_index['auth']['user']['edit']['self']['password']['_data']['token']
+    assert h_token in p_index['auth']['user']['create']['_data']['token']
+
+def test_inherit_all(pythapi, sqldb, storage):
+    username = 'admin'
+    token_name = 'test_token'
+    ruleset = {
+        'inherit': [
+            '*',
+        ],
+    }
+
+    auth = pythapi.module_dict['auth']
+    cache = auth.auth_globals
+    h_token = storage['h_token']
+
+    # Execute
+    auth.e_edit_user_token(username, token_name, ruleset)
+
+    # Test permissions-index
+    p_index = cache.permission_to_action_tree
+    assert h_token in p_index['auth']['user']['get']['self']['_data']['token']
+    assert h_token in p_index['auth']['user']['edit']['self']['password']['_data']['token']
+    assert h_token in p_index['auth']['user']['create']['_data']['token']
 
 def test_get_token(pythapi, sqldb, storage):
     username = 'admin'

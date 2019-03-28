@@ -146,4 +146,3 @@ def test_delete_role(pythapi, sqldb, storage):
 
     result = dbc.fetchone()
     assert result == None
-    # TODO: check permission-index
