@@ -47,8 +47,6 @@ tr_loglevel = {
     6: 10
 }
 
-interposer_list = []
-
 class ColoredFormatter(logging.Formatter):
     def __init__(self, msg, fancy = True):
         logging.Formatter.__init__(self, msg)
@@ -77,6 +75,9 @@ class fancy_logger(logging.Logger):
                  logging_enabled,
                  logfile_path):
         
+        global interposer_list
+        interposer_list = []
+
         logging.addLevelName(15, 'ACCESS')
         logging.addLevelName(22, 'BEGIN')
         logging.addLevelName(25, 'SUCCESS')

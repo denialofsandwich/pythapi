@@ -27,11 +27,11 @@
 import sys
 import getpass
 import signal
-import configparser # apt
-import MySQLdb # apt
+import configparser
+import MySQLdb
 import tools.fancy_logs
 import importlib
-from tornado import httpserver # apt
+from tornado import httpserver
 from tornado.ioloop import IOLoop
 import tornado.web
 import glob
@@ -42,9 +42,6 @@ import logging
 import datetime
 import os
 import argparse
-
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
-version = 0.9
 
 config_defaults = {
     'core.general': {
@@ -133,6 +130,10 @@ translation_dict = {
         'DE': 'Ein interner Serverfehler wurde verursacht.'
     },
 }
+
+http_server = None
+https_server = None
+ready = False
 
 def i_get_client_ip(reqHandler):
     
@@ -453,6 +454,7 @@ def r_check_dependencies(plugin_name, max_depth, event_name, depth = 0):
     elif check_successful and event_name == 'install':
         plugin.info['i_loaded'] = 1
         return 1
+
     if event_name in plugin.events:
         log.debug('Execute event "' +event_name +'" from ' +plugin_name)
 
@@ -486,7 +488,7 @@ def i_build_indices():
                 'plugin': plugin.name,
                 'func': plugin.events['global_postexecution_hook']
             })
-        
+
         api_plugin.action_tree[plugin_name] = {}
         for action in plugin.actions:
             if not action['method'] in api_plugin.action_call_dict:
@@ -527,6 +529,13 @@ def i_removeBrokenPlugins():
             i += 1
 
 def terminate_application():
+    log.info("Terminating Webservers...")
+
+    if http_server:
+        http_server.stop()    
+    if https_server:
+        https_server.stop()
+
     log.info("Terminate all active plugins...")
     
     for plugin_name in reversed(api_plugin.dependency_list):
@@ -565,25 +574,19 @@ def r_read_child_configs(config, depth = 0):
                 if not r_read_child_configs(config, depth +1):
                     return False
 
-def main():
+def main(args, test_mode=False):
     global log
+    global http_server
+    global https_server
+    global version
+    global ready
+    global module_dict
     global additional_header_dict
-    
-    signal.signal(signal.SIGINT, termination_handler)
-    signal.signal(signal.SIGTERM, termination_handler)
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
-    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
-    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
-    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
-    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
-    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
-    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
-    parser.add_argument('--config', '-c', help="Add config-file")
 
-    args = parser.parse_args()
-    
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+    version = 0.9
+
+    api_plugin.init() # Initialize all Variables
     api_plugin.config = ConvertableConfigParser()
     
     if args.config == None:
@@ -593,6 +596,9 @@ def main():
     
     r_read_child_configs(api_plugin.config)
     
+    if args.debug_override_config != None:
+        api_plugin.config.read(args.debug_override_config)
+
     api_plugin.config = api_plugin.config.as_dict()
     api_plugin.add_config_defaults_and_convert(config_defaults)
 
@@ -674,8 +680,8 @@ def main():
         plugin_whitelist = api_plugin.config['core.general']['enabled_plugins']
     
     log.debug("Importing and initializing plugins...")
+    module_dict = {}
     for i_dir in dir_r:
-        
         raw_module_name = re.search('^plugins/(.*)$', i_dir).group(1)
         if raw_module_name[-3:] == '.py':
             module_name = raw_module_name[:-3]
@@ -686,7 +692,9 @@ def main():
             log.debug("{} is disabled.".format(raw_module_name))
             continue
         
-        plugin = importlib.import_module("plugins." +module_name).plugin
+        module = importlib.import_module("plugins." +module_name)
+        plugin = module.plugin
+        module_dict[plugin.name] = module # Only for Test-mode
         
         plugin.init()
         api_plugin.plugin_dict[plugin.name] = plugin
@@ -789,11 +797,13 @@ def main():
         
         open_ports = 0
 
+        http_server = tornado.httpserver.HTTPServer(app)
+
         http_ports = api_plugin.config['core.web']['http_port']
         http_ip    = api_plugin.config['core.web']['bind_ip']
         for port in http_ports:
             try:
-                app.listen(port,http_ip)
+                http_server.listen(port,http_ip)
                 open_ports += 1
                 log.debug('HTTP started at: {}:{}'.format(http_ip,port))
             except OSError as e:
@@ -838,9 +848,30 @@ def main():
         logging.getLogger("tornado.application").propagate = False
 
         log.success("pythapi successfully started.")
-        
-        log.info("Entering main loop...")
-        IOLoop.instance().start()
+        ready = True
+
+        if test_mode:
+            pass
+            
+        else:
+            log.info("Entering main loop...")
+            IOLoop.instance().start()
 
 if __name__ == "__main__":
-    main()
+    signal.signal(signal.SIGINT, termination_handler)
+    signal.signal(signal.SIGTERM, termination_handler)
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
+    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
+    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
+    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
+    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
+    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
+    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
+    parser.add_argument('--config', '-c', help="Add config-file")
+    parser.add_argument('--debug-override-config', help="Just for debugging purposes")
+
+    args = parser.parse_args()
+
+    main(args)

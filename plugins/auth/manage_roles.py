@@ -38,42 +38,40 @@ def i_get_db_role(role_name):
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            SELECT * FROM """ +db_prefix +"""role WHERE name = %s;
-        """
+    sql = """
+        SELECT * FROM """ +db_prefix +"""role WHERE name = %s;
+    """
+    
+    try:
+        dbc.execute(sql, [role_name])
         
-        try:
-            dbc.execute(sql, [role_name])
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_get_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
-        
-        result = dbc.fetchone()
-        if result == None:
-            raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
-        
-        return result
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_get_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    
+    result = dbc.fetchone()
+    if result == None:
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_NOT_FOUND')
+    
+    return result
 
 def i_list_db_roles():
     db_prefix = api_config()['core.mysql']['prefix']
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            SELECT * FROM """ +db_prefix +"""role;
-        """
-        
-        try:
-            dbc.execute(sql)
-        
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_list_db_roles: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501,'error','GENERAL_SQL_ERROR')
-        
-        return dbc.fetchall()
+    sql = """
+        SELECT * FROM """ +db_prefix +"""role;
+    """
+    
+    try:
+        dbc.execute(sql)
+    
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_list_db_roles: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501,'error','GENERAL_SQL_ERROR')
+    
+    return dbc.fetchall()
 
 def i_get_local_role(role_name):
     if not role_name in auth_globals.roles_dict:
@@ -140,20 +138,19 @@ def e_create_role(role_name, ruleset):
     
     ruleset = rulesets.i_reduce_ruleset(ruleset)
 
-    with db:
-        sql = """
-            INSERT INTO """ +db_prefix +"""role (
-                    name, ruleset
-                )
-                VALUES (%s, %s);
-        """
+    sql = """
+        INSERT INTO """ +db_prefix +"""role (
+                name, ruleset
+            )
+            VALUES (%s, %s);
+    """
+    
+    try:
+        dbc.execute(sql,[role_name, json.dumps(ruleset)])
+        db.commit()
         
-        try:
-            dbc.execute(sql,[role_name, json.dumps(ruleset)])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            raise WebRequestException(400, 'error', 'AUTH_ROLE_EXISTS')
+    except MySQLdb.IntegrityError as e:
+        raise WebRequestException(400, 'error', 'AUTH_ROLE_EXISTS')
     
     db_result = i_get_db_role(role_name)
     
@@ -174,20 +171,19 @@ def i_edit_db_role(role_name, ruleset):
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            UPDATE """ +db_prefix +"""role
-                SET ruleset = %s
-                WHERE name = %s;
-        """
+    sql = """
+        UPDATE """ +db_prefix +"""role
+            SET ruleset = %s
+            WHERE name = %s;
+    """
+    
+    try:
+        dbc.execute(sql,[json.dumps(ruleset), role_name])
+        db.commit()
         
-        try:
-            dbc.execute(sql,[json.dumps(ruleset), role_name])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_edit_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_edit_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
 @api_external_function(plugin)
 def e_edit_role(role_name, ruleset):
@@ -219,19 +215,18 @@ def i_delete_db_role(role_name):
     db = api_mysql_connect()
     dbc = db.cursor()
     
-    with db:
-        sql = """
-            DELETE FROM """ +db_prefix +"""role 
-                WHERE name = %s;
-        """
+    sql = """
+        DELETE FROM """ +db_prefix +"""role 
+            WHERE name = %s;
+    """
+    
+    try:
+        dbc.execute(sql,[role_name])
+        db.commit()
         
-        try:
-            dbc.execute(sql,[role_name])
-            db.commit()
-            
-        except MySQLdb.IntegrityError as e:
-            api_log().error("i_delete_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
-            raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
+    except MySQLdb.IntegrityError as e:
+        api_log().error("i_delete_db_role: {}".format(api_tr('GENERAL_SQL_ERROR')))
+        raise WebRequestException(501, 'error', 'GENERAL_SQL_ERROR')
 
 @api_external_function(plugin)
 def e_delete_role(role_name):
