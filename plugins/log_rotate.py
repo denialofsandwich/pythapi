@@ -46,6 +46,10 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin rotiert, komprimiert und löscht automatisiert logfiles.'
 }
 
+plugin.info['f_icon'] = {
+    'EN': 'insert_drive_file',
+}
+
 plugin.depends = [
     {
         'name': 'time',

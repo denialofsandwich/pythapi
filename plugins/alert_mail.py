@@ -44,6 +44,10 @@ plugin.info['f_description'] = {
     'DE': "Ein simpler E-Mail Alerter."
 }
 
+plugin.info['f_icon'] = {
+    'EN': 'notification_important'
+}
+
 plugin.depends = []
 
 plugin.config_defaults = {
