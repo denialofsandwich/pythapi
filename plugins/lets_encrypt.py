@@ -56,6 +56,10 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin ermöglicht Let\'s Encrypt Zertifikate anzufordern.'
 }
 
+plugin.info['f_icon'] = {
+    'EN': 'vpn_lock',
+}
+
 plugin.depends = [
     {
         'name': 'auth',

@@ -41,6 +41,10 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin verwaltet asynchrone jobs.'
 }
 
+plugin.info['f_icon'] = {
+    'EN': 'cached'
+}
+
 plugin.depends = []
 plugin.config_defaults = {
     plugin.name: {

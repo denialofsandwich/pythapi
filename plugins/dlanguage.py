@@ -30,13 +30,17 @@ plugin.name = "dlanguage"
 plugin.version = "1.0"
 plugin.essential = False
 plugin.info['f_name'] = {
-    'EN': 'Dynamic language',
-    'DE': 'Dynamische Sprachwahl'
+    'EN': 'Language',
+    'DE': 'Sprachwahl'
 }
 
 plugin.info['f_description'] = {
     'EN': 'This Plugin allow the user to set the language by themself.',
     'DE': 'Dieses Plugin ermöglicht es, dass jeder Benutzer selbst seine Sprache auswählen kann.'
+}
+
+plugin.info['f_icon'] = {
+    'EN': 'language'
 }
 
 plugin.depends = [

@@ -43,6 +43,10 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin ermöglicht es, Daten, basierend auf einem Key-Value Speicher, zu speichern.'
 }
 
+plugin.info['f_icon'] = {
+    'EN': 'storage'
+}
+
 plugin.depends = [
     {
         'name': 'auth',

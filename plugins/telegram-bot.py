@@ -37,13 +37,17 @@ plugin.essential = False
 plugin.info['f_name'] = "Telegram-bot plugin"
 plugin.info['f_description'] = "This plugin can control a telegram bot."
 plugin.info['f_name'] = {
-    'EN': 'Telegram-bot plugin',
-    'DE': 'Telegram-Bot Plugin'
+    'EN': 'Telegram-bot',
+    'DE': 'Telegram-Bot'
 }
 
 plugin.info['f_description'] = {
     'EN': 'This plugin can control a telegram bot.',
     'DE': 'Dieses Plugin ermöglicht die Steuerung eines Telegram Bots.'
+}
+
+plugin.info['f_icon'] = {
+    'EN': 'chat',
 }
 
 plugin.depends = [

@@ -39,6 +39,10 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin erlaubt es die Beschreibung und Meta-Informationen von Actions und Plugins einzusehen.'
 }
 
+plugin.info['f_icon'] = {
+    'EN': 'info',
+}
+
 plugin.depends = [
     {
         'name': 'auth',

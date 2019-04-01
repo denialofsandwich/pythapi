@@ -44,6 +44,10 @@ plugin.info['f_description'] = {
     'DE': 'Dieses Plugin steuert zeitgestuerte Events.'
 }
 
+plugin.info['f_icon'] = {
+    'EN': 'timer',
+}
+
 plugin.depends = [
     {
         'name': 'auth',

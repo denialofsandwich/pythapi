@@ -39,12 +39,16 @@ plugin.version = "1.6"
 plugin.essential = True
 plugin.info['f_name'] = {
     'EN': 'Authentification',
-    'DE': 'Authentifikation'
+    'DE': 'Authentifizierung'
 }
 
 plugin.info['f_description'] = {
     'EN': 'This plugin implements authentification. You can create accounts and grant permissions to them.',
     'DE': 'Dieses Plugin implementiert Authentifikation. Es können Accounts erstellt und diesem Rechte zugewiesen werden.'
+}
+
+plugin.info['f_icon'] = {
+    'EN': 'supervised_user_circle',
 }
 
 plugin.depends = []
