@@ -3,8 +3,7 @@
 #
 # Name:        fancy_logs.py
 # Author:      Rene Fa
-# Date:        22.06.2018
-# Version:     0.9
+# Date:        01.04.2019
 #
 # Copyright:   Copyright (C) 2018  Rene Fa
 #
