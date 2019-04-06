@@ -29,45 +29,29 @@ plugin = api_plugin()
 plugin.name = "dlanguage"
 plugin.version = "1.0"
 plugin.essential = False
-plugin.info['f_name'] = {
-    'EN': 'Language',
-    'DE': 'Sprachwahl'
+plugin.info["f_name"] = {"EN": "Language", "DE": "Sprachwahl"}
+
+plugin.info["f_description"] = {
+    "EN": "This Plugin allow the user to set the language by themself.",
+    "DE": "Dieses Plugin ermöglicht es, dass jeder Benutzer selbst seine Sprache auswählen kann.",
 }
 
-plugin.info['f_description'] = {
-    'EN': 'This Plugin allow the user to set the language by themself.',
-    'DE': 'Dieses Plugin ermöglicht es, dass jeder Benutzer selbst seine Sprache auswählen kann.'
-}
+plugin.info["f_icon"] = {"EN": "language"}
 
-plugin.info['f_icon'] = {
-    'EN': 'language'
-}
-
-plugin.depends = [
-    {
-        'name': 'auth',
-        'required': True
-    }
-]
+plugin.depends = [{"name": "auth", "required": True}]
 
 plugin.config_defaults = {}
 
-@api_event(plugin, 'global_preexecution_hook')
+
+@api_event(plugin, "global_preexecution_hook")
 def global_preexecution_hook(reqHandler, action):
 
     try:
-        acc_lang = reqHandler.request.headers.get('Accept-Language', None)
-        api_environment_variables()['language'] = acc_lang.split(',')[0].split(';')[0].upper()
-    except: pass
+        acc_lang = reqHandler.request.headers.get("Accept-Language", None)
+        api_environment_variables()["language"] = (
+            acc_lang.split(",")[0].split(";")[0].upper()
+        )
+    except:
+        pass
 
     return 1
-
-
-
-
-
-
-
-
-
-

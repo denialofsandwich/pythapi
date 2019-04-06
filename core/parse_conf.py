@@ -25,6 +25,7 @@ import glob
 import collections
 from . import casting
 
+
 def _update(d, u):
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
@@ -33,30 +34,35 @@ def _update(d, u):
             d[k] = v
     return d
 
+
 # TODO: Add verify_configuration method
 class ConfigNotSatisfiedException(Exception):
     def __init__(self, should_type, section_name, item_name):
-        msg = "Missing configuration value in: \"{}\" at: \"{}\". Should be of type: \"{}\"".format(section_name, item_name, should_type.__name__)
-        Exception.__init__(self,msg)
+        msg = 'Missing configuration value in: "{}" at: "{}". Should be of type: "{}"'.format(
+            section_name, item_name, should_type.__name__
+        )
+        Exception.__init__(self, msg)
 
-class PythapiConfigParser():
+
+class PythapiConfigParser:
     class DictConfigParser(configparser.ConfigParser):
         def parse_dict(self):
             d = dict(self._sections)
             for k in d:
                 d[k] = dict(self._defaults, **d[k])
-                d[k].pop('__name__', None)
-            return d            
-    
+                d[k].pop("__name__", None)
+            return d
+
     def __init__(self):
         self.defaults = {}
         self._dict = {}
-    
+
     def _apply_defaults(self):
         for section_name, section in list(self._dict.items()):
             for item_name, item in list(section.items()):
-                
-                try: skeleton = self.defaults[section_name][item_name]
+
+                try:
+                    skeleton = self.defaults[section_name][item_name]
                 except KeyError:
                     continue
 
@@ -68,51 +74,41 @@ class PythapiConfigParser():
 
     def update(self, u):
         return _update(self._dict, u)
-    
+
     def read_defaults(self, cfg_dict):
         readable_dict = {}
-        
+
         for section_name, section in cfg_dict.items():
             if section_name not in readable_dict:
                 readable_dict[section_name] = {}
-            
+
             for item_name, item in section.items():
-                if 'default' not in item:
+                if "default" not in item:
                     readable_dict[section_name][item_name] = None
 
-                readable_dict[section_name][item_name] = item['default']
+                readable_dict[section_name][item_name] = item["default"]
 
         self._dict = _update(readable_dict, self._dict)
         self.defaults = cfg_dict
-        
+
         self._apply_defaults()
-    
+
     def recursive_read(self, path):
-        
+
         tmp_cfg = self.DictConfigParser()
         tmp_cfg.read(path)
         tmp_dict = tmp_cfg.parse_dict()
         self.update(tmp_dict)
-        
+
         try:
-            next_path = tmp_dict['core.general']['include_files']
-            
+            next_path = tmp_dict["core.general"]["include_files"]
+
             for i_path in glob.glob(next_path):
                 i_cfg = PythapiConfigParser()
                 i_cfg.recursive_read(i_path)
                 self.update(i_cfg.as_dict())
-            
+
         except KeyError:
             pass
-        
+
         self._apply_defaults()
-
-
-
-
-
-
-
-
-
-

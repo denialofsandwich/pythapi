@@ -23,20 +23,21 @@ import importlib
 
 import argparse
 
+
 def start_pythapi(**kwargs):
 
-    pythapi = importlib.reload(importlib.import_module('pythapi'))
+    pythapi = importlib.reload(importlib.import_module("pythapi"))
 
     args = argparse.Namespace()
-    args.config = kwargs.get('config', None)
-    args.config_data = kwargs.get('config_data', [])
-    args.force = kwargs.get('force', False)
-    args.mode = kwargs.get('mode', 'run')
-    args.no_fancy = kwargs.get('no_fancy', False)
-    args.plugin = kwargs.get('plugin', '')
-    args.reinstall = kwargs.get('reinstall', False)
-    args.verbosity = kwargs.get('verbosity', None)
-    args.debug_override_config = kwargs.get('debug_override_config', None)
+    args.config = kwargs.get("config", None)
+    args.config_data = kwargs.get("config_data", [])
+    args.force = kwargs.get("force", False)
+    args.mode = kwargs.get("mode", "run")
+    args.no_fancy = kwargs.get("no_fancy", False)
+    args.plugin = kwargs.get("plugin", "")
+    args.reinstall = kwargs.get("reinstall", False)
+    args.verbosity = kwargs.get("verbosity", None)
+    args.debug_override_config = kwargs.get("debug_override_config", None)
 
     pythapi.main(args, test_mode=True)
     return pythapi

@@ -37,134 +37,96 @@ plugin = api_plugin()
 plugin.name = "auth"
 plugin.version = "1.6"
 plugin.essential = True
-plugin.info['f_name'] = {
-    'EN': 'Authentification',
-    'DE': 'Authentifizierung'
+plugin.info["f_name"] = {"EN": "Authentification", "DE": "Authentifizierung"}
+
+plugin.info["f_description"] = {
+    "EN": "This plugin implements authentification. You can create accounts and grant permissions to them.",
+    "DE": "Dieses Plugin implementiert Authentifikation. Es können Accounts erstellt und diesem Rechte zugewiesen werden.",
 }
 
-plugin.info['f_description'] = {
-    'EN': 'This plugin implements authentification. You can create accounts and grant permissions to them.',
-    'DE': 'Dieses Plugin implementiert Authentifikation. Es können Accounts erstellt und diesem Rechte zugewiesen werden.'
-}
-
-plugin.info['f_icon'] = {
-    'EN': 'supervised_user_circle',
-}
+plugin.info["f_icon"] = {"EN": "supervised_user_circle"}
 
 plugin.depends = []
 
 plugin.config_defaults = {
     plugin.name: {
-        'sec_salt': 'generatea64characterrandomstring',
-        'bf_basic_auth_delay': 0.5,
-        'bf_temporary_ban_enabled': True,
-        'session_expiration_time': 604800,
-        'session_create_limit': 1000,
-        'first_user_password': ""
+        "sec_salt": "generatea64characterrandomstring",
+        "bf_basic_auth_delay": 0.5,
+        "bf_temporary_ban_enabled": True,
+        "session_expiration_time": 604800,
+        "session_create_limit": 1000,
+        "first_user_password": "",
     }
 }
 
 plugin.translation_dict = {
-    'AUTH_USER_NOT_FOUND': {
-        'EN': 'User not found.',
-        'DE': 'Benutzer nicht gefunden.'
+    "AUTH_USER_NOT_FOUND": {"EN": "User not found.", "DE": "Benutzer nicht gefunden."},
+    "AUTH_USER_EXISTS": {
+        "EN": "User already exists.",
+        "DE": "Benutzer existiert bereits.",
     },
-    
-    'AUTH_USER_EXISTS': {
-        'EN': 'User already exists.',
-        'DE': 'Benutzer existiert bereits.'
+    "AUTH_ROLE_NOT_FOUND": {"EN": "Role not found.", "DE": "Rolle nicht gefunden."},
+    "AUTH_ROLE_EXISTS": {
+        "EN": "Role already exists.",
+        "DE": "Rolle existiert bereits.",
     },
-    
-    'AUTH_ROLE_NOT_FOUND': {
-        'EN': 'Role not found.',
-        'DE': 'Rolle nicht gefunden.'
+    "AUTH_SESSION_LIMIT_EXCEEDED": {
+        "EN": "Session limit exceeded.",
+        "DE": "Session Limit erreicht.",
     },
-    
-    'AUTH_ROLE_EXISTS': {
-        'EN': 'Role already exists.',
-        'DE': 'Rolle existiert bereits.'
+    "AUTH_SESSION_ID_NOT_FOUND": {
+        "EN": "Session ID doesn't exist.",
+        "DE": "Session ID nicht gefunden.",
     },
-    
-    'AUTH_SESSION_LIMIT_EXCEEDED': {
-        'EN': 'Session limit exceeded.',
-        'DE': 'Session Limit erreicht.'
+    "AUTH_SESSION_EXPIRED": {"EN": "Session expired.", "DE": "Session abgelaufen."},
+    "AUTH_TOKEN_NOT_FOUND": {
+        "EN": "Token doesn't exist.",
+        "DE": "Token nicht gefunden.",
     },
-    
-    'AUTH_SESSION_ID_NOT_FOUND': {
-        'EN': 'Session ID doesn\'t exist.',
-        'DE': 'Session ID nicht gefunden.'
+    "AUTH_TOKEN_EXISTS": {
+        "EN": "Token name already exists.",
+        "DE": "Tokenname existiert bereits.",
     },
-    
-    'AUTH_SESSION_EXPIRED': {
-        'EN': 'Session expired.',
-        'DE': 'Session abgelaufen.'
+    "AUTH_USER_IS_MEMBER": {
+        "EN": "User is already a member of this Role.",
+        "DE": "Benutzer ist bereits ein Mitglied dieser Rolle.",
     },
-    
-    'AUTH_TOKEN_NOT_FOUND': {
-        'EN': 'Token doesn\'t exist.',
-        'DE': 'Token nicht gefunden.'
+    "AUTH_USER_IS_NOT_MEMBER": {
+        "EN": "User is not a member of this Role.",
+        "DE": "Benutzer ist kein Mitglied dieser Rolle.",
     },
-    
-    'AUTH_TOKEN_EXISTS': {
-        'EN': 'Token name already exists.',
-        'DE': 'Tokenname existiert bereits.'
+    "AUTH_PERMISSIONS_DENIED": {
+        "EN": "Permissions denied.",
+        "DE": "Zugriff verweigert.",
     },
-    
-    'AUTH_USER_IS_MEMBER': {
-        'EN': 'User is already a member of this Role.',
-        'DE': 'Benutzer ist bereits ein Mitglied dieser Rolle.'
+    "AUTH_TOO_MANY_LOGIN_FAILS": {
+        "EN": "Too many failed login attempts.",
+        "DE": "Zu viele fehlerhafte Loginversuche.",
     },
-    
-    'AUTH_USER_IS_NOT_MEMBER': {
-        'EN': 'User is not a member of this Role.',
-        'DE': 'Benutzer ist kein Mitglied dieser Rolle.'
+    "AUTH_WRONG_PASSWORD_OR_USERNAME": {
+        "EN": "Invalid username or password.",
+        "DE": "Falscher Benutzername oder Passwort.",
     },
-    
-    'AUTH_PERMISSIONS_DENIED': {
-        'EN': 'Permissions denied.',
-        'DE': 'Zugriff verweigert.'
+    "AUTH_INVALID_USER_TOKEN": {
+        "EN": "Invalid API token.",
+        "DE": "Ungültiges API Token.",
     },
-    
-    'AUTH_TOO_MANY_LOGIN_FAILS': {
-        'EN': 'Too many failed login attempts.',
-        'DE': 'Zu viele fehlerhafte Loginversuche.'
+    "AUTH_INVALID_CSRF_TOKEN": {
+        "EN": "Invalid CSRF token.",
+        "DE": "Ungültiges CSRF Token.",
     },
-    
-    'AUTH_WRONG_PASSWORD_OR_USERNAME': {
-        'EN': 'Invalid username or password.',
-        'DE': 'Falscher Benutzername oder Passwort.'
+    "AUTH_SESSION_EXPIRED": {"EN": "Session expired.", "DE": "Session abgelaufen."},
+    "AUTH_PASSWORD_MISSING": {"EN": "Password missing.", "DE": "Passwort leer."},
+    "AUTH_SESSION_NOT_FOUND": {
+        "EN": "Session not found or already closed.",
+        "DE": "Session nicht gefunden oder bereits beendet.",
     },
-    
-    'AUTH_INVALID_USER_TOKEN': {
-        'EN': 'Invalid API token.',
-        'DE': 'Ungültiges API Token.'
+    "AUTH_EXECUTION_DENIED": {
+        "EN": "The execution of this request was denied.",
+        "DE": "Die Ausführung der Anfrage wurde verweigert.",
     },
-    
-    'AUTH_INVALID_CSRF_TOKEN': {
-        'EN': 'Invalid CSRF token.',
-        'DE': 'Ungültiges CSRF Token.'
-    },
-    
-    'AUTH_SESSION_EXPIRED': {
-        'EN': 'Session expired.',
-        'DE': 'Session abgelaufen.'
-    },
-    
-    'AUTH_PASSWORD_MISSING': {
-        'EN': 'Password missing.',
-        'DE': 'Passwort leer.'
-    },
-    
-    'AUTH_SESSION_NOT_FOUND': {
-        'EN': 'Session not found or already closed.',
-        'DE': 'Session nicht gefunden oder bereits beendet.'
-    },
-
-    'AUTH_EXECUTION_DENIED': {
-        'EN': 'The execution of this request was denied.',
-        'DE': 'Die Ausführung der Anfrage wurde verweigert.'
-    }
 }
+
 
 class auth_globals:
     current_user = "anonymous"
@@ -184,26 +146,28 @@ class auth_globals:
     plugin = plugin
     permission_to_action_tree = {}
 
+
 def i_get_client_ip(reqHandler):
-    
+
     if reqHandler.request.remote_ip == "127.0.0.1":
         x_real_ip = reqHandler.request.headers.get("X-Real-IP")
         x_forwarded_for = reqHandler.request.headers.get("X-Forwarded-For")
         return x_real_ip or x_forwarded_for or reqHandler.request.remote_ip
-    
+
     else:
         return reqHandler.request.remote_ip
 
+
 @api_external_function(plugin)
 def e_generate_random_string(size=6, chars=string.ascii_lowercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
+    return "".join(random.choice(chars) for _ in range(size))
+
 
 @api_external_function(plugin)
 def e_hash_password(username, password):
     h = hashlib.sha256()
-    h.update(username.encode('utf-8'))
-    h.update(password.encode('utf-8')) 
-    h.update(api_config()[plugin.name]['sec_salt'].encode('utf-8'))
+    h.update(username.encode("utf-8"))
+    h.update(password.encode("utf-8"))
+    h.update(api_config()[plugin.name]["sec_salt"].encode("utf-8"))
     h_password = h.hexdigest()
     return h_password
-

@@ -26,28 +26,21 @@ import logging
 import datetime
 
 color_codes = {
-    'DEBUG':    '[\033[94m{}\033[0m]',
-    'ACCESS':   '[\033[95m{}\033[0m]',
-    'INFO':     '[\033[92m{}\033[0m]',
-    'BEGIN':    '[\033[92m{}\033[0m]\033[92m   ',
-    'SUCCESS':  '\033[93m[\033[32m{}\033[0m\033[93m]\033[32m ',
-    'WARNING':  '[\033[93m{}\033[0m]',
-    'ERROR':    '[\033[31m{}\033[0m]',
-    'CRITICAL': '\033[93m[\033[31m{}\033[0m\033[93m]\033[31m'
+    "DEBUG": "[\033[94m{}\033[0m]",
+    "ACCESS": "[\033[95m{}\033[0m]",
+    "INFO": "[\033[92m{}\033[0m]",
+    "BEGIN": "[\033[92m{}\033[0m]\033[92m   ",
+    "SUCCESS": "\033[93m[\033[32m{}\033[0m\033[93m]\033[32m ",
+    "WARNING": "[\033[93m{}\033[0m]",
+    "ERROR": "[\033[31m{}\033[0m]",
+    "CRITICAL": "\033[93m[\033[31m{}\033[0m\033[93m]\033[31m",
 }
 
-tr_loglevel = {
-    0: 50,
-    1: 40,
-    2: 30,
-    3: 25,
-    4: 20,
-    5: 15,
-    6: 10
-}
+tr_loglevel = {0: 50, 1: 40, 2: 30, 3: 25, 4: 20, 5: 15, 6: 10}
+
 
 class ColoredFormatter(logging.Formatter):
-    def __init__(self, msg, fancy = True):
+    def __init__(self, msg, fancy=True):
         logging.Formatter.__init__(self, msg)
         self.fancy = fancy
 
@@ -55,8 +48,9 @@ class ColoredFormatter(logging.Formatter):
         levelname = record.levelname
         if self.fancy and levelname in color_codes:
             record.levelname = color_codes[levelname].format(levelname)
-            
+
         return logging.Formatter.format(self, record)
+
 
 class LoggingFunctionExecutor(logging.StreamHandler):
     def emit(self, record):
@@ -66,30 +60,30 @@ class LoggingFunctionExecutor(logging.StreamHandler):
         except (KeyboardInterrupt, SystemExit):
             raise
 
-class fancy_logger(logging.Logger):
 
-    def __init__(self,
-                 fancy_mode,
-                 loglevel,
-                 logging_enabled,
-                 logfile_path):
-        
+class fancy_logger(logging.Logger):
+    def __init__(self, fancy_mode, loglevel, logging_enabled, logfile_path):
+
         global interposer_list
         interposer_list = []
 
-        logging.addLevelName(15, 'ACCESS')
-        logging.addLevelName(22, 'BEGIN')
-        logging.addLevelName(25, 'SUCCESS')
-        logging.Logger.__init__(self, 'pythapi')
+        logging.addLevelName(15, "ACCESS")
+        logging.addLevelName(22, "BEGIN")
+        logging.addLevelName(25, "SUCCESS")
+        logging.Logger.__init__(self, "pythapi")
 
         self.setLoglevel(loglevel)
 
         if logging_enabled:
-            logfile_path = logfile_path.replace('[time]', datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
+            logfile_path = logfile_path.replace(
+                "[time]", datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+            )
 
             self.fout = logging.FileHandler(logfile_path)
             self.fout.setLevel(logging.DEBUG)
-            self.fout.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+            self.fout.setFormatter(
+                logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+            )
             self.addHandler(self.fout)
 
         self.sout = logging.StreamHandler(sys.stdout)
@@ -99,7 +93,7 @@ class fancy_logger(logging.Logger):
 
         self.addHandler(LoggingFunctionExecutor())
         self.addHandler(self.sout)
-    
+
     def success(self, *args):
         self.log(25, *args)
 
@@ -111,20 +105,24 @@ class fancy_logger(logging.Logger):
 
     def setFancy(self, flag):
         if flag:
-            self.sout.setFormatter(ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy = True))
+            self.sout.setFormatter(
+                ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy=True)
+            )
 
         else:
-            self.sout.setFormatter(ColoredFormatter('%(levelname)s %(message)s', fancy = False))
-        
+            self.sout.setFormatter(
+                ColoredFormatter("%(levelname)s %(message)s", fancy=False)
+            )
+
     def setLoglevel(self, loglevel):
-        
+
         self.loglevel = loglevel
-        
+
         if loglevel > 6:
             loglevel = 6
-        
+
         loglevel = tr_loglevel[loglevel]
-        
+
         self.setLevel(loglevel)
 
     def addInterposer(self, f):

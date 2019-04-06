@@ -31,25 +31,26 @@ import pytest
 import argparse
 import test.tools.pythapi_testing_tools as ptt
 
+
 @pytest.fixture(scope="session")
 def pythapi(request):
     global pythapi_instance
-    pythapi_instance = ptt.start_pythapi(
-        debug_override_config="test/base_conf.ini",
-    )
+    pythapi_instance = ptt.start_pythapi(debug_override_config="test/base_conf.ini")
 
     yield pythapi_instance
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         pythapi_instance.terminate_application()
 
+
 @pytest.fixture(scope="function")
 def sqldb(request):
 
     db = pythapi_instance.api_plugin.api_mysql_connect()
-    db.prefix = pythapi_instance.api_plugin.config['core.mysql']['prefix']
+    db.prefix = pythapi_instance.api_plugin.config["core.mysql"]["prefix"]
     yield db
     db.close()
+
 
 @pytest.fixture(scope="session")
 def storage(request):

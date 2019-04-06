@@ -30,40 +30,42 @@ import pytest
 import json
 import MySQLdb
 
-@pytest.fixture(scope='module', autouse=True)
+
+@pytest.fixture(scope="module", autouse=True)
 def disable_write_through_cache(pythapi):
-    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = False
+    pythapi.module_dict["auth"].auth_globals.write_through_cache_enabled = False
 
     yield
 
-    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = True
+    pythapi.module_dict["auth"].auth_globals.write_through_cache_enabled = True
+
 
 def test_create_token(pythapi, sqldb, storage):
-    username = 'admin'
-    token_name = 'test_token'
-    ruleset = {
-        'inherit': [
-            'default'
-        ]
-    }
+    username = "admin"
+    token_name = "test_token"
+    ruleset = {"inherit": ["default"]}
 
-    auth = pythapi.module_dict['auth']
+    auth = pythapi.module_dict["auth"]
 
     # Execute
     token = auth.e_create_user_token(username, token_name, ruleset)
-    h_token = auth.e_hash_password('', token)
-    storage['h_token'] = h_token
+    h_token = auth.e_hash_password("", token)
+    storage["h_token"] = h_token
 
     # Test Return Value
     assert type(token) == str
 
     # Test Database
-    user_id = auth.e_get_user(username)['id']
+    user_id = auth.e_get_user(username)["id"]
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""token WHERE user_id = %s AND token_name = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """token WHERE user_id = %s AND token_name = %s;
     """
+    )
 
     try:
         dbc.execute(sql, [user_id, token_name])
@@ -72,34 +74,32 @@ def test_create_token(pythapi, sqldb, storage):
 
     result = dbc.fetchone()
 
-    assert result[3] ==  h_token
+    assert result[3] == h_token
     assert json.loads(result[4]) == ruleset
 
-def test_edit_token(pythapi, sqldb, storage):
-    username = 'admin'
-    token_name = 'test_token'
-    ruleset = {
-        'permissions': [
-            '*',
-        ],
-        'inherit': [
-            'default',
-        ],
-    }
 
-    auth = pythapi.module_dict['auth']
-    h_token = storage['h_token']
+def test_edit_token(pythapi, sqldb, storage):
+    username = "admin"
+    token_name = "test_token"
+    ruleset = {"permissions": ["*"], "inherit": ["default"]}
+
+    auth = pythapi.module_dict["auth"]
+    h_token = storage["h_token"]
 
     # Execute
     auth.e_edit_user_token(username, token_name, ruleset)
 
     # Test Database
-    user_id = auth.e_get_user(username)['id']
+    user_id = auth.e_get_user(username)["id"]
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""token WHERE user_id = %s AND token_name = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """token WHERE user_id = %s AND token_name = %s;
     """
+    )
 
     try:
         dbc.execute(sql, [user_id, token_name])
@@ -110,17 +110,18 @@ def test_edit_token(pythapi, sqldb, storage):
 
     assert json.loads(result[4]) == ruleset
 
-def test_get_token(pythapi, sqldb, storage):
-    username = 'admin'
-    token_name = 'test_token'
 
-    auth = pythapi.module_dict['auth']
+def test_get_token(pythapi, sqldb, storage):
+    username = "admin"
+    token_name = "test_token"
+
+    auth = pythapi.module_dict["auth"]
 
     # Execute
     token_data = auth.e_get_user_token(username, token_name)
 
-    in_response = ['ruleset', 'token_name', 'username', 'time_created', 'time_modified']
-    not_in_response = ['h_token']
+    in_response = ["ruleset", "token_name", "username", "time_created", "time_modified"]
+    not_in_response = ["h_token"]
 
     for i in in_response:
         assert i in token_data
@@ -128,19 +129,20 @@ def test_get_token(pythapi, sqldb, storage):
     for i in not_in_response:
         assert i not in token_data
 
-def test_list_token(pythapi, sqldb, storage):
-    username = 'admin'
-    token_name = 'test_token'
 
-    auth = pythapi.module_dict['auth']
+def test_list_token(pythapi, sqldb, storage):
+    username = "admin"
+    token_name = "test_token"
+
+    auth = pythapi.module_dict["auth"]
     cache = auth.auth_globals
 
     # Execute
     token_data_list = auth.e_list_user_token(username)
     print(token_data_list)
 
-    in_response = ['ruleset', 'token_name', 'username', 'time_created', 'time_modified']
-    not_in_response = ['h_token']
+    in_response = ["ruleset", "token_name", "username", "time_created", "time_modified"]
+    not_in_response = ["h_token"]
 
     assert len(token_data_list) != 0
 
@@ -150,23 +152,28 @@ def test_list_token(pythapi, sqldb, storage):
     for i in not_in_response:
         assert i not in token_data_list[0]
 
-def test_delete_token(pythapi, sqldb, storage):
-    username = 'admin'
-    token_name = 'test_token'
 
-    auth = pythapi.module_dict['auth']
-    h_token = storage['h_token']
+def test_delete_token(pythapi, sqldb, storage):
+    username = "admin"
+    token_name = "test_token"
+
+    auth = pythapi.module_dict["auth"]
+    h_token = storage["h_token"]
 
     # Execute
     auth.e_delete_user_token(username, token_name)
 
     # Test Database
-    user_id = auth.e_get_user(username)['id']
+    user_id = auth.e_get_user(username)["id"]
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""token WHERE user_id = %s AND token_name = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """token WHERE user_id = %s AND token_name = %s;
     """
+    )
 
     try:
         dbc.execute(sql, [user_id, token_name])
@@ -176,4 +183,4 @@ def test_delete_token(pythapi, sqldb, storage):
     result = dbc.fetchone()
     assert result == None
 
-    del storage['h_token']
+    del storage["h_token"]

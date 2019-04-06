@@ -30,33 +30,35 @@ import pytest
 import json
 import MySQLdb
 
-@pytest.fixture(scope='module', autouse=True)
+
+@pytest.fixture(scope="module", autouse=True)
 def disable_write_through_cache(pythapi):
-    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = False
+    pythapi.module_dict["auth"].auth_globals.write_through_cache_enabled = False
 
     yield
 
-    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = True
+    pythapi.module_dict["auth"].auth_globals.write_through_cache_enabled = True
+
 
 def test_create_role(pythapi, sqldb, storage):
-    role_name = 'debug_role'
-    ruleset = {
-        'permissions': [
-            '*'
-        ]
-    }
+    role_name = "debug_role"
+    ruleset = {"permissions": ["*"]}
 
-    auth = pythapi.module_dict['auth']
+    auth = pythapi.module_dict["auth"]
 
     role_id = auth.e_create_role(role_name, ruleset)
 
     # Checking Database
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""role WHERE name = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """role WHERE name = %s;
     """
-    
+    )
+
     try:
         dbc.execute(sql, [role_name])
     except MySQLdb.IntegrityError as e:
@@ -64,29 +66,30 @@ def test_create_role(pythapi, sqldb, storage):
 
     result = dbc.fetchone()
 
-    assert result[0] ==  role_id
+    assert result[0] == role_id
     assert result[1] == role_name
     assert json.loads(result[2]) == ruleset
 
-def test_edit_role(pythapi, sqldb, storage):
-    role_name = 'debug_role'
-    ruleset = {
-        'permissions': [
-            'auth.role.delete'
-        ]
-    }
 
-    auth = pythapi.module_dict['auth']
+def test_edit_role(pythapi, sqldb, storage):
+    role_name = "debug_role"
+    ruleset = {"permissions": ["auth.role.delete"]}
+
+    auth = pythapi.module_dict["auth"]
 
     auth.e_edit_role(role_name, ruleset)
 
     # Checking Database
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""role WHERE name = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """role WHERE name = %s;
     """
-    
+    )
+
     try:
         dbc.execute(sql, [role_name])
     except MySQLdb.IntegrityError as e:
@@ -96,49 +99,52 @@ def test_edit_role(pythapi, sqldb, storage):
 
     assert json.loads(result[2]) == ruleset
 
-def test_get_role(pythapi, sqldb, storage):
-    role_name = 'debug_role'
 
-    auth = pythapi.module_dict['auth']
+def test_get_role(pythapi, sqldb, storage):
+    role_name = "debug_role"
+
+    auth = pythapi.module_dict["auth"]
 
     role = auth.e_get_role(role_name)
 
-    in_response = ['ruleset', 'time_created', 'time_modified', 'id']
+    in_response = ["ruleset", "time_created", "time_modified", "id"]
 
     for i in in_response:
         assert i in role
 
+
 def test_list_role(pythapi, sqldb, storage):
-    auth = pythapi.module_dict['auth']
+    auth = pythapi.module_dict["auth"]
 
     role_list = auth.e_list_roles()
 
-    in_response = ['ruleset', 'time_created', 'time_modified', 'id', 'role_name']
+    in_response = ["ruleset", "time_created", "time_modified", "id", "role_name"]
 
     assert len(role_list) != 0
 
     for i in in_response:
         assert i in role_list[0]
 
-def test_delete_role(pythapi, sqldb, storage):
-    role_name = 'debug_role'
-    ruleset = {
-        'permissions': [
-            'auth.role.delete'
-        ]
-    }
 
-    auth = pythapi.module_dict['auth']
+def test_delete_role(pythapi, sqldb, storage):
+    role_name = "debug_role"
+    ruleset = {"permissions": ["auth.role.delete"]}
+
+    auth = pythapi.module_dict["auth"]
 
     auth.e_delete_role(role_name)
 
     # Checking Database
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""role WHERE name = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """role WHERE name = %s;
     """
-    
+    )
+
     try:
         dbc.execute(sql, [role_name])
     except MySQLdb.IntegrityError as e:

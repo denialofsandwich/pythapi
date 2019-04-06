@@ -31,17 +31,43 @@ import core.main
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, core.main.termination_handler)
     signal.signal(signal.SIGTERM, core.main.termination_handler)
-    
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', default="run", nargs='?', choices=["run", "install", "uninstall"], help="Specifies the run-mode")
-    parser.add_argument('plugin', default="", nargs='?', help="Specify a plugin to install/uninstall")
-    parser.add_argument('--verbosity', '-v', type=int, help="Sets the verbosity")
-    parser.add_argument('--reinstall', '-r', action='store_true', help="Uninstalls a plugin before installing it")
-    parser.add_argument('--force', '-f', action='store_true', help="Force an instruction to execute")
-    parser.add_argument('--no-fancy', '-n', action='store_true', help="Disables the colorful logs and shows a more machine-readable logging format")
-    parser.add_argument('--config-data', '-d', default=[], action='append', help="Add config-parameter eg. (core.web.http_port=8123)")
-    parser.add_argument('--config', '-c', help="Add config-file")
-    parser.add_argument('--debug-override-config', help="Just for debugging purposes")
+    parser.add_argument(
+        "mode",
+        default="run",
+        nargs="?",
+        choices=["run", "install", "uninstall"],
+        help="Specifies the run-mode",
+    )
+    parser.add_argument(
+        "plugin", default="", nargs="?", help="Specify a plugin to install/uninstall"
+    )
+    parser.add_argument("--verbosity", "-v", type=int, help="Sets the verbosity")
+    parser.add_argument(
+        "--reinstall",
+        "-r",
+        action="store_true",
+        help="Uninstalls a plugin before installing it",
+    )
+    parser.add_argument(
+        "--force", "-f", action="store_true", help="Force an instruction to execute"
+    )
+    parser.add_argument(
+        "--no-fancy",
+        "-n",
+        action="store_true",
+        help="Disables the colorful logs and shows a more machine-readable logging format",
+    )
+    parser.add_argument(
+        "--config-data",
+        "-d",
+        default=[],
+        action="append",
+        help="Add config-parameter eg. (core.web.http_port=8123)",
+    )
+    parser.add_argument("--config", "-c", help="Add config-file")
+    parser.add_argument("--debug-override-config", help="Just for debugging purposes")
 
     args = parser.parse_args()
 

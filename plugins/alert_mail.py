@@ -31,33 +31,28 @@ import time
 import re
 
 plugin = api_plugin()
-plugin.name = 'alert_mail'
-plugin.version = '0.5'
+plugin.name = "alert_mail"
+plugin.version = "0.5"
 plugin.essential = False
-plugin.info['f_name'] = {
-    'EN': "E-Mail alerts",
-    'DE': "E-Mail Alerts"
+plugin.info["f_name"] = {"EN": "E-Mail alerts", "DE": "E-Mail Alerts"}
+
+plugin.info["f_description"] = {
+    "EN": "A simple mail alerter.",
+    "DE": "Ein simpler E-Mail Alerter.",
 }
 
-plugin.info['f_description'] = {
-    'EN': "A simple mail alerter.",
-    'DE': "Ein simpler E-Mail Alerter."
-}
-
-plugin.info['f_icon'] = {
-    'EN': 'notification_important'
-}
+plugin.info["f_icon"] = {"EN": "notification_important"}
 
 plugin.depends = []
 
 plugin.config_defaults = {
     plugin.name: {
-        'recievers': [],
-        'sender': "pythapi_alerter",
-        'target_loglevel': 2,
-        'regex_filter': ".*",
-        'subject': "Pythapi error {hostname}",
-        'body': """
+        "recievers": [],
+        "sender": "pythapi_alerter",
+        "target_loglevel": 2,
+        "regex_filter": ".*",
+        "subject": "Pythapi error {hostname}",
+        "body": """
             <font face="verdana">
             <h2>Pythapi returned an error.</h2><br>
             <table>
@@ -82,59 +77,66 @@ plugin.config_defaults = {
                     <td>{}</td>
                 </tr>
             </table></font>
-        """
+        """,
     }
 }
 
 plugin.translation_dict = {}
 
-tr_loglevel = {
-    0: 50,
-    1: 40,
-    2: 30,
-    3: 25,
-    4: 20,
-    5: 15,
-    6: 10
-}
+tr_loglevel = {0: 50, 1: 40, 2: 30, 3: 25, 4: 20, 5: 15, 6: 10}
 
 regex_filter_list = []
 
+
 def it_send_mail(record):
     config = api_config()[plugin.name]
-    for reciever in config['recievers']:
+    for reciever in config["recievers"]:
 
         hostname = socket.gethostname()
-        time_str = time.strftime('%H:%M:%S %d.%m.%Y', time.localtime(record.created))
-        severity = record.levelname.replace(r'\\033\[[0-9+]\m', '')
-        msg_str = config['body'].format(time=time_str, hostname=hostname, processid=record.process, severity=severity, message=record.msg)
+        time_str = time.strftime("%H:%M:%S %d.%m.%Y", time.localtime(record.created))
+        severity = record.levelname.replace(r"\\033\[[0-9+]\m", "")
+        msg_str = config["body"].format(
+            time=time_str,
+            hostname=hostname,
+            processid=record.process,
+            severity=severity,
+            message=record.msg,
+        )
 
         msg = MIMEText(msg_str)
-        msg['Subject'] = config['subject'].format(time=time_str, hostname=hostname, processid=record.process, severity=severity, message=record.msg)
-        msg['From'] = config['sender']
-        msg['To'] = reciever
-        msg['Content-type'] = 'text/html'
+        msg["Subject"] = config["subject"].format(
+            time=time_str,
+            hostname=hostname,
+            processid=record.process,
+            severity=severity,
+            message=record.msg,
+        )
+        msg["From"] = config["sender"]
+        msg["To"] = reciever
+        msg["Content-type"] = "text/html"
 
-        smtpserver = smtplib.SMTP('localhost')
-        smtpserver.sendmail(config['sender'], reciever, msg.as_string())
+        smtpserver = smtplib.SMTP("localhost")
+        smtpserver.sendmail(config["sender"], reciever, msg.as_string())
         smtpserver.quit()
 
+
 def i_debug_logging_interposer(record, handler):
-    if record.levelno >= tr_loglevel[api_config()[plugin.name]['target_loglevel']]:
+    if record.levelno >= tr_loglevel[api_config()[plugin.name]["target_loglevel"]]:
         hit = False
         for c_re in regex_filter_list:
             if c_re.search(record.msg):
                 hit = True
                 break
-        
+
         if hit:
             Thread(target=it_send_mail, args=(record,)).start()
 
-@api_event(plugin, 'load')
+
+@api_event(plugin, "load")
 def load():
     global smtpserver
 
-    for regex_str in api_config()[plugin.name]['regex_filter'].split('\n'):
+    for regex_str in api_config()[plugin.name]["regex_filter"].split("\n"):
         regex_filter_list.append(re.compile(regex_str))
 
     api_log().addInterposer(i_debug_logging_interposer)

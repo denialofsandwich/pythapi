@@ -21,28 +21,13 @@
 #
 
 config_defaults = {
-    'core.general': {
-        'loglevel': {
-            'type': int,
-            'default': 5,
-        },
-        'colored_logs': {
-            'type': bool,
-            'default': True,
-        },
-        'file_logging_enabled': {
-            'type': bool,
-            'default': True,
-        },
-        'logfile': {
-            'type': str,
-            'default': 'pythapilog_[time].log',
-        },
-        'user': {
-            'type': str,
-            'default': 'root',
-        },
+    "core.general": {
+        "loglevel": {"type": int, "default": 5},
+        "colored_logs": {"type": bool, "default": True},
+        "file_logging_enabled": {"type": bool, "default": True},
+        "logfile": {"type": str, "default": "pythapilog_[time].log"},
+        "user": {"type": str, "default": "root"},
     }
 }
 
-config_base_path = 'pythapi.ini'
+config_base_path = "pythapi.ini"

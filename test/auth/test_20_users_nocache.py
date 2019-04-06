@@ -30,29 +30,26 @@ import pytest
 import json
 import MySQLdb
 
-@pytest.fixture(scope='module', autouse=True)
+
+@pytest.fixture(scope="module", autouse=True)
 def disable_write_through_cache(pythapi):
-    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = False
+    pythapi.module_dict["auth"].auth_globals.write_through_cache_enabled = False
 
     yield
 
-    pythapi.module_dict['auth'].auth_globals.write_through_cache_enabled = True
+    pythapi.module_dict["auth"].auth_globals.write_through_cache_enabled = True
+
 
 def test_create_user(pythapi, sqldb, storage):
-    username = 'peter'
-    ruleset = {
-        'inherit': [
-            'default'
-        ]
-    }
+    username = "peter"
+    ruleset = {"inherit": ["default"]}
 
-    auth = pythapi.module_dict['auth']
+    auth = pythapi.module_dict["auth"]
 
     # Execute
-    user_id = auth.e_create_user(username, 'default', {
-        'password': '1234',
-        'ruleset': ruleset,
-    })
+    user_id = auth.e_create_user(
+        username, "default", {"password": "1234", "ruleset": ruleset}
+    )
 
     # Test Return Value
     assert type(user_id) == int
@@ -60,9 +57,13 @@ def test_create_user(pythapi, sqldb, storage):
     # Test Database
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""user WHERE id = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """user WHERE id = %s;
     """
+    )
 
     try:
         dbc.execute(sql, [user_id])
@@ -71,38 +72,33 @@ def test_create_user(pythapi, sqldb, storage):
 
     result = dbc.fetchone()
 
-    assert result[0] ==  user_id
+    assert result[0] == user_id
     assert result[1] == username
-    storage['uc_pwhash'] = result[2]
-    storage['uc_id'] = result[0]
+    storage["uc_pwhash"] = result[2]
+    storage["uc_id"] = result[0]
     assert json.loads(result[4]) == ruleset
 
-def test_edit_user(pythapi, sqldb, storage):
-    username = 'peter'
-    ruleset = {
-        'permissions': [
-            'auth.user.create',
-        ],
-        'inherit': [
-            'default'
-        ]
-    }
 
-    auth = pythapi.module_dict['auth']
+def test_edit_user(pythapi, sqldb, storage):
+    username = "peter"
+    ruleset = {"permissions": ["auth.user.create"], "inherit": ["default"]}
+
+    auth = pythapi.module_dict["auth"]
 
     # Execute
-    auth.e_edit_user(username, {
-        'password': '12346',
-        'ruleset': ruleset,
-    })
+    auth.e_edit_user(username, {"password": "12346", "ruleset": ruleset})
 
     # Test Database
     dbc = sqldb.cursor()
-    user_id = storage['uc_id']
+    user_id = storage["uc_id"]
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""user WHERE id = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """user WHERE id = %s;
     """
+    )
 
     try:
         dbc.execute(sql, [user_id])
@@ -112,18 +108,19 @@ def test_edit_user(pythapi, sqldb, storage):
     result = dbc.fetchone()
 
     assert result[1] == username
-    assert storage['uc_pwhash'] != result[3]
+    assert storage["uc_pwhash"] != result[3]
     assert json.loads(result[4]) == ruleset
 
-def test_get_user(pythapi, storage):
-    username = 'peter'
 
-    auth = pythapi.module_dict['auth']
+def test_get_user(pythapi, storage):
+    username = "peter"
+
+    auth = pythapi.module_dict["auth"]
 
     user = auth.e_get_user(username)
 
-    in_response = ['ruleset', 'username', 'time_created', 'time_modified', 'type', 'id']
-    not_in_response = ['h_password']
+    in_response = ["ruleset", "username", "time_created", "time_modified", "type", "id"]
+    not_in_response = ["h_password"]
 
     for i in in_response:
         assert i in user
@@ -131,15 +128,16 @@ def test_get_user(pythapi, storage):
     for i in not_in_response:
         assert i not in user
 
-    assert user['username'] == username
+    assert user["username"] == username
+
 
 def test_list_user(pythapi, storage):
-    auth = pythapi.module_dict['auth']
+    auth = pythapi.module_dict["auth"]
 
     user_list = auth.e_list_users()
 
-    in_response = ['ruleset', 'username', 'time_created', 'time_modified', 'type', 'id']
-    not_in_response = ['h_password']
+    in_response = ["ruleset", "username", "time_created", "time_modified", "type", "id"]
+    not_in_response = ["h_password"]
 
     assert len(user_list) != 0
 
@@ -149,19 +147,24 @@ def test_list_user(pythapi, storage):
     for i in not_in_response:
         assert i not in user_list[0]
 
-def test_delete_user(pythapi, sqldb, storage):
-    username = 'peter'
 
-    auth = pythapi.module_dict['auth']
-    user_id = storage['uc_id']
+def test_delete_user(pythapi, sqldb, storage):
+    username = "peter"
+
+    auth = pythapi.module_dict["auth"]
+    user_id = storage["uc_id"]
 
     auth.e_delete_user(username)
 
     dbc = sqldb.cursor()
 
-    sql = """
-        SELECT * FROM """ +sqldb.prefix +"""user WHERE id = %s;
+    sql = (
+        """
+        SELECT * FROM """
+        + sqldb.prefix
+        + """user WHERE id = %s;
     """
+    )
 
     try:
         dbc.execute(sql, [user_id])
@@ -171,5 +174,5 @@ def test_delete_user(pythapi, sqldb, storage):
     result = dbc.fetchone()
     assert result == None
 
-    del storage['uc_pwhash']
-    del storage['uc_id']
+    del storage["uc_pwhash"]
+    del storage["uc_id"]

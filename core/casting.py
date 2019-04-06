@@ -20,26 +20,30 @@
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
 
-def try_strToInt(val, **kwargs):
-    return try_intToInt(int(val), **kwargs)
 
-def try_strToBool(val, validator=None, **kwargs):
-    
-    if val.lower() in ['true', '1']:
+def str_to_int(val, **kwargs):
+    return int_to_int(int(val), **kwargs)
+
+
+def str_to_bool(val, validator=None, **kwargs):
+
+    if val.lower() in ["true", "1"]:
         return True
-    elif val.lower() in ['false', '0']:
+    elif val.lower() in ["false", "0"]:
         return False
-    
+
     raise ValueError
 
-def try_strToStr(val, regex=None, validator=None, **kwargs):
-    
+
+def str_to_str(val, regex=None, validator=None, **kwargs):
+
     if validator and not validator(val):
         raise ValueError
-    
+
     return val
 
-def try_intToInt(val, min=None, max=None, validator=None, **kwargs):
+
+def int_to_int(val, min=None, max=None, validator=None, **kwargs):
 
     if min and val < min:
         raise ValueError
@@ -47,25 +51,19 @@ def try_intToInt(val, min=None, max=None, validator=None, **kwargs):
         raise ValueError
     elif validator and not validator(val):
         raise ValueError
-    
+
     return val
 
+
 _convert_dict = {
-    str: {
-        int: try_strToInt,
-        bool: try_strToBool,
-        str: try_strToStr,
-    },
-    bool: {
-        bool: lambda x, **kwargs: x,
-    },
-    int: {
-        int: try_intToInt,
-    }
+    str: {int: str_to_int, bool: str_to_bool, str: str_to_str},
+    bool: {bool: lambda x, **kwargs: x},
+    int: {int: int_to_int},
 }
 
+
 def cast_to(value, t=None, **kwargs):
-    t = t or kwargs['type']
+    t = t or kwargs["type"]
     try:
         return _convert_dict[type(value)][t](value, **kwargs)
     except KeyError:
