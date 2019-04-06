@@ -3,13 +3,10 @@
 #
 # Name:        pythapi
 # Author:      Rene Fa
-# Date:        10.07.2018
+# Date:        02.04.2019
 version = 2.0
 #
-# Description: This is a RESTful API WebServer with focus on extensibility.
-#              It's target is to make it possible to easily build your own API.
-#
-# Copyright:   Copyright (C) 2018  Rene Fa
+# Copyright:   Copyright (C) 2019  Rene Fa
 #
 #              This program is free software: you can redistribute it and/or modify
 #              it under the terms of the GNU Affero General Public License as published by
@@ -25,27 +22,17 @@ version = 2.0
 #
 
 import signal, sys, os
-import configparser, argparse
 import glob
 
-import tornado.web
-import tornado.httpserver
 import tornado.ioloop
-from tornado import gen
 
 from . import fancy_logs
+from . import parse_conf
 from . import defaults
-
-class MyHandler(tornado.web.RequestHandler):
-
-    @gen.coroutine
-    def get(self):
-        self.write('before')
-        yield gen.sleep(5)
-        self.write('after')
-        self.finish()
+from . import webserver
 
 def terminate_application():
+    webserver.terminate()
     log.info("Pythapi terminated.")
     sys.exit(0)
 
@@ -56,12 +43,48 @@ def termination_handler(signal, frame):
 def run(args, test_mode=False):
     global log
 
+    # Read configuration files
+    config_parser = parse_conf.PythapiConfigParser()
+    config_parser.read_defaults(defaults.config_defaults) # Core defaults only
+    config_parser.recursive_read(defaults.config_base_path)
+    
+    config_cgen = config_parser.as_dict()['core.general']
+
     # Initialize fancy_logs
+    # TODO: Indentation if fancy=true
     log = fancy_logs.fancy_logger(
-    	True,
-        6,
-        False,
-        'pythapilog_nope.txt'
+        config_cgen['colored_logs'],
+        config_cgen['loglevel'],
+        config_cgen['file_logging_enabled'],
+        config_cgen['logfile'],
     )
 
-    log.debug("Hallo Welt!")
+    # Initialize and load Plugins
+    # TODO: Initialize and load Plugins
+
+    # Initialize the Tornado Webservers
+    webserver.start(
+        config_parser.as_dict()['core.web'],
+        log,
+    )
+    log.success("pythapi successfully started.")
+    
+    log.info("Entering main loop...")
+    tornado.ioloop.IOLoop.current().start()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
