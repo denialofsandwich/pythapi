@@ -10,6 +10,8 @@ commitandpush.sh
 downloads/tmp_telegram.jpg
 pythapilog_*
 
+.idea/*
+
 *.swp
 
 # C extensions

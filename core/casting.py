@@ -20,6 +20,9 @@
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
 
+# TODO: extend library
+# TODO: default type (str)
+
 
 def str_to_int(val, **kwargs):
     return int_to_int(int(val), **kwargs)
@@ -43,6 +46,19 @@ def str_to_str(val, regex=None, validator=None, **kwargs):
     return val
 
 
+def str_to_list(val, delimiter=',', neutral=' \t\n', children=None, **kwargs):
+    children = children or {}
+
+    if val.strip(neutral) == '':
+        return []
+
+    wlist = val.split(delimiter)
+    for i, item in enumerate(wlist):
+        wlist[i] = cast_to(item.strip(neutral), **children)
+
+    return wlist
+
+
 def int_to_int(val, min=None, max=None, validator=None, **kwargs):
 
     if min and val < min:
@@ -55,15 +71,24 @@ def int_to_int(val, min=None, max=None, validator=None, **kwargs):
     return val
 
 
+def list_to_list(val, **kwargs):
+    return val
+
+
 _convert_dict = {
-    str: {int: str_to_int, bool: str_to_bool, str: str_to_str},
-    bool: {bool: lambda x, **kwargs: x},
+    str: {int: str_to_int, bool: str_to_bool, str: str_to_str, list: str_to_list},
     int: {int: int_to_int},
+    bool: {bool: lambda x, **kwargs: x},
+    list: {list: list_to_list},
 }
 
 
 def cast_to(value, t=None, **kwargs):
-    t = t or kwargs["type"]
+    t = t or kwargs["type"] or None
+
+    if not t:
+        return value
+
     try:
         return _convert_dict[type(value)][t](value, **kwargs)
     except KeyError:

@@ -24,7 +24,7 @@ import tornado.web
 import tornado.httpserver
 from tornado import gen
 
-
+# TODO: Implement as plugin
 class MyHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
@@ -52,5 +52,9 @@ def start(config, p_log):
     app = tornado.web.Application([(r"/", MyHandler)])
 
     http_server = tornado.httpserver.HTTPServer(app)
-    http_server.bind(8888)
+    ip_address = config['bind_ip']
+    for port in config['http_port']:
+        http_server.bind(port, ip_address)
+        log.debug("HTTP started at: {}:{}".format(ip_address, port))
+
     http_server.start()

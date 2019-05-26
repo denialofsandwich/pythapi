@@ -36,6 +36,7 @@ def _update(d, u):
 
 
 # TODO: Add verify_configuration method
+# TODO: implement '+=' operator
 class ConfigNotSatisfiedException(Exception):
     def __init__(self, should_type, section_name, item_name):
         msg = 'Missing configuration value in: "{}" at: "{}". Should be of type: "{}"'.format(

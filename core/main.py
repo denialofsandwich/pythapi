@@ -4,7 +4,6 @@
 # Name:        pythapi
 # Author:      Rene Fa
 # Date:        02.04.2019
-version = 2.0
 #
 # Copyright:   Copyright (C) 2019  Rene Fa
 #
@@ -21,19 +20,21 @@ version = 2.0
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
 
-import signal, sys, os
-import glob
-
-import tornado.ioloop
+import sys
+import asyncio
+import importlib
+import importlib.util
 
 from . import fancy_logs
 from . import parse_conf
 from . import defaults
-from . import webserver
+from . import plugin_base
+
+
+version = 2.0
 
 
 def terminate_application():
-    webserver.terminate()
     log.info("Pythapi terminated.")
     sys.exit(0)
 
@@ -43,6 +44,7 @@ def termination_handler(signal, frame):
     terminate_application()
 
 
+# TODO: Create tests
 def run(args, test_mode=False):
     global log
 
@@ -61,13 +63,27 @@ def run(args, test_mode=False):
         config_cgen["file_logging_enabled"],
         config_cgen["logfile"],
     )
+    plugin_base.log = log
 
     # Initialize and load Plugins
-    # TODO: Initialize and load Plugins
+    plugin_search_paths = ['plugins'] + config_cgen['additional_plugin_paths']
+    for path in plugin_search_paths:
+        sys.path.append(path)
 
-    # Initialize the Tornado Webservers
-    webserver.start(config_parser.as_dict()["core.web"], log)
+    tmp_plugin_name_list = config_cgen['enabled_plugins']
+    for plugin_filename in list(tmp_plugin_name_list):
+        if not importlib.util.find_spec(plugin_filename):
+            continue
+
+        try:
+            module = importlib.import_module(plugin_filename)
+            module.plugin.events['core.load']()
+        except ImportError as e:
+            log.error("Error while importing {}".format(plugin_filename), exc_info=e)
+
+
+
     log.success("pythapi successfully started.")
 
     log.info("Entering main loop...")
-    tornado.ioloop.IOLoop.current().start()
+    asyncio.get_event_loop().run_forever()
