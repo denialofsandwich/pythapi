@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 pythapi.ini
-plugins/debug.py
+plugins/debug*.py
 plugins/h_*.py
 commitandpush.sh
 downloads/tmp_telegram.jpg

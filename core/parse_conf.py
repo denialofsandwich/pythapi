@@ -1,24 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-#
-# Name:        pythapi
-# Author:      Rene Fa
-# Date:        03.04.2019
-#
-# Copyright:   Copyright (C) 2019  Rene Fa
-#
-#              This program is free software: you can redistribute it and/or modify
-#              it under the terms of the GNU Affero General Public License as published by
-#              the Free Software Foundation, either version 3 of the License, or any later version.
-#
-#              This program is distributed in the hope that it will be useful,
-#              but WITHOUT ANY WARRANTY; without even the implied warranty of
-#              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#              GNU Affero General Public License for more details.
-#
-#              You should have received a copy of the GNU Affero General Public License
-#              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
-#
 
 import configparser
 import glob
@@ -34,12 +15,9 @@ def _update(d, u):
             d[k] = v
     return d
 
-
-# TODO: Add verify_configuration method
-# TODO: implement '+=' operator
 class ConfigNotSatisfiedException(Exception):
     def __init__(self, should_type, section_name, item_name):
-        msg = 'Missing configuration value in: "{}" at: "{}". Should be of type: "{}"'.format(
+        msg = 'Missing configuration value in: "{}.{}". Should be of type: "{}"'.format(
             section_name, item_name, should_type.__name__
         )
         Exception.__init__(self, msg)
@@ -58,16 +36,39 @@ class PythapiConfigParser:
         self.defaults = {}
         self._dict = {}
 
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __setitem__(self, key, value):
+        self._dict[key] = value
+
     def _apply_defaults(self):
         for section_name, section in list(self._dict.items()):
             for item_name, item in list(section.items()):
+
+                operator = None
+                if item_name[-1] in ['+']:
+                    operator = item_name[-1]
+                    unaltered_item_name = item_name
+                    item_name = item_name[0:-1].strip()
+
+                if operator:
+                    print(item_name)
 
                 try:
                     skeleton = self.defaults[section_name][item_name]
                 except KeyError:
                     continue
 
-                new_item = casting.cast_to(item, **skeleton)
+                if operator == '+':
+                    new_item = casting.cast_to(section[item_name], **skeleton) + casting.cast_to(item, **skeleton)
+                    del self._dict[section_name][unaltered_item_name]
+                else:
+                    new_item = casting.cast_to(item, **skeleton)
+
+                if operator:
+                    print(new_item)
+
                 self._dict[section_name][item_name] = new_item
 
     def as_dict(self):
@@ -87,10 +88,10 @@ class PythapiConfigParser:
                 if "default" not in item:
                     readable_dict[section_name][item_name] = None
 
-                readable_dict[section_name][item_name] = item["default"]
+                readable_dict[section_name][item_name] = item.get('default', None)
 
         self._dict = _update(readable_dict, self._dict)
-        self.defaults = cfg_dict
+        self.defaults = _update(self.defaults, cfg_dict)
 
         self._apply_defaults()
 
@@ -113,3 +114,31 @@ class PythapiConfigParser:
             pass
 
         self._apply_defaults()
+
+    def read_list(self, l):
+
+        d = {}
+        for p in l:
+            s1 = p.split('=')
+            s2 = s1[0].split('.')
+
+            data = s1[1].strip()
+            key = s2[-1]
+            section = '.'.join(s2[0:-1])
+
+            if section not in d:
+                d[section] = {}
+
+            d[section][key] = data
+
+        self.update(d)
+        self._apply_defaults()
+
+    def verify(self):
+        for section_name, section in self.defaults.items():
+            for item_name, default in section.items():
+                if (
+                    'default' not in default and
+                    self._dict.get(section_name, {}).get(item_name, None) == None
+                ):
+                    raise ConfigNotSatisfiedException(default['type'], section_name, item_name)

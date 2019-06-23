@@ -20,22 +20,20 @@
 #              along with this program.  If not, see https://www.gnu.org/licenses/agpl-3.0.de.html.
 #
 
-import os
 import sys
 import logging
-import datetime
+import copy
 
 color_codes = {
-    "DEBUG": "[\033[94m{}\033[0m]",
-    "ACCESS": "[\033[95m{}\033[0m]",
-    "INFO": "[\033[92m{}\033[0m]",
-    "BEGIN": "[\033[92m{}\033[0m]\033[92m   ",
-    "SUCCESS": "\033[93m[\033[32m{}\033[0m\033[93m]\033[32m ",
-    "WARNING": "[\033[93m{}\033[0m]",
-    "ERROR": "[\033[31m{}\033[0m]",
-    "CRITICAL": "\033[93m[\033[31m{}\033[0m\033[93m]\033[31m",
+    "DEBUG": "[\033[94m{:^8}\033[0m]{}",
+    "ACCESS": "[\033[95m{:^8}\033[0m]{}",
+    "INFO": "[\033[92m{:^8}\033[0m]{}",
+    "SUCCESS": "\033[93m[\033[32m{:^8}\033[0m\033[93m]\033[32m{}",
+    "WARNING": "[\033[93m{:^8}\033[0m]{}",
+    "ERROR": "[\033[31m{:^8}\033[0m]{}",
+    "CRITICAL": "\033[93m[\033[31m{:^8}\033[0m\033[93m]\033[31m{}",
 }
-
+_indent = 0
 tr_loglevel = {0: 50, 1: 40, 2: 30, 3: 25, 4: 20, 5: 15, 6: 10}
 
 
@@ -45,40 +43,46 @@ class ColoredFormatter(logging.Formatter):
         self.fancy = fancy
 
     def format(self, record):
+        record = copy.copy(record)
         levelname = record.levelname
         if self.fancy and levelname in color_codes:
-            record.levelname = color_codes[levelname].format(levelname)
+            record.levelname = color_codes[levelname].format(levelname, ' .'*_indent)
 
-        return logging.Formatter.format(self, record)
+        formatted = logging.Formatter.format(self, record)
+
+        if self.fancy:
+            formatted = formatted + "\033[0m"
+
+        return formatted
 
 
 class LoggingFunctionExecutor(logging.StreamHandler):
+    def __init__(self, interposer_list):
+        logging.StreamHandler.__init__(self)
+        self.interposer_list = interposer_list
+
     def emit(self, record):
         try:
-            for f in interposer_list:
+            for f in self.interposer_list:
                 f(record, self)
         except (KeyboardInterrupt, SystemExit):
             raise
 
 
-class fancy_logger(logging.Logger):
+class FancyLogger(logging.Logger):
     def __init__(self, fancy_mode, loglevel, logging_enabled, logfile_path):
 
-        global interposer_list
-        interposer_list = []
+        self.interposer_list = []
+        self.loglevel = 0
+        self.fancy = fancy_mode
 
         logging.addLevelName(15, "ACCESS")
-        logging.addLevelName(22, "BEGIN")
         logging.addLevelName(25, "SUCCESS")
         logging.Logger.__init__(self, "pythapi")
 
-        self.setLoglevel(loglevel)
+        self.set_loglevel(loglevel)
 
         if logging_enabled:
-            logfile_path = logfile_path.replace(
-                "[time]", datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
-            )
-
             self.fout = logging.FileHandler(logfile_path)
             self.fout.setLevel(logging.DEBUG)
             self.fout.setFormatter(
@@ -89,32 +93,40 @@ class fancy_logger(logging.Logger):
         self.sout = logging.StreamHandler(sys.stdout)
         self.sout.setLevel(logging.DEBUG)
 
-        self.setFancy(fancy_mode)
+        self.set_fancy(fancy_mode)
 
-        self.addHandler(LoggingFunctionExecutor())
+        self.addHandler(LoggingFunctionExecutor(self.interposer_list))
         self.addHandler(self.sout)
 
     def success(self, *args):
         self.log(25, *args)
 
-    def begin(self, *args):
-        self.log(22, *args)
-
     def access(self, *args):
         self.log(15, *args)
 
-    def setFancy(self, flag):
-        if flag:
-            self.sout.setFormatter(
-                ColoredFormatter("%(levelname)-19s %(message)s\033[0m", fancy=True)
-            )
+    def indent(self, num):
+        if not self.fancy:
+            return
 
-        else:
-            self.sout.setFormatter(
-                ColoredFormatter("%(levelname)s %(message)s", fancy=False)
-            )
+        global _indent
+        _indent += num
 
-    def setLoglevel(self, loglevel):
+        if _indent < 0:
+            _indent = 0
+
+    def blank(self):
+        if not self.fancy:
+            return
+
+        print()
+
+    def set_fancy(self, flag):
+        self.fancy = flag
+        self.sout.setFormatter(
+            ColoredFormatter("%(levelname)s %(message)s", fancy=flag)
+        )
+
+    def set_loglevel(self, loglevel):
 
         self.loglevel = loglevel
 
@@ -125,5 +137,5 @@ class fancy_logger(logging.Logger):
 
         self.setLevel(loglevel)
 
-    def addInterposer(self, f):
-        interposer_list.append(f)
+    def add_interposer(self, f):
+        self.interposer_list.append(f)
