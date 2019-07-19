@@ -37,6 +37,7 @@ class PythapiPlugin:
 
         self.reinit()
 
+
 def event(plugin, event_name, **kwargs):
     def ap_generator(f):
         plugin.events[event_name] = f

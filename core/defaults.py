@@ -13,15 +13,15 @@ config_defaults = {
         },
         "file_logging_enabled": {
             "type": bool,
-            "default": True
+            "default": False
         },
         "logfile": {
             "type": str,
-            "default": "pythapilog_[time].log"
+            "default": "pythapilog.log"
         },
         "enabled_plugins": {
             "type": list,
-            "default": ['*'],
+            "default": [],
             "children": {
                 "type": str,
             }

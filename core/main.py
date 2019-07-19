@@ -13,10 +13,31 @@ from . import plugin_base
 
 
 version = 2.0
+loop = None
+loaded_event = None
+log = None
+terminated = True
 
 
-def terminate_application():
-    log.info("Pythapi terminated.")
+def terminate_application(error_msg=None, exc_info=None):
+    global terminated
+    if terminated:
+        return
+
+    if loaded_event is not None:
+        loaded_event.set()
+
+    if loop is not None:
+        loop.call_soon_threadsafe(loop.stop)
+
+    if log is not None:
+        if error_msg is not None:
+            log.critical(error_msg, exc_info=exc_info)
+
+        log.indent(-999)
+        log.info("Pythapi terminated.")
+
+    terminated = True
     sys.exit(0)
 
 
@@ -27,17 +48,19 @@ def termination_handler(signal, frame):
 
 def r_mark_broken_dependencies(plugin_name, plugin_dict, inverse_dependency_table, depth=0):
     if depth > len(plugin_dict):
-        log.critical("Loop in dependency tree!")
-        terminate_application()
+        terminate_application("Loop in dependency tree!")
 
     try:
         plugin = plugin_dict[plugin_name]
     except KeyError:
         return
 
-    for inv_dependency_name in inverse_dependency_table[plugin_name]:
+    for id_name, id_required in inverse_dependency_table[plugin_name]:
+        if id_required is False:
+            continue
+
         r_mark_broken_dependencies(
-            inv_dependency_name,
+            id_name,
             plugin_dict,
             inverse_dependency_table,
             depth+1
@@ -50,8 +73,7 @@ def serialize_plugin_hierarchy(plugin_dict, inverse_dependency_table, single_plu
     # Step 1: Traverse dependency tree
     def r_traverse_dependencies(i_plugin, i_depth=0):
         if i_depth > len(plugin_dict):
-            log.critical("Loop in dependency tree!")
-            terminate_application()
+            terminate_application("Loop in dependency tree!")
 
         if i_plugin.is_placed:
             return []
@@ -69,6 +91,7 @@ def serialize_plugin_hierarchy(plugin_dict, inverse_dependency_table, single_plu
                     )
                 )
             except KeyError:
+                log.error("{} is missing {}.".format(plugin_name, i_dependency['name']))
                 r_mark_broken_dependencies(
                     i_plugin.name,
                     plugin_dict,
@@ -96,7 +119,7 @@ def serialize_plugin_hierarchy(plugin_dict, inverse_dependency_table, single_plu
     # Step 2: Remove plugins with broken dependencies
     for plugin_name, plugin in dict(plugin_dict).items():
         if plugin.error_code == 1:
-            log.error("Disabling {} due to an error.".format(plugin_name))
+            log.info("Disabling {} due to an error.".format(plugin_name))
             serialized_list.remove(plugin_name)
             del plugin_dict[plugin_name]
 
@@ -104,16 +127,34 @@ def serialize_plugin_hierarchy(plugin_dict, inverse_dependency_table, single_plu
 
 
 # TODO: Create tests
-def run(args, test_mode=False):
+def run(args, event=None, config_dict=None):
+    global terminated
     global log
+    global loop
+    global loaded_event
+    loaded_event = event
 
+    if not terminated:
+        print("Pythapi is already running!")
+
+        if loaded_event is not None:
+            loaded_event.set()
+
+        return
+
+    terminated = False
     # Reset plugin_base variables
     plugin_base.init()
 
     # Read configuration files
     config_parser = parse_conf.PythapiConfigParser()
     config_parser.read_defaults(defaults.config_defaults)  # Core defaults only
-    config_parser.recursive_read(args.config or defaults.config_base_path)
+
+    if config_dict:
+        config_parser.recursive_read_dict(config_dict)
+    else:
+        config_parser.recursive_read(args.config or defaults.config_base_path)
+
     config_parser.read_list(args.config_parameter)
 
     config_cgen = config_parser["core.general"]
@@ -126,8 +167,6 @@ def run(args, test_mode=False):
         config_cgen["logfile"],
         )
     plugin_base.log = log
-    log.debug("Args: {}".format(vars(args)))
-    log.debug("Config: {}".format(config_parser.as_dict()))
 
     log.info("Start importing plugins...")
     log.indent(1)
@@ -150,11 +189,9 @@ def run(args, test_mode=False):
             config_parser.read_defaults(module.plugin.config_defaults)
             module.plugin.reinit()
 
-        except ImportError as e:
-            log.critical("Error while importing {}".format(plugin_filename), exc_info=e)
-            terminate_application()
+        except Exception as e:
+            terminate_application("Error while importing {}".format(plugin_filename), exc_info=e)
     log.indent(-1)
-    log.blank()
 
     # Verifiy Configuration
     log.info("Loading Plugins...")
@@ -162,8 +199,7 @@ def run(args, test_mode=False):
     try:
         config_parser.verify()
     except parse_conf.ConfigNotSatisfiedException as e:
-        log.error(e)
-        terminate_application()
+        terminate_application(e)
 
     # Build plugin_dict and inverse_dependency_table
     plugin_dict = {}
@@ -176,7 +212,7 @@ def run(args, test_mode=False):
     for plugin_name, plugin in plugin_dict.items():
         for dependency in plugin.depends:
             try:
-                inverse_dependency_table[dependency['name']].add(plugin_name)
+                inverse_dependency_table[dependency['name']].add((plugin_name, dependency['required']))
             except KeyError:
                 continue
 
@@ -220,30 +256,28 @@ def run(args, test_mode=False):
                 log.indent(1)
                 plugin_dict[plugin_name].events["core.uninstall"]()
                 log.indent(-1)
-                log.blank()
 
             if main_event == "core.uninstall":
                 break
 
         # Triggering main_event event
+        skip = False
         for plugin_name in serialized_plugin_list:
             if plugin_dict[plugin_name].is_loaded:
                 continue
 
+            check_successful = True
             if "core.check" in plugin_dict[plugin_name].events:
                 log.debug("Checking {}...".format(plugin_name))
                 log.indent(1)
                 check_successful = plugin_dict[plugin_name].events['core.check']() is not False
                 log.indent(-1)
-                log.blank()
-
-            else:
-                check_successful = True
 
             if not check_successful and main_event == 'core.load':
                 mark_error(plugin_name)
                 error_occurred = True
-                continue
+                skip = True
+                break
             elif check_successful and main_event == 'core.install':
                 continue
 
@@ -254,13 +288,16 @@ def run(args, test_mode=False):
             log.indent(1)
             load_successful = plugin_dict[plugin_name].events[main_event]() is not False
             log.indent(-1)
-            log.blank()
+
             if load_successful:
                 plugin_dict[plugin_name].is_loaded = True
             else:
                 mark_error(plugin_name)
                 error_occurred = True
                 continue
+
+        if skip:
+            continue
 
         if main_event == 'core.load':
             for plugin_name in serialized_plugin_list:
@@ -272,7 +309,6 @@ def run(args, test_mode=False):
                 log.indent(1)
                 plugin_dict[plugin_name].events["core.load_optional"]()
                 log.indent(-1)
-                log.blank()
 
         if not error_occurred:
             break
@@ -289,4 +325,9 @@ def run(args, test_mode=False):
         log.success("pythapi successfully started.")
 
     log.info("Entering main loop...")
-    asyncio.get_event_loop().run_forever()
+    loop = asyncio.get_event_loop()
+    
+    if loaded_event is not None:
+        loaded_event.set()
+
+    loop.run_forever()

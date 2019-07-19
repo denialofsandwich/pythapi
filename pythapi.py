@@ -19,7 +19,7 @@ if __name__ == "__main__":
         help="Specifies the run-mode",
     )
     parser.add_argument(
-        "plugin", default="", nargs="?", help="Specify a plugin to install/uninstall"
+        "plugin", nargs="?", help="Specify a plugin to install/uninstall"
     )
     parser.add_argument("--verbosity", "-v", type=int, help="Sets the verbosity")
     parser.add_argument(
