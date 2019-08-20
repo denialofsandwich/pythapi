@@ -2,42 +2,25 @@
 # -*- coding: utf-8 -*-
 
 import core.plugin_base
-from core.plugin_base import log
 
 log = None
 
 plugin = core.plugin_base.PythapiPlugin("debug1")
-plugin.version = "1.0"
-plugin.essential = False
-plugin.info['f_name'] = {
-    'EN': 'Debug',
-    'DE': 'Bugfix'
-}
 
-plugin.info['f_description'] = {
-    'EN': 'To test stuff.',
-    'DE': 'Um Sachen zu machen.'
-}
 
-plugin.info['f_icon'] = {
-    'EN': 'storage'
-}
+@core.plugin_base.event(plugin, 'core.init')
+def init():
+    plugin.version = "1.0"
+    plugin.essential = False
 
-plugin.depends = [
-    {
-        'name': 'debug2',
-        'required': False
-    }
-]
+    plugin.depends = [
+        {
+            'name': 'debug2',
+            'required': False
+        }
+    ]
 
-plugin.translation_dict = {
-    'DATA_ILLEGAL_CHARACTER_FOUND': {
-        'EN': "Invalid character in key name found.",
-        'DE': "Ungültiges Zeichen in Schlüsselnamen gefunden."
-    }
-}
-
-plugin.config_defaults = {}
+    plugin.config_defaults = {}
 
 
 @core.plugin_base.event(plugin, 'core.check')
@@ -57,13 +40,6 @@ def load():
 def load_optional():
     log.debug("I'm load optional! 2")
     return True
-
-
-@core.plugin_base.event(plugin, 'core.install')
-def install():
-    log = core.plugin_base.log
-
-    log.debug("I'm installed! 1")
 
 
 @core.plugin_base.event(plugin, 'core.uninstall')

@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import asyncio
 import importlib
 import importlib.util
+import asyncio
 
 from . import fancy_logs
 from . import parse_conf
@@ -26,6 +26,14 @@ def terminate_application(error_msg=None, exc_info=None):
 
     if loaded_event is not None:
         loaded_event.set()
+
+    for plugin_name, plugin in plugin_base.plugin_dict.items() or []:
+        if not plugin.is_loaded:
+            continue
+
+        if 'core.terminate' in plugin.events:
+            for event, data in plugin.events['core.terminate']:
+                event()
 
     if loop is not None:
         loop.call_soon_threadsafe(loop.stop)
@@ -126,7 +134,6 @@ def serialize_plugin_hierarchy(plugin_dict, inverse_dependency_table, single_plu
     return serialized_list
 
 
-# TODO: Create tests
 def run(args, event=None, config_dict=None):
     global terminated
     global log
@@ -149,6 +156,7 @@ def run(args, event=None, config_dict=None):
     # Read configuration files
     config_parser = parse_conf.PythapiConfigParser()
     config_parser.read_defaults(defaults.config_defaults)  # Core defaults only
+    plugin_base.config = config_parser
 
     if config_dict:
         config_parser.recursive_read_dict(config_dict)
@@ -254,7 +262,8 @@ def run(args, event=None, config_dict=None):
 
                 log.info("Triggering {} event for {}...".format("core.uninstall", plugin_name))
                 log.indent(1)
-                plugin_dict[plugin_name].events["core.uninstall"]()
+                for event, data in plugin_dict[plugin_name].events["core.uninstall"]:
+                    event()
                 log.indent(-1)
 
             if main_event == "core.uninstall":
@@ -270,7 +279,8 @@ def run(args, event=None, config_dict=None):
             if "core.check" in plugin_dict[plugin_name].events:
                 log.debug("Checking {}...".format(plugin_name))
                 log.indent(1)
-                check_successful = plugin_dict[plugin_name].events['core.check']() is not False
+                for event, data in plugin_dict[plugin_name].events['core.check']:
+                    check_successful = check_successful and event() is not False
                 log.indent(-1)
 
             if not check_successful and main_event == 'core.load':
@@ -286,7 +296,9 @@ def run(args, event=None, config_dict=None):
 
             log.info("Triggering {} event for {}...".format(main_event, plugin_name))
             log.indent(1)
-            load_successful = plugin_dict[plugin_name].events[main_event]() is not False
+            load_successful = True
+            for event, data in plugin_dict[plugin_name].events[main_event]:
+                load_successful = load_successful and event() is not False
             log.indent(-1)
 
             if load_successful:
@@ -294,8 +306,8 @@ def run(args, event=None, config_dict=None):
             else:
                 mark_error(plugin_name)
                 error_occurred = True
-                continue
-
+                skip = True
+                break
         if skip:
             continue
 
@@ -307,7 +319,8 @@ def run(args, event=None, config_dict=None):
 
                 log.info("Triggering {} event for {}...".format("core.load_optional", plugin_name))
                 log.indent(1)
-                plugin_dict[plugin_name].events["core.load_optional"]()
+                for event, data in plugin_dict[plugin_name].events["core.load_optional"]:
+                    event()
                 log.indent(-1)
 
         if not error_occurred:

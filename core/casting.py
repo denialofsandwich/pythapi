@@ -8,6 +8,8 @@ import math
 import json
 
 # TODO: Restrict Keys d2d
+# TODO: Type-defaults
+# TODO: Inherit from template
 
 _reinterpret_defaults = {
     'path': '.',
@@ -207,11 +209,23 @@ _convert_dict = {
         list: str_to_list,
         dict: str_to_dict
     },
-    int: {int: int_to_int, float: int_to_float},
-    float: {float: float_to_float, int: float_to_int},
-    bool: {bool: lambda x, **kwargs: x},
-    list: {list: list_to_list},
-    dict: {dict: dict_to_dict}
+    int: {
+        int: int_to_int,
+        float: int_to_float
+    },
+    float: {
+        float: float_to_float,
+        int: float_to_int
+    },
+    bool: {
+        bool: lambda x, **kwargs: x
+    },
+    list: {
+        list: list_to_list
+    },
+    dict: {
+        dict: dict_to_dict
+    }
 }
 
 

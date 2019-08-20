@@ -2,24 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import core.plugin_base
-from core.plugin_base import log
 
 plugin = core.plugin_base.PythapiPlugin("debug2")
 plugin.version = "1.0"
 plugin.essential = False
-plugin.info['f_name'] = {
-    'EN': 'Debug',
-    'DE': 'Bugfix'
-}
-
-plugin.info['f_description'] = {
-    'EN': 'To test stuff.',
-    'DE': 'Um Sachen zu machen.'
-}
-
-plugin.info['f_icon'] = {
-    'EN': 'storage'
-}
 
 plugin.depends = [
     {
