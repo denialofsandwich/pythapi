@@ -5,6 +5,8 @@ import sys
 import logging
 import copy
 
+# TODO: Print timestamp in files
+
 color_codes = {
     "DEBUG": "[\033[94m{:^8}\033[0m]{}",
     "ACCESS": "[\033[95m{:^8}\033[0m]{}",
@@ -28,6 +30,7 @@ class ColoredFormatter(logging.Formatter):
         levelname = record.levelname
         if self.fancy and levelname in color_codes:
             record.levelname = color_codes[levelname].format(levelname, ' .'*_indent)
+            record.msg = str(record.msg).replace('\n', '\n' + ' '*(11 + 2*_indent))
 
         formatted = logging.Formatter.format(self, record)
 

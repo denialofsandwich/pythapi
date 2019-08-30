@@ -196,17 +196,6 @@ def test_import_broken_plugin(capsys, base_config):
     assert len(re.findall(r'CRITICAL', logs)) == 1
 
 
-def test_unsatisfied_config(capsys, base_config):
-    base_config.conf['debug2'] = {}
-
-    t = start_core(base_config.args, base_config.conf)
-    t.join()
-
-    logs = capsys.readouterr().out
-    print(logs)
-    assert len(re.findall(r'CRITICAL', logs)) == 1
-
-
 def test_import_broken_check_event(capsys, base_config):
     base_config.conf['core.general']['enabled_plugins +'] = "broken_check"
 

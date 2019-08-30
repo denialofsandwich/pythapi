@@ -6,7 +6,6 @@ import glob
 import collections
 from . import casting
 
-
 def _update(d, u):
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
@@ -16,7 +15,7 @@ def _update(d, u):
     return d
 
 
-def _pre_operator_formatter(val, t, **kwargs):
+def _pre_operator_formatter(val, **kwargs):
 
     for item_name in val:
         if item_name[-1] not in ['+']:
@@ -28,7 +27,7 @@ def _pre_operator_formatter(val, t, **kwargs):
     return val
 
 
-def _post_operator_formatter(val, t, **kwargs):
+def _post_operator_formatter(val, **kwargs):
 
     for item_name in list(val.keys()):
         if item_name[-1] not in ['+']:
@@ -45,14 +44,6 @@ def _post_operator_formatter(val, t, **kwargs):
     return val
 
 
-class ConfigNotSatisfiedException(Exception):
-    def __init__(self, should_type, section_name, item_name):
-        msg = 'Missing configuration value in: "{}.{}". Should be of type: "{}"'.format(
-            section_name, item_name, should_type.__name__
-        )
-        Exception.__init__(self, msg)
-
-
 class PythapiConfigParser:
     class DictConfigParser(configparser.ConfigParser):
         def parse_dict(self):
@@ -67,6 +58,7 @@ class PythapiConfigParser:
             'type': dict,
             'child': {},
             'default': {},
+            'verify': True,
         }
         self._dict = {}
 
@@ -93,9 +85,12 @@ class PythapiConfigParser:
                 'post_format': _post_operator_formatter,
             }
 
+        self._dict = casting.reinterpret(self._dict, **{
+            'type': dict,
+            'child': formatted_defaults,
+            'default': {},
+        })
         self.defaults['child'] = _update(self.defaults['child'], formatted_defaults)
-
-        self._apply_defaults()
 
     def _process_config(self, config_dict):
         self.update(config_dict)
@@ -149,13 +144,3 @@ class PythapiConfigParser:
 
         self.update(d)
         self._apply_defaults()
-
-    def verify(self):
-        for section_name, section in self._dict.items():
-            for item_name, item in section.items():
-                if item is None:
-                    raise ConfigNotSatisfiedException(
-                        self.defaults['child'][section_name]['child'][item_name]['type'],
-                        section_name,
-                        item_name
-                    )

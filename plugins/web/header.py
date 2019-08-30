@@ -21,35 +21,50 @@ plugin.depends = []
 
 plugin.config_defaults = {
     plugin.name: {
-        "http_binds": {
+        "binds": {
             "type": list,
-            "default": [["0.0.0.0", "8123"]],
+            "delimiter": ';',
+            "default": [
+                {
+                    "ip": "127.0.0.1",
+                    "port": 8123,
+                    "api_only": False,
+                    "ssl": False,
+                }
+            ],
             "children": {
-                "type": list,
-                "delimiter": ':',
-                "children": {
-                    "type": str
+                "type": dict,
+                "child": {
+                    "ip": {
+                        "type": str,
+                        "default": "127.0.0.1",
+                    },
+                    "port": {
+                        "type": int,
+                        "default": 8123,
+                    },
+                    "api_only": {
+                        "type": bool,
+                        "default": False,
+                    },
+                    "ssl": {
+                        "type": bool,
+                        "default": False,
+                    },
+                    "cert_file": {
+                        "type": str,
+                        "verify": False,
+                    },
+                    "key_file": {
+                        "type": str,
+                        "verify": False,
+                    },
+                    "static_root": {
+                        "type": str,
+                        "verify": False,
+                    },
                 },
             }
-        },
-        "https_binds": {
-            "type": list,
-            "default": [],
-            "children": {
-                "type": list,
-                "delimiter": ':',
-                "children": {
-                    "type": str
-                },
-            },
-        },
-        "ssl_cert_file": {
-            "type": str,
-            "default": ""
-        },
-        "ssl_key_file": {
-            "type": str,
-            "default": ""
         },
         "additional_headers": {
             "type": list,
@@ -61,17 +76,23 @@ plugin.config_defaults = {
                     "type": str
                 },
             },
+            "pipe": [
+                {
+                    "type": dict,
+                    "default": {}
+                }
+            ]
         },
     },
 }
 
 
-def _post_event_data_formatter(val, t, **kwargs):
+def _post_event_data_formatter(val, **kwargs):
     if "path" in val:
         val['regex'] = '^/' + kwargs['d_plugin_name'] + val['path'].replace('*', '([^/]*)') + '$'
 
     if "regex" in val:
-        val["c_regex"] = re.compile(val["regex"])
+        val["_c_regex"] = re.compile(val["regex"])
 
     return val
 
@@ -80,6 +101,9 @@ web_request_data_skeleton = {
     "type": dict,
     "post_format": _post_event_data_formatter,
     "child": {
+        "name": {
+            "type": str,
+        },
         "method": {
             "type": str,
             "default": "GET",
@@ -89,14 +113,50 @@ web_request_data_skeleton = {
         },
         "path": {
             "type": str,
-        }
+        },
+        "request_content_type": {
+            "type": str,
+            "default": "application/json"
+        },
+        "content_type": {
+            "type": str,
+            "default": "application/json"
+        },
+        'url_args': {
+            'type': dict,
+            'default': {},
+        },
+        'post_body': {
+            'type': dict,
+            'default': {},
+        },
+        'response_format': {
+            'type': dict,
+            'default': {},
+        },
     },
 }
+plugin.web_request_data_skeleton = web_request_data_skeleton
 
-request_list = {
+pre_post_event_data_skeleton = {
+    "type": dict,
+    "child": {
+        "priority": {
+            "type": int,
+            "default": 10,
+        },
+    },
+}
+plugin.pre_post_event_data_skeleton = pre_post_event_data_skeleton
+
+request_event_list = {
     'GET': [],
     'POST': [],
     'PUT': [],
     'DELETE': [],
     'OPTIONS': [],
+    'HEAD': [],
 }
+
+pre_request_event_list = []
+post_request_event_list = []

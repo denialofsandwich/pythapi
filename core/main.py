@@ -204,10 +204,6 @@ def run(args, event=None, config_dict=None):
     # Verifiy Configuration
     log.info("Loading Plugins...")
     log.indent(1)
-    try:
-        config_parser.verify()
-    except parse_conf.ConfigNotSatisfiedException as e:
-        terminate_application(e)
 
     # Build plugin_dict and inverse_dependency_table
     plugin_dict = {}

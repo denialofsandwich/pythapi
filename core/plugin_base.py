@@ -8,6 +8,8 @@ serialized_plugin_list = None
 inverse_dependency_table = None
 config = None
 
+version = 0.1
+
 
 def init():
     global log
