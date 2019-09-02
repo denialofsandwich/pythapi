@@ -150,7 +150,15 @@ def str_to_list(val, delimiter=',', neutral=' \t\n', regex=None, **kwargs):
 
 
 def str_to_dict(val, **kwargs):
-    parsed = json.loads(val)
+
+    if val == "":
+        parsed = {}
+    else:
+        try:
+            parsed = json.loads(val)
+        except json.decoder.JSONDecodeError as e:
+            raise InconvertibleError(kwargs['path'], str(e))
+
     return dict_to_dict(parsed, **kwargs)
 
 
@@ -378,6 +386,7 @@ def _d1_reinterpret(value, pre_format=None, post_format=None, default=None, pipe
             else:
                 s = '*'
                 if t not in convert_dict.get(s, {}):
+                    print("HEEEEEELP!")
                     raise KeyError
 
         type_default = copy.copy(type_defaults.get(s, type_defaults.get('*', {})))

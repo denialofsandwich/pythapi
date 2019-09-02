@@ -19,6 +19,8 @@ plugin.info['f_description'] = {
 
 plugin.depends = []
 
+# TODO: Alle Keys nochmal doppelt und dreifach checken.
+
 plugin.config_defaults = {
     plugin.name: {
         "binds": {
@@ -122,7 +124,11 @@ web_request_data_skeleton = {
             "type": str,
             "default": "application/json"
         },
-        'url_args': {
+        'path_params': {
+            'type': dict,
+            'default': {},
+        },
+        'url_params': {
             'type': dict,
             'default': {},
         },
@@ -137,6 +143,51 @@ web_request_data_skeleton = {
     },
 }
 plugin.web_request_data_skeleton = web_request_data_skeleton
+
+web_socket_data_skeleton = {
+    "type": dict,
+    "post_format": _post_event_data_formatter,
+    "child": {
+        "name": {
+            "type": str,
+        },
+        "method": {
+            "type": str,
+            "default": "GET",
+        },
+        "regex": {
+            "type": str,
+        },
+        "path": {
+            "type": str,
+        },
+        "message_content_type": {
+            "type": str,
+            "default": "application/json"
+        },
+        "content_type": {
+            "type": str,
+            "default": "application/json"
+        },
+        'path_params': {
+            'type': dict,
+            'default': {},
+        },
+        'url_params': {
+            'type': dict,
+            'default': {},
+        },
+        'input_message_data': {
+            'type': dict,
+            'default': {},
+        },
+        'output_message_data': {
+            'type': dict,
+            'default': {},
+        },
+    },
+}
+plugin.web_socket_data_skeleton = web_socket_data_skeleton
 
 pre_post_event_data_skeleton = {
     "type": dict,
@@ -157,6 +208,12 @@ request_event_list = {
     'OPTIONS': [],
     'HEAD': [],
 }
+websocket_event_list = []
 
 pre_request_event_list = []
 post_request_event_list = []
+websocket_pre_open_event_list = []
+websocket_post_open_event_list = []
+websocket_pre_message_event_list = []
+websocket_post_message_event_list = []
+websocket_close_event_list = []

@@ -641,3 +641,16 @@ def test_verify():
     data = None
     with pytest.raises(c.MissingValueError):
         c.reinterpret(data, verify=True)
+
+
+def test_s2d_empty():
+    data = ''
+    casted = c.reinterpret(data, dict)
+    assert casted == {}
+
+
+def test_s2d_syntax_error():
+    data = '{}}'
+    with pytest.raises(c.InconvertibleError):
+        c.reinterpret(data, dict)
+

@@ -63,76 +63,67 @@ def load():
             },
         }
     },
-    "response_format": {
-        "type_defaults": {
-            datetime.datetime: {
-                'pre_format': lambda val, **kwargs: val.strftime("%Y:%m:%d"),
-            },
-        }
-    },
+    "response_format": {},
 })
-def test_web_action(body_data, **kwargs):
-    web = core.plugin_base.plugin_dict['web']
+def test_web_action(body_data, url_params, **kwargs):
     return {
         "moar": datetime.datetime.now(),
-        "web": web,
-        "data": core.plugin_base.config[web.name]['additional_headers'],
         "body": body_data,
+        "up": url_params,
     }
 
 
-#@core.plugin_base.event(plugin, 'web.socket', {
-#    "path": "/ws",
-#    "method": "GET",
-#    "request_content_type": 'application/json',
-#    "path_params": {
-#        "children": {
-#            "type": int,
-#        }
-#    },
-#    "url_params": {
-#        "child": {
-#            "alpha": {
-#                "type": list,
-#                "default": [],
-#                "single_cast_mode": 2,
-#                "children": {
-#                    "type": int,
-#                },
-#                "child": [{
-#                    "default": 0,
-#                }]
-#            }
-#        }
-#    },
-#    "body_data": {
-#        "child": {
-#            "alpha": {
-#                "type": int,
-#                "default": 5,
-#            },
-#            "charlie": {
-#                "type": str,
-#            },
-#        }
-#    },
-#    "response_format": {
-#        "type_defaults": {
-#            datetime.datetime: {
-#                'pre_format': lambda val, **kwargs: val.strftime("%Y:%m:%d"),
-#            },
-#        }
-#    },
-#})
-#class EchoWebSocket(tornado.websocket.WebSocketHandler):
-#    def open(self):
-#        log.debug(vars(self.request))
-#        print("WebSocket opened")
-#
-#    def on_message(self, message):
-#        self.write_message(u"You said: " + message)
-#
-#    def on_close(self):
-#        print("WebSocket closed")
+@core.plugin_base.event(plugin, 'web.socket', {
+    "path": "/ws/*",
+    "method": "GET",
+    "message_content_type": 'application/json',
+    "path_params": {
+        "children": {
+            "type": int,
+        }
+    },
+    "url_params": {
+        "child": {
+            "alpha": {
+                "type": list,
+                "default": [],
+                "single_cast_mode": 2,
+                "children": {
+                    "type": int,
+                },
+                "child": [{
+                    "default": 0,
+                }]
+            }
+        }
+    },
+    "input_message_data": {
+        "child": {
+            "alpha": {
+                "type": int,
+                "default": 5,
+            },
+            "charlie": {
+                "type": str,
+            },
+        }
+    },
+    "output_message_data": {},
+})
+class TestEchoWebSocket:
+    def on_open(self, **kwargs):
+        return {
+            "data": "I'm alive!",
+            "path_params": kwargs['path_params'],
+            "url_params": kwargs['url_params'],
+        }
+
+    def on_message(self, message_data, **kwargs):
+        return {
+            "data": message_data,
+        }
+
+    def on_close(self, **kwargs):
+        print("WebSocket closed")
 
 
