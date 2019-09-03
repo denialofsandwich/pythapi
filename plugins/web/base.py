@@ -12,6 +12,7 @@ import tornado.websocket
 
 import json
 import asyncio
+import os
 
 transaction_id = 0
 _status_code_to_error_id = {
@@ -80,10 +81,12 @@ class APIBase(tornado.web.RequestHandler):
     @gen.coroutine
     def _search_and_handle_request(self):
         global transaction_id
-        # TODO: Custom Methods
         try:
             method = self.request.method
-            path = self.request.path
+            path = self.request.path[len(header.request_prefix_table[self.request.host.split(':')[1]]):]
+            self.env = {
+                'transaction_id': transaction_id,
+            }
             found = False
             for action in header.request_event_list[method]:
                 i_match = action[0].match(path)
@@ -92,12 +95,11 @@ class APIBase(tornado.web.RequestHandler):
                     data = action[2]
                     found = True
 
-                    self.env = {
+                    self.env.update({
                         'request_obj': self,
                         'request_settings': data,
                         'match_data': i_match,
-                        'transaction_id': transaction_id,
-                    }
+                    })
 
                     core.plugin_base.log.access("{} {} {} {}".format(self.env['transaction_id'],
                                                                      _get_client_ip(self),
@@ -144,32 +146,9 @@ class APIBase(tornado.web.RequestHandler):
             self.finish()
 
     @gen.coroutine
-    def get(self, **kwargs):
+    def method_tpl(self, **kwargs):
         yield self._search_and_handle_request()
 
-    @gen.coroutine
-    def post(self, **kwargs):
-        yield self._search_and_handle_request()
-
-    @gen.coroutine
-    def put(self, **kwargs):
-        yield self._search_and_handle_request()
-
-    @gen.coroutine
-    def delete(self, **kwargs):
-        yield self._search_and_handle_request()
-
-    @gen.coroutine
-    def options(self, **kwargs):
-        yield self._search_and_handle_request()
-
-    @gen.coroutine
-    def head(self, **kwargs):
-        yield self._search_and_handle_request()
-
-
-# TODO: On Message Output Formatter
-#   - Dann kann man wie gewohnt mit JSON Objekten antworten
 
 class WebSocketBase(tornado.websocket.WebSocketHandler):
     env = {}
@@ -180,9 +159,13 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
         data['status'] = data.get('status', 'error')
         data['error_code'] = error_code or _status_code_to_error_id[status_code]
 
-        core.plugin_base.log.access("{} {} {} {}".format(self.env.get('transaction_id', -1), data['status'], status_code, data['error_code']))
-        response = json.dumps(data) + '\n'
+        if fatal:
+            core.plugin_base.log.access("{} {} {} {}".format(self.env.get('transaction_id', -1),
+                                                             data['status'],
+                                                             status_code,
+                                                             data['error_code']))
 
+        response = json.dumps(data) + '\n'
         self.write_message(response)
 
         if fatal:
@@ -193,7 +176,10 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
         global transaction_id
 
         try:
-            path = self.request.path
+            path = self.request.path[len(header.request_prefix_table[self.request.host.split(':')[1]]):]
+            self.env = {
+                'transaction_id': transaction_id,
+            }
             found = False
             for action in header.websocket_event_list:
                 i_match = action[0].match(path)
@@ -202,12 +188,11 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
                     data = action[2]
                     found = True
 
-                    self.env = {
+                    self.env.update({
                         'request_obj': self,
                         'request_settings': data,
                         'match_data': i_match,
-                        'transaction_id': transaction_id,
-                    }
+                    })
 
                     core.plugin_base.log.access("{} {} {} {}".format(self.env['transaction_id'],
                                                                      _get_client_ip(self),
@@ -294,4 +279,38 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
             self.finish()
 
     def on_close(self):
-        print("WebSocket closedo")
+        try:
+            core.plugin_base.log.access("{} {} {} {}".format(self.env['transaction_id'],
+                                                             _get_client_ip(self),
+                                                             "SOCKCLOSE",
+                                                             self.request.path))
+
+            # Execute the actual request handler
+            self.env['response'] = yield execute_function_or_coroutine(self.ws_obj.on_close, kwargs=self.env)
+
+            # Execute post_event_handlers
+            for post_event in reversed(header.websocket_close_event_list):
+                i_f = post_event[0]
+                e_data = post_event[1]
+
+                yield execute_function_or_coroutine(i_f, args=(self.env, e_data))
+
+        except core.casting.CastingException as e:
+            data = {
+                'message': str(e),
+                'path': e.path,
+            }
+            data.update(e.data)
+            self._handle_error(400, 'ERROR_GENERAL_FORMAT', data, False)
+        except Exception as e:
+            core.plugin_base.log.error("An exception occured.", exc_info=e)
+            self._handle_error(500, None, {
+                'message': "Internal Server Error."
+            })
+
+
+class ServeMainPageHandler(tornado.web.RequestHandler):
+    base_dir = "/var/www/html"
+
+    def get(self, status_code, **kwargs):
+        self.render(os.path.join(self.base_dir, "index.html"))

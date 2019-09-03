@@ -6,7 +6,6 @@ import argparse
 
 import core.main
 
-# TODO: https://coverage.readthedocs.io/en/latest/config.html
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, core.main.termination_handler)
     signal.signal(signal.SIGTERM, core.main.termination_handler)

@@ -15,7 +15,7 @@ import copy
 #    "priority": -1
 #})
 def debug_print(env, event_data):
-    core.plugin_base.log.debug(core.casting.reinterpret(copy.copy(env), **{
+    core.plugin_base.log.debug(core.casting.reinterpret(copy.deepcopy(env), **{
         "type": dict,
         "type_defaults": {
             "*": {"type": str}
@@ -189,7 +189,9 @@ def _format_response(env, event_data):
                 "*": {
                     "type": str,
                 }
-            }
+            },
+            "pretty": True,
+            "sort_keys": True,
         }) + '\n'
 
         env['response'] = response
