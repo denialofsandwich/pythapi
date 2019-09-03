@@ -75,7 +75,6 @@ def test_web_action(body_data, url_params, **kwargs):
 
 @core.plugin_base.event(plugin, 'web.socket', {
     "path": "/ws/*",
-    "method": "GET",
     "message_content_type": 'application/json',
     "path_params": {
         "children": {
@@ -124,6 +123,6 @@ class TestEchoWebSocket:
         }
 
     def on_close(self, **kwargs):
-        print("WebSocket closed")
+        core.plugin_base.log.debug("CLOSING!!!")
 
 

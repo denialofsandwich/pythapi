@@ -19,8 +19,6 @@ plugin.info['f_description'] = {
 
 plugin.depends = []
 
-# TODO: Alle Keys nochmal doppelt und dreifach checken.
-
 plugin.config_defaults = {
     plugin.name: {
         "binds": {
@@ -30,7 +28,7 @@ plugin.config_defaults = {
                 {
                     "ip": "127.0.0.1",
                     "port": 8123,
-                    "api_only": False,
+                    "api_only": True,
                     "ssl": False,
                 }
             ],
@@ -48,6 +46,10 @@ plugin.config_defaults = {
                     "api_only": {
                         "type": bool,
                         "default": False,
+                    },
+                    "api_base_url": {
+                        "type": str,
+                        "default": "",
                     },
                     "ssl": {
                         "type": bool,
@@ -91,7 +93,8 @@ plugin.config_defaults = {
 
 def _post_event_data_formatter(val, **kwargs):
     if "path" in val:
-        val['regex'] = '^/' + kwargs['d_plugin_name'] + val['path'].replace('*', '([^/]*)') + '$'
+        val['_raw_regex'] = ['^', '/' + kwargs['d_plugin_name'] + val['path'].replace('*', '([^/]*)') + '$']
+        val['regex'] = ''.join(val['_raw_regex'])
 
     if "regex" in val:
         val["_c_regex"] = re.compile(val["regex"])
@@ -150,10 +153,6 @@ web_socket_data_skeleton = {
     "child": {
         "name": {
             "type": str,
-        },
-        "method": {
-            "type": str,
-            "default": "GET",
         },
         "regex": {
             "type": str,
@@ -217,3 +216,5 @@ websocket_post_open_event_list = []
 websocket_pre_message_event_list = []
 websocket_post_message_event_list = []
 websocket_close_event_list = []
+
+request_prefix_table = {}

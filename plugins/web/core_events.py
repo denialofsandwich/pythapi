@@ -16,24 +16,44 @@ import tornado.concurrent
 
 import logging
 import os
+import copy
 
 servers = []
-ws_regex = r""
+ws_re_list = []
+
+
+def _set_base_url(prefix='', api_only=False):
+    tmp_re_list = copy.deepcopy(ws_re_list)
+    for i, regex in enumerate(tmp_re_list):
+        for j, rp in enumerate(regex):
+            tmp_re_list[i][j] = rp.replace('(', '').replace(')', '')
+
+        tmp_re_list[i] = prefix.join(tmp_re_list[i])
+
+    ws_regex = r'(?:' + r')|(?:'.join(tmp_re_list) + r')'
+
+    if api_only:
+        api_regex = r"/.*"
+    else:
+        api_regex = r"" + prefix + r"/.*"
+
+    return ws_regex, api_regex
 
 
 @core.plugin_base.external_function(header.plugin)
 def start():
-    # TODO: Router benutzen
-    # TODO: Base URL für API
-    # TODO: Static Webserver
-
     core.plugin_base.log.info("Starting HTTP servers...")
     core.plugin_base.log.indent(1)
     for item in core.plugin_base.config[header.plugin.name]['binds']:
-        # core.plugin_base.log.debug(core.casting.reinterpret(item, str, pretty=True, sort_keys=True))
 
         if item['api_only']:
-            app = tornado.web.Application([(r"/.*?", base.APIBase)])
+            header.request_prefix_table[str(item['port'])] = item['api_base_url']
+            ws_regex, api_regex = _set_base_url(item['api_base_url'], item['api_only'])
+
+            app = tornado.web.Application([
+                (ws_regex, base.WebSocketBase),
+                (api_regex, base.APIBase),
+            ])
         else:
             if not item['static_root']:
                 raise core.casting.MissingValueError(None, "Static root directory not defined!")
@@ -41,9 +61,23 @@ def start():
             if not os.path.isdir(item['static_root']):
                 raise core.casting.MissingValueError(None, "Static root directory not found!")
 
+            header.request_prefix_table[str(item['port'])] = item['api_base_url']
+            ws_regex, api_regex = _set_base_url(item['api_base_url'], item['api_only'])
+
+            CustomSMPH = type('CustomSMPH',
+                              base.ServeMainPageHandler.__bases__,
+                              dict(base.ServeMainPageHandler.__dict__))
+            CustomSMPH.base_dir = item['static_root']
+
             app = tornado.web.Application([
                 (ws_regex, base.WebSocketBase),
-                (r"/.*", base.APIBase),
+                (api_regex, base.APIBase),
+                (r"/([^.]*)", CustomSMPH),
+                (r"/(.*)", tornado.web.StaticFileHandler,
+                    {
+                        "path": item['static_root'],
+                        "default_filename": "index.html"
+                    })
             ])
 
         if not item['ssl']:
@@ -86,9 +120,8 @@ def stop():
 @core.plugin_base.event(header.plugin, 'core.load', {})
 def load():
     global servers
-    global ws_regex
+    global ws_re_list
     servers = []
-    ws_regex = r""
 
     ws_re_list = []
     event_sort_lists = [
@@ -110,7 +143,7 @@ def load():
         for c, data in core.plugin_base.plugin_dict[plugin_name].events.get('web.socket', []):
             data = core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_request_data_skeleton)
 
-            ws_re_list.append(data["regex"].replace('(', '').replace(')', ''))
+            ws_re_list.append(data["_raw_regex"])
             header.websocket_event_list.append((data["_c_regex"], c, data))
 
         for event_name, event_list, event_dict in event_sort_lists:
@@ -120,7 +153,10 @@ def load():
 
                 event_dict[data['priority']].append((f, data))
 
-    ws_regex = r'(?:' + r')|(?:'.join(ws_re_list) + r')'
+    base.APIBase.SUPPORTED_METHODS = tuple(header.request_event_list.keys())
+
+    for method in header.request_event_list.keys():
+        setattr(base.APIBase, method.lower(), base.APIBase.method_tpl)
 
     # Brings the pre and post event_handler in the right order
     for event_name, event_list, event_dict in event_sort_lists:

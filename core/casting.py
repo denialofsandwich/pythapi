@@ -386,7 +386,6 @@ def _d1_reinterpret(value, pre_format=None, post_format=None, default=None, pipe
             else:
                 s = '*'
                 if t not in convert_dict.get(s, {}):
-                    print("HEEEEEELP!")
                     raise KeyError
 
         type_default = copy.copy(type_defaults.get(s, type_defaults.get('*', {})))
