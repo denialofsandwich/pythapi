@@ -518,7 +518,7 @@ def test_type_defaults():
         '*': {
             "type": float
         }
-    })
+    }, sort_keys=True)
     assert casted == desired
 
 
