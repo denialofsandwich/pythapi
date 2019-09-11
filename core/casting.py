@@ -7,17 +7,13 @@ import re
 import math
 import json
 
-# TODO: reinterpret auf das reinterpret skeleton (Auweia)
-#   - Zum Glück sind ja jetzt Templates implementiert.
-# TODO: inherit_dict pro template ergänzen
-#   - Damit lassen sich zB. formatter an das ganze dict durchpropagieren
 # TODO: Restrict Keys d2d
-# TODO: Accept und Produce lists
-#   - Mit der steigenden Komplexität, wird es unübersichtlich, welche Datentypen akzeptiert und welches resultiert
-#   - Idee: Eine Funktion, welche die Daten auf genau jene Informationen runterbricht.
 # TODO: Reformat keys from dict
 #   - Ein Dict kann anders als JSON jeden serialisierbaren Datentypen als Key haben.
 #   - Deswegen ist auch hier eine Formatierung von Nöten.
+# TODO: Accept lists
+#   - Mit der steigenden Komplexität, wird es unübersichtlich, welche Datentypen akzeptiert und welches resultiert
+#   - Idee: Eine Funktion, welche die Daten auf genau jene Informationen runterbricht.
 
 _reinterpret_defaults = {
     'path': [],
@@ -253,6 +249,17 @@ def dict_to_dict(val, empty=True, child=None, children=None, **kwargs):
     children = children or {}
     child = child or {}
 
+    # Recursive loop detection
+    if '_rec_set' not in kwargs:
+        kwargs['_rec_set'] = set()
+
+    _rec_set = kwargs['_rec_set']
+    if id(val) in _rec_set:
+        return val
+
+    _rec_set.add(id(val))
+    children['_rec_set'] = _rec_set
+
     if empty is False and val == {}:
         raise EmptyError(kwargs['path'])
 
@@ -384,9 +391,8 @@ def _d1_reinterpret(value, pre_format=None, post_format=None, default=None, pipe
 
         raise InconvertibleError(kwargs['path'], "Expected {}, got {}.".format(t_name, type(value).__name__))
 
+    s = type(value)
     try:
-        s = type(value)
-
         if t not in convert_dict.get(s, {}):
             if '*' in convert_dict.get(s, {}):
                 t = '*'
@@ -400,7 +406,7 @@ def _d1_reinterpret(value, pre_format=None, post_format=None, default=None, pipe
 
         result = convert_dict[s][t](value, **kwargs)
     except KeyError:
-        raise InconvertibleError(kwargs['path'])
+        raise InconvertibleError(kwargs['path'], "Can't convert {} to {}".format(s, t))
 
     kwargs['raw_value'] = value
     if post_format:
