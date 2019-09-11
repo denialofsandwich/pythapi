@@ -657,3 +657,12 @@ def test_s2d_syntax_error():
     with pytest.raises(c.InconvertibleError):
         c.reinterpret(data, dict)
 
+
+def test_recursive_loops():
+    a = {"alpha": 1}
+    b = {"bravo": a}
+    a["charlie"] = b
+
+    data = a
+    casted = c.reinterpret(data, dict)
+    assert casted == data

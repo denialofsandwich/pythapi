@@ -34,7 +34,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Disables the colorful logs and shows a more machine-readable logging format",
     )
-    parser.add_argument("--config", "-c", help="Add config-file")
+    parser.add_argument("--config", "-c", default=[], action="append", help="Add config-file")
     parser.add_argument(
         "--config-parameter",
         "-p",

@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
+import pathlib
 import importlib
 import importlib.util
 import asyncio
+import copy
 
 from . import fancy_logs
 from . import parse_conf
@@ -155,18 +158,24 @@ def run(args, event=None, config_dict=None):
 
     # Read configuration files
     config_parser = parse_conf.PythapiConfigParser()
-    # TODO: Diese Zeile evtl. hinter das Laden der Configs verschieben
-    config_parser.read_defaults(defaults.config_defaults)  # Core defaults only
-    plugin_base.config = config_parser
 
+    config_file = None
     if config_dict:
-        config_parser.recursive_read_dict(config_dict)
+        if type(config_dict) is dict:
+            config_dict = [config_dict]
+
+        for config in config_dict:
+            config_parser.recursive_read_dict(config)
     else:
-        # TODO: Eine Meldung welche Config denn jetzt genommen wurde
-        # TODO: Mehrere Configs hintereinander laden.
-        config_parser.recursive_read(args.config or defaults.config_base_path)
+        config_file = args.config or [defaults.config_base_path]
+
+        for config in config_file:
+            config_parser.recursive_read(config)
 
     config_parser.read_list(args.config_parameter)
+
+    config_parser.read_defaults(defaults.config_defaults)  # Core defaults only
+    plugin_base.config = config_parser
 
     config_cgen = config_parser["core.general"]
 
@@ -174,12 +183,19 @@ def run(args, event=None, config_dict=None):
     log = fancy_logs.FancyLogger(
         not (not config_cgen["colored_logs"] or args.no_fancy),
         args.verbosity or config_cgen["loglevel"],
+        args.verbosity or config_cgen["show_timestamp"],
         config_cgen["file_logging_enabled"],
         config_cgen["logfile"],
         )
     plugin_base.log = log
 
+    if not config_dict:  # config_dict only exists in unit tests
+        log.debug("Using {} as configuration file.".format(str(config_file)))
+
     log.info("Start importing plugins...")
+    # Change directory to pythapi root dir
+    os.chdir(str(pathlib.Path(__file__).parents[1]))
+
     log.indent(1)
     # Add additional plugin paths
     plugin_search_paths = ['plugins'] + config_cgen['additional_plugin_paths']
@@ -188,11 +204,13 @@ def run(args, event=None, config_dict=None):
 
     # Import enabled plugins
     tmp_plugin_name_list = config_cgen['enabled_plugins']
+    tmp_remaining_pn_list = copy.copy(tmp_plugin_name_list)
     for plugin_filename in list(tmp_plugin_name_list):
         if not importlib.util.find_spec(plugin_filename):
             continue
 
         log.debug("Importing {}".format(plugin_filename))
+        tmp_remaining_pn_list.remove(plugin_filename)
         try:
             module = importlib.import_module(plugin_filename)
             plugin_base.module_dict[plugin_filename] = module
@@ -202,7 +220,12 @@ def run(args, event=None, config_dict=None):
 
         except Exception as e:
             terminate_application("Error while importing {}".format(plugin_filename), exc_info=e)
+
+    for plugin_name in tmp_remaining_pn_list:
+        log.warning("Can't find plugin: {}".format(plugin_name))
+
     log.indent(-1)
+
 
     # Verifiy Configuration
     log.info("Loading Plugins...")

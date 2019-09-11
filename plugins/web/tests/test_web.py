@@ -82,7 +82,7 @@ def test_basic_request(cs_bare, web_base_conf, capsys):
         assert response == {"answer": "yes", "status": "success"}
 
     logs = capsys.readouterr().out
-    print("AA {} AA".format(logs))
+    print(logs)
 
     assert len(re.findall('[0-9]+' + ' ' + re.escape("127.0.0.1 GET /debug_web/u_there"), logs)) == 1
 

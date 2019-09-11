@@ -5,11 +5,15 @@ config_defaults = {
     "core.general": {
         "loglevel": {
             "type": int,
-            "default": 5
+            "default": 6
         },
         "colored_logs": {
             "type": bool,
             "default": True
+        },
+        "show_timestamp": {
+            "type": bool,
+            "default": False
         },
         "file_logging_enabled": {
             "type": bool,
@@ -36,4 +40,4 @@ config_defaults = {
     },
 }
 
-config_base_path = "pythapi.ini"
+config_base_path = "./pythapi.ini"

@@ -81,13 +81,17 @@ def test_plain_start(capsys, base_config):
 
 # debug2 should throw an error, because it needs debug3 to load
 def test_broken_dependency(capsys, base_config):
-    base_config.conf['core.general']['enabled_plugins'] = "debug, debug2"
+    base_config.conf['core.general']['enabled_plugins'] = "debug, debug2, tete"
 
     t = start_core(base_config.args, base_config.conf)
     stop_core(t)
 
+    # Notice the missing Plugin "tete"
+
     logs = capsys.readouterr().out
     print(logs)
+
+    assert len(re.findall(re.escape("Can't find plugin: tete"), logs)) == 1
     assert len(re.findall(r'ERROR', logs)) == 1
 
 

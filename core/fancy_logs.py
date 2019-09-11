@@ -5,8 +5,6 @@ import sys
 import logging
 import copy
 
-# TODO: Print timestamp in files
-
 color_codes = {
     "DEBUG": "[\033[94m{:^8}\033[0m]{}",
     "ACCESS": "[\033[95m{:^8}\033[0m]{}",
@@ -54,7 +52,7 @@ class LoggingFunctionExecutor(logging.StreamHandler):
 
 
 class FancyLogger(logging.Logger):
-    def __init__(self, fancy_mode, loglevel, logging_enabled, logfile_path):
+    def __init__(self, fancy_mode, loglevel, show_timestamp, logging_enabled, logfile_path):
 
         self.interposer_list = []
         self.loglevel = 0
@@ -76,6 +74,11 @@ class FancyLogger(logging.Logger):
 
         self.sout = logging.StreamHandler(sys.stdout)
         self.sout.setLevel(logging.DEBUG)
+
+        if show_timestamp:
+            self.print_str = "%(asctime)s %(levelname)s %(message)s"
+        else:
+            self.print_str = "%(levelname)s %(message)s"
 
         self.set_fancy(fancy_mode)
 
@@ -101,7 +104,7 @@ class FancyLogger(logging.Logger):
     def set_fancy(self, flag):
         self.fancy = flag
         self.sout.setFormatter(
-            ColoredFormatter("%(levelname)s %(message)s", fancy=flag)
+            ColoredFormatter(self.print_str, fancy=flag)
         )
 
     def set_loglevel(self, loglevel):
