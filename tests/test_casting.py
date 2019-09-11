@@ -42,6 +42,9 @@ def test_convert():
     assert type(casted) == int
     assert casted == data
 
+    with pytest.raises(c.InconvertibleError):
+        c.reinterpret(data, '*', convert=False)
+
 
 def test_pre_post_verifier():
     # Treated as a string

@@ -22,7 +22,7 @@ servers = []
 ws_re_list = []
 
 
-def _set_base_url(prefix='', api_only=False):
+def _set_base_url(prefix='', static_web_server=False):
     tmp_re_list = copy.deepcopy(ws_re_list)
     for i, regex in enumerate(tmp_re_list):
         for j, rp in enumerate(regex):
@@ -32,37 +32,31 @@ def _set_base_url(prefix='', api_only=False):
 
     ws_regex = r'(?:' + r')|(?:'.join(tmp_re_list) + r')'
 
-    if api_only:
-        api_regex = r"/.*"
-    else:
+    if static_web_server:
         api_regex = r"" + prefix + r"/.*"
+    else:
+        api_regex = r"/.*"
 
     return ws_regex, api_regex
 
 
-@core.plugin_base.external_function(header.plugin)
+@core.plugin_base.external(header.plugin)
 def start():
     core.plugin_base.log.info("Starting HTTP servers...")
     core.plugin_base.log.indent(1)
     for item in core.plugin_base.config[header.plugin.name]['binds']:
 
-        if item['api_only']:
-            header.request_prefix_table[str(item['port'])] = item['api_base_url']
-            ws_regex, api_regex = _set_base_url(item['api_base_url'], item['api_only'])
-
-            app = tornado.web.Application([
-                (ws_regex, base.WebSocketBase),
-                (api_regex, base.APIBase),
-            ])
-        else:
+        if item['static_web_server']:
             if not item['static_root']:
+                core.plugin_base.log.error("Static root directory not defined!")
                 raise core.casting.MissingValueError(None, "Static root directory not defined!")
 
             if not os.path.isdir(item['static_root']):
+                core.plugin_base.log.error("Static root directory not found!")
                 raise core.casting.MissingValueError(None, "Static root directory not found!")
 
             header.request_prefix_table[str(item['port'])] = item['api_base_url']
-            ws_regex, api_regex = _set_base_url(item['api_base_url'], item['api_only'])
+            ws_regex, api_regex = _set_base_url(item['api_base_url'], item['static_web_server'])
 
             CustomSMPH = type('CustomSMPH',
                               base.ServeMainPageHandler.__bases__,
@@ -79,16 +73,25 @@ def start():
                         "default_filename": "index.html"
                     })
             ])
+        else:
+            header.request_prefix_table[str(item['port'])] = item['api_base_url']
+            ws_regex, api_regex = _set_base_url(item['api_base_url'], item['static_web_server'])
+
+            app = tornado.web.Application([
+                (ws_regex, base.WebSocketBase),
+                (api_regex, base.APIBase),
+            ])
 
         if not item['ssl']:
             srv = tornado.httpserver.HTTPServer(app)
         else:
-
             for file in ["cert", "key"]:
                 if item[file + '_file'] is None:
+                    core.plugin_base.log.error(file + "file not defined!")
                     raise core.casting.MissingValueError(None, file + "file not defined!")
 
-                if not os.path.isfile(item['key_file']):
+                if not os.path.isfile(item[file + '_file']):
+                    core.plugin_base.log.error(file + "file not found!")
                     raise core.casting.MissingValueError(None, file + "file not found!")
 
             srv = tornado.httpserver.HTTPServer(app, ssl_options={
@@ -100,16 +103,16 @@ def start():
         srv.bind(item['port'], item['ip'])
         srv.start()
 
-        core.plugin_base.log.debug("Opened port at: {}:{}, ssl: {}, api_only: {}".format(item['ip'],
+        core.plugin_base.log.debug("Opened port at: {}:{}, ssl: {}, static_web_server: {}".format(item['ip'],
                                    item['port'],
                                    item['ssl'],
-                                   item['api_only']
+                                   item['static_web_server']
                                    ))
 
     core.plugin_base.log.indent(-1)
 
 
-@core.plugin_base.external_function(header.plugin)
+@core.plugin_base.external(header.plugin)
 def stop():
     for srv in servers:
         srv.stop()
@@ -123,7 +126,21 @@ def load():
     global ws_re_list
     servers = []
 
+    header.request_event_list = {}
+    header.websocket_event_list = []
+
+    header.pre_request_event_list = []
+    header.post_request_event_list = []
+    header.websocket_pre_open_event_list = []
+    header.websocket_post_open_event_list = []
+    header.websocket_pre_message_event_list = []
+    header.websocket_post_message_event_list = []
+    header.websocket_close_event_list = []
+
+    header.request_prefix_table = {}
+
     ws_re_list = []
+    supported_methods_set = set()
     event_sort_lists = [
         ('web.pre_request', header.pre_request_event_list, {}),
         ('web.post_request', header.post_request_event_list, {}),
@@ -138,27 +155,35 @@ def load():
         for f, data in core.plugin_base.plugin_dict[plugin_name].events.get('web.request', []):
             data = core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_request_data_skeleton)
 
-            header.request_event_list[data['method']].append((data["_c_regex"], f, data))
+            if data["_c_regex"] not in header.request_event_list:
+                header.request_event_list[data["_c_regex"]] = {}
+
+            if header.request_event_list[data["_c_regex"]].get(data['method'], None):
+                core.plugin_base.log.warning("Ambiguous path found: {}".format(data.get("regex", None)))
+
+            header.request_event_list[data["_c_regex"]][data['method']] = (f, data)
+            supported_methods_set.add(data['method'])
 
         for c, data in core.plugin_base.plugin_dict[plugin_name].events.get('web.socket', []):
-            data = core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_request_data_skeleton)
+            data = core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_socket_data_skeleton)
 
             ws_re_list.append(data["_raw_regex"])
             header.websocket_event_list.append((data["_c_regex"], c, data))
 
         for event_name, event_list, event_dict in event_sort_lists:
             for f, data in list(core.plugin_base.plugin_dict[plugin_name].events.get(event_name, [])):
+                data = core.casting.reinterpret(data, **header.pre_post_event_data_skeleton)
+
                 if data['priority'] not in event_dict:
                     event_dict[data['priority']] = []
 
                 event_dict[data['priority']].append((f, data))
 
-    base.APIBase.SUPPORTED_METHODS = tuple(header.request_event_list.keys())
-
-    for method in header.request_event_list.keys():
+    base.APIBase.SUPPORTED_METHODS = tuple(supported_methods_set)
+    for method in supported_methods_set:
         setattr(base.APIBase, method.lower(), base.APIBase.method_tpl)
 
-    # Brings the pre and post event_handler in the right order
+    # To bring the pre and post event_handler in the right order
     for event_name, event_list, event_dict in event_sort_lists:
         event_list.clear()
         event_list.extend(sorted(list(event_dict.items())))

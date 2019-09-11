@@ -155,12 +155,15 @@ def run(args, event=None, config_dict=None):
 
     # Read configuration files
     config_parser = parse_conf.PythapiConfigParser()
+    # TODO: Diese Zeile evtl. hinter das Laden der Configs verschieben
     config_parser.read_defaults(defaults.config_defaults)  # Core defaults only
     plugin_base.config = config_parser
 
     if config_dict:
         config_parser.recursive_read_dict(config_dict)
     else:
+        # TODO: Eine Meldung welche Config denn jetzt genommen wurde
+        # TODO: Mehrere Configs hintereinander laden.
         config_parser.recursive_read(args.config or defaults.config_base_path)
 
     config_parser.read_list(args.config_parameter)
@@ -288,6 +291,7 @@ def run(args, event=None, config_dict=None):
                 continue
 
             if main_event not in plugin_dict[plugin_name].events:
+                plugin_dict[plugin_name].is_loaded = True
                 continue
 
             log.info("Triggering {} event for {}...".format(main_event, plugin_name))
@@ -335,7 +339,7 @@ def run(args, event=None, config_dict=None):
 
     log.info("Entering main loop...")
     loop = asyncio.get_event_loop()
-    
+
     if loaded_event is not None:
         loaded_event.set()
 

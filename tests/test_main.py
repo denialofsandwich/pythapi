@@ -39,34 +39,6 @@ def stop_core(t):
     t.join()
 
 
-# @pytest.fixture(scope='class')
-# def pythapi_plain():
-#     args = argparse.Namespace()
-#     args.config = None
-#     args.config_parameter = []
-#     args.mode = 'run'
-#     args.no_fancy = False
-#     args.plugin = ''
-#     args.reinstall = False
-#     args.verbosity = None
-#
-#     conf = """
-#         [core.general]
-#         loglevel = 6
-#         additional_plugin_paths = tests/plugins
-#         enabled_plugins = debug, debug2, debug3
-#
-#         [debug2]
-#         enabled_plugins = lala, lolo, lili
-#     """
-#
-#     t = start_core(args, conf)
-#
-#     yield args
-#
-#     stop_core(t)
-
-
 @pytest.fixture(scope='function')
 def base_config():
     args = argparse.Namespace()
@@ -101,6 +73,8 @@ def test_plain_start(capsys, base_config):
 
     assert len(re.findall(re.escape("Triggering core.load event for debug{}...".format(1)), logs)) == 1
     assert len(re.findall(re.escape("Triggering core.load event for debug{}...".format(3)), logs)) == 1
+
+    assert len(re.findall(re.escape("TERMINATATA"), logs)) == 1
 
     assert len(re.findall(r'ERROR|CRITICAL', logs)) == 0
 
