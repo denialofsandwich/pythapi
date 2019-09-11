@@ -7,6 +7,10 @@ import re
 import math
 import json
 
+# TODO: reinterpret auf das reinterpret skeleton (Auweia)
+#   - Zum Glück sind ja jetzt Templates implementiert.
+# TODO: inherit_dict pro template ergänzen
+#   - Damit lassen sich zB. formatter an das ganze dict durchpropagieren
 # TODO: Restrict Keys d2d
 # TODO: Accept und Produce lists
 #   - Mit der steigenden Komplexität, wird es unübersichtlich, welche Datentypen akzeptiert und welches resultiert
@@ -150,7 +154,6 @@ def str_to_list(val, delimiter=',', neutral=' \t\n', regex=None, **kwargs):
 
 
 def str_to_dict(val, **kwargs):
-
     if val == "":
         parsed = {}
     else:
@@ -352,7 +355,6 @@ convert_dict = {
 
 
 def _d1_reinterpret(value, pre_format=None, post_format=None, default=None, pipe=None, **kwargs):
-    original_kwargs = kwargs
     type_defaults = kwargs.get('type_defaults', {})
     pipe = pipe or []
     t = kwargs['type']
@@ -374,8 +376,13 @@ def _d1_reinterpret(value, pre_format=None, post_format=None, default=None, pipe
         except SkipException:
             return value
 
-    if not kwargs['convert'] and t != type(value):
-        raise InconvertibleError(kwargs['path'], "Expected {}, got {}.".format(t.__name__, type(value).__name__))
+    if not kwargs['convert'] and t != type(value) and t is not None:
+        if type(t) != type:
+            t_name = str(t)
+        else:
+            t_name = t
+
+        raise InconvertibleError(kwargs['path'], "Expected {}, got {}.".format(t_name, type(value).__name__))
 
     try:
         s = type(value)

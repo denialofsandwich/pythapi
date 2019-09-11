@@ -26,22 +26,6 @@ plugin.config_defaults = {
 }
 
 
-#@core.plugin_base.event(plugin, 'core.check')
-#def check():
-#    return True
-
-
-#@core.plugin_base.event(plugin, 'core.load')
-#def load():
-#    log.debug("I'm alive! 2")
-#    return True
-
-
-#@core.plugin_base.event(plugin, 'core.install')
-#def install():
-#    log.debug("I'm installed! 2")
-
-
-#@core.plugin_base.event(plugin, 'core.uninstall')
-#def uninstall():
-#    log.debug("I'm uninstalled! 2")
+@core.plugin_base.event(plugin, 'core.terminate')
+def terminate():
+    core.plugin_base.log.debug("TERMINATATA")

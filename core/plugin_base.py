@@ -49,7 +49,7 @@ class PythapiPlugin:
         self.reinit()
 
 
-def external_function(plugin):
+def external(plugin):
     def ap_generator(f):
         setattr(plugin, f.__name__, f)
         return f

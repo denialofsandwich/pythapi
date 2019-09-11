@@ -43,7 +43,7 @@ plugin.config_defaults = {
                         "type": int,
                         "default": 8123,
                     },
-                    "api_only": {
+                    "static_web_server": {
                         "type": bool,
                         "default": False,
                     },
@@ -135,7 +135,7 @@ web_request_data_skeleton = {
             'type': dict,
             'default': {},
         },
-        'post_body': {
+        'body_data': {
             'type': dict,
             'default': {},
         },
@@ -160,7 +160,7 @@ web_socket_data_skeleton = {
         "path": {
             "type": str,
         },
-        "message_content_type": {
+        "input_message_content_type": {
             "type": str,
             "default": "application/json"
         },
@@ -176,11 +176,15 @@ web_socket_data_skeleton = {
             'type': dict,
             'default': {},
         },
-        'input_message_data': {
+        'input_message_format': {
             'type': dict,
             'default': {},
         },
-        'output_message_data': {
+        'output_message_message_format': {
+            'type': dict,
+            'default': {},
+        },
+        'response_format': {
             'type': dict,
             'default': {},
         },
@@ -199,14 +203,7 @@ pre_post_event_data_skeleton = {
 }
 plugin.pre_post_event_data_skeleton = pre_post_event_data_skeleton
 
-request_event_list = {
-    'GET': [],
-    'POST': [],
-    'PUT': [],
-    'DELETE': [],
-    'OPTIONS': [],
-    'HEAD': [],
-}
+request_event_list = {}
 websocket_event_list = []
 
 pre_request_event_list = []
@@ -218,3 +215,30 @@ websocket_post_message_event_list = []
 websocket_close_event_list = []
 
 request_prefix_table = {}
+
+
+plugin.exception_list = {
+    "ERROR_GENERAL_NOT_FOUND": {
+        "error_id": "ERROR_GENERAL_NOT_FOUND",
+        "status_code": 404,
+        "message": {
+            "_multi_lingual": True,
+            "DE": "Die angeforderte Ressource wurde nicht gefunden.",
+            "EN": "Can't find the requested resource.",
+        }
+    }
+}
+
+
+@core.plugin_base.external(plugin)
+class WebRequestException(Exception):
+    def __init__(self, error_id='ERROR_GENERAL_UNKNOWN', status_code=400, data=None, tpl=None):
+        if tpl:
+            error_id = tpl.get("error_id", None) or error_id
+            status_code = tpl.get("status_code", None) or status_code
+
+        self.error_id = error_id
+        self.message = None
+        self.status_code = status_code
+        self.data = data or {}
+        Exception.__init__(self, self.message)

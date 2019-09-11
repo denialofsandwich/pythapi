@@ -38,7 +38,7 @@ def load():
 
 @core.plugin_base.event(plugin, 'core.load_optional')
 def load_optional():
-    log.debug("I'm load optional! 2")
+    log.debug("I'm load optional! 1")
     return True
 
 
