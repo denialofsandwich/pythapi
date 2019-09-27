@@ -151,6 +151,15 @@ def load():
         ('web.socket.close', header.websocket_close_event_list, {}),
     ]
     for plugin_name in core.plugin_base.serialized_plugin_list:
+        # This is necessary, to keep the static event support
+        core.plugin_base.plugin_dict[plugin_name].events['_BAK_web.request'] = \
+            list(core.plugin_base.plugin_dict[plugin_name].events.get('web.request', []))
+        core.plugin_base.plugin_dict[plugin_name].events['_BAK_web.socket'] = \
+            list(core.plugin_base.plugin_dict[plugin_name].events.get('web.socket', []))
+
+        for f, data in core.plugin_base.plugin_dict[plugin_name].events.get('web.init', []):
+            f(data)
+
         # Building index and initialize values for request handlers
         for f, data in core.plugin_base.plugin_dict[plugin_name].events.get('web.request', []):
             data = core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_request_data_skeleton)
@@ -209,4 +218,11 @@ def load():
 
 @core.plugin_base.event(header.plugin, 'core.terminate')
 def terminate():
+    # Remove all dynamically generated events
+    for plugin_name in core.plugin_base.serialized_plugin_list:
+        core.plugin_base.plugin_dict[plugin_name].events['web.request'] = \
+            core.plugin_base.plugin_dict[plugin_name].events.get('_BAK_web.request', [])
+        core.plugin_base.plugin_dict[plugin_name].events['web.socket'] = \
+            core.plugin_base.plugin_dict[plugin_name].events.get('_BAK_web.socket', [])
+
     stop()

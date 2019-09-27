@@ -32,7 +32,7 @@ def execute_function_or_coroutine(f, args=None, kwargs=None):
 
     response = f(*args, **kwargs)
     if (asyncio.iscoroutinefunction(f)
-            or type(response) == tornado.concurrent.Future
+        or type(response) == tornado.concurrent.Future
     ):
         response = yield response
         return response
@@ -143,8 +143,17 @@ class APIBase(tornado.web.RequestHandler):
             data.update(e.data)
             self._handle_error(400, 'ERROR_GENERAL_FORMAT', data)
         except header.WebRequestException as e:
+
+            message = core.casting.reinterpret(e.message, **{
+                "inheritable_parameters": [
+                    "pre_format",
+                ],
+                "pre_format": header.format_tr_table,
+                "request_obj": self
+            })
+
             data = {
-                'message': str(e),
+                'message': message,
                 'error_id': e.error_id,
             }
             data.update(e.data)
@@ -164,6 +173,8 @@ class APIBase(tornado.web.RequestHandler):
         yield self._search_and_handle_request()
 
 
+# TODO: Es fehlt eine write_message Funktion für anwendende Funktionen (Z.B. Jobs).
+# TODO: WebRequestException wird hier nicht richtig abgefangen
 class WebSocketBase(tornado.websocket.WebSocketHandler):
     env = {}
     ws_obj = None

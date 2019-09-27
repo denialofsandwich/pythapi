@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import core.plugin_base
-import core.casting
 from tornado import gen
 
 plugin = core.plugin_base.PythapiPlugin("debug_web")
@@ -24,13 +23,15 @@ def test_web_socket_close(env, event_data):
     core.plugin_base.log.debug("CLOSE_EVENT")
 
 
-@core.plugin_base.event(plugin, 'web.request', {
-    "path": "/u_there",
-})
-def test_req_basic(**kwargs):
-    return {
-        "answer": "yes"
-    }
+@core.plugin_base.event(plugin, 'web.init')
+def web_init(event_data):
+    @core.plugin_base.event(plugin, 'web.request', {
+        "path": "/u_there",
+    })
+    def test_req_basic(**kwargs):
+        return {
+            "answer": "yes"
+        }
 
 
 @core.plugin_base.event(plugin, 'web.request', {
@@ -272,8 +273,20 @@ class TestExceptionSocket1:
 @core.plugin_base.event(plugin, 'web.request', {
     "path": "/throw_custom_exception",
 })
-def test_throw_custom_exception(**kwargs):
+def test_throw_custom_exception1(**kwargs):
     web = core.plugin_base.plugin_dict['web']
-    raise web.WebRequestException(tpl=web.exception_list['ERROR_GENERAL_NOT_FOUND'], data={
+    raise web.WebRequestException(tpl=web.web_exception_list['ERROR_GENERAL_UNAUTHORIZED'], data={
         "test": True
+    })
+
+
+@core.plugin_base.event(plugin, 'web.request', {
+    "path": "/throw_custom_exception2",
+})
+def test_throw_custom_exception2(**kwargs):
+    web = core.plugin_base.plugin_dict['web']
+    raise web.WebRequestException(**{
+        "error_id": "ERROR_OF_HAZZARD",
+        "status_code": 569,
+        "message": "Crazy error!"
     })

@@ -7,6 +7,7 @@ import re
 import math
 import json
 
+
 # TODO: Restrict Keys d2d
 # TODO: Reformat keys from dict
 #   - Ein Dict kann anders als JSON jeden serialisierbaren Datentypen als Key haben.
@@ -21,12 +22,13 @@ _reinterpret_defaults = {
     'verify': False,
 }
 
-_inheritable_parameters = [
+_inheritable_parameters = {
     'path',
     'convert',
     'verify',
     'type_defaults',
-]
+    'inheritable_parameters',
+}
 
 
 class CastingException(ValueError):
@@ -203,7 +205,7 @@ def list_to_list(val, empty=True, children=None, child=None, single_cast_mode=0,
         raise EmptyError(kwargs['path'])
 
     children = copy.copy(children)
-    for p in _inheritable_parameters:
+    for p in kwargs['inheritable_parameters']:
         if p in kwargs:
             children[p] = _update(kwargs[p], children.get(p, {}))
 
@@ -264,9 +266,9 @@ def dict_to_dict(val, empty=True, child=None, children=None, **kwargs):
         raise EmptyError(kwargs['path'])
 
     children = copy.copy(children)
-    for p in _inheritable_parameters:
+    for p in kwargs['inheritable_parameters']:
         if p in kwargs:
-            children[p] = _update(kwargs[p], children.get(p, {}))
+            children[p] = _update(copy.copy(kwargs[p]), children.get(p, {}))
 
     key_children_list = list(child.keys())
     for key, item in val.items():
@@ -361,8 +363,12 @@ convert_dict = {
 }
 
 
-def _d1_reinterpret(value, pre_format=None, post_format=None, default=None, pipe=None, **kwargs):
+def _d1_reinterpret(value, **kwargs):
     type_defaults = kwargs.get('type_defaults', {})
+    pre_format = kwargs.get('pre_format', None)
+    post_format = kwargs.get('post_format', None)
+    default = kwargs.get('default', None)
+    pipe = kwargs.get('pipe', None)
     pipe = pipe or []
     t = kwargs['type']
 
@@ -423,6 +429,10 @@ def reinterpret(value, t=None, **kwargs):
         kwargs['type'] = t
 
     kwargs = _join_templates(kwargs)
+
+    inh_p = copy.copy(_inheritable_parameters)
+    inh_p.update(kwargs.get('inheritable_parameters', []))
+    kwargs['inheritable_parameters'] = inh_p
 
     if 'type' not in kwargs:
         kwargs['type'] = None

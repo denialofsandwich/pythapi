@@ -666,3 +666,34 @@ def test_recursive_loops():
     data = a
     casted = c.reinterpret(data, dict)
     assert casted == data
+
+
+def test_custom_inherit_list():
+    def format_tr_table(var, **kwargs):
+        lang = "DE"
+
+        if type(var) is dict and var.get('_tr', False):
+            return var[lang]
+
+        return var
+
+    data = {
+        "f_name": {
+            "_tr": True,
+            "EN": "File",
+            "DE": "Datei",
+        },
+        "f_icon": "storage",
+    }
+    desired = {
+        "f_name": "Datei",
+        "f_icon": "storage",
+    }
+
+    casted = c.reinterpret(data, **{
+        "inheritable_parameters": [
+            "pre_format",
+        ],
+        "pre_format": format_tr_table,
+    })
+    assert casted == desired

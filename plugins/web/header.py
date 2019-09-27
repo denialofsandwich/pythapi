@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import core.plugin_base
+import core.casting
 import re
 
 plugin = core.plugin_base.PythapiPlugin("web")
@@ -14,7 +15,7 @@ plugin.info['f_name'] = {
 
 plugin.info['f_description'] = {
     'EN': 'Provides a HTTP-API-interface.',
-    'DE': 'Stellt ein HTTP API-Interface bereit..'
+    'DE': 'Stellt ein HTTP API-Interface bereit.'
 }
 
 plugin.depends = []
@@ -217,28 +218,90 @@ websocket_close_event_list = []
 request_prefix_table = {}
 
 
-plugin.exception_list = {
+plugin.web_exception_list = {
+    "ERROR_GENERAL_BAD_REQUEST": {
+        "error_id": "ERROR_GENERAL_BAD_REQUEST",
+        "status_code": 400,
+        "message": {
+            "_tr": True,
+            "DE": "Fehlerhaftes Anfrageformat.",
+            "EN": "Incorrect request format.",
+        }
+    },
+    "ERROR_GENERAL_UNAUTHORIZED": {
+        "error_id": "ERROR_GENERAL_UNAUTHORIZED",
+        "status_code": 401,
+        "message": {
+            "_tr": True,
+            "DE": "Es wird eine Authentifikation benötigt.",
+            "EN": "Authentication required.",
+        }
+    },
+    "ERROR_GENERAL_FORBIDDEN": {
+        "error_id": "ERROR_GENERAL_FORBIDDEN",
+        "status_code": 403,
+        "message": {
+            "_tr": True,
+            "DE": "Unzureichende Berechtigungen.",
+            "EN": "Insufficient permissions.",
+        }
+    },
     "ERROR_GENERAL_NOT_FOUND": {
         "error_id": "ERROR_GENERAL_NOT_FOUND",
         "status_code": 404,
         "message": {
-            "_multi_lingual": True,
+            "_tr": True,
             "DE": "Die angeforderte Ressource wurde nicht gefunden.",
             "EN": "Can't find the requested resource.",
+        }
+    },
+    "ERROR_GENERAL_METHOD_NOT_ALLOWED": {
+        "error_id": "ERROR_GENERAL_METHOD_NOT_ALLOWED",
+        "status_code": 405,
+        "message": {
+            "_tr": True,
+            "DE": "Die verwendete Methode wird nicht unterstützt.",
+            "EN": "The method used is not supported.",
+        }
+    },
+    "ERROR_GENERAL_INTERNAL": {
+        "error_id": "ERROR_GENERAL_INTERNAL",
+        "status_code": 500,
+        "message": {
+            "_tr": True,
+            "DE": "Hier wurde schlecht programmiert.",
+            "EN": "You've just experienced bad programming in action.",
         }
     }
 }
 
 
 @core.plugin_base.external(plugin)
+def format_tr_table(var, **kwargs):
+
+    if type(var) is dict and var.get('_tr', False):
+        raw_languages = kwargs['request_obj'].request.headers.get("Accept-Language", 'en').split(',')
+
+        for lang in raw_languages:
+            lang = lang.split(';')[0].upper()
+            if lang in var:
+                return var[lang]
+
+        return var['EN']
+
+    return var
+
+
+@core.plugin_base.external(plugin)
 class WebRequestException(Exception):
-    def __init__(self, error_id='ERROR_GENERAL_UNKNOWN', status_code=400, data=None, tpl=None):
+    def __init__(self, error_id='ERROR_GENERAL_UNKNOWN', status_code=400, message="N/A", data=None, tpl=None):
         if tpl:
             error_id = tpl.get("error_id", None) or error_id
             status_code = tpl.get("status_code", None) or status_code
+            message = tpl.get("message", None) or message
 
         self.error_id = error_id
-        self.message = None
+        self.message = message
         self.status_code = status_code
         self.data = data or {}
         Exception.__init__(self, self.message)
