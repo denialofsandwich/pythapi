@@ -21,6 +21,9 @@ loaded_event = None
 log = None
 terminated = True
 
+# TODO: Implement essential flag
+# TODO: Core Events priorisierbar machen (Wie bei web; Da habe ich ja Bock drauf)
+
 
 def terminate_application(error_msg=None, exc_info=None):
     global terminated

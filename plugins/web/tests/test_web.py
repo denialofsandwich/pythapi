@@ -449,13 +449,43 @@ class TestFormatter:
             "status": "error"
         }
 
-    def test_throw_custom_exception(self, core_system):
+    def test_throw_custom_exception_base(self, core_system):
         response = requests.get(base_url + "/debug_web/throw_custom_exception").json()
         assert response == {
             'status': 'error',
-            'error_id': 'ERROR_GENERAL_NOT_FOUND',
-            'message': 'None',
+            'error_id': 'ERROR_GENERAL_UNAUTHORIZED',
+            'message': 'Authentication required.',
             'test': True,
+        }
+
+    def test_throw_custom_exception_lang_header(self, core_system):
+        response = requests.get(base_url + "/debug_web/throw_custom_exception", headers={
+            "Accept-Language": "de,us"
+        }).json()
+        assert response == {
+            'status': 'error',
+            'error_id': 'ERROR_GENERAL_UNAUTHORIZED',
+            'message': 'Es wird eine Authentifikation benötigt.',
+            'test': True,
+        }
+
+    def test_throw_custom_exception_lang_not_found(self, core_system):
+        response = requests.get(base_url + "/debug_web/throw_custom_exception", headers={
+            "Accept-Language": "it"
+        }).json()
+        assert response == {
+            'status': 'error',
+            'error_id': 'ERROR_GENERAL_UNAUTHORIZED',
+            'message': 'Authentication required.',
+            'test': True,
+        }
+
+    def test_throw_custom_exception_no_tr(self, core_system):
+        response = requests.get(base_url + "/debug_web/throw_custom_exception2").json()
+        assert response == {
+            "status": "error",
+            "error_id": "ERROR_OF_HAZZARD",
+            "message": "Crazy error!",
         }
 
     def test_ws_url_params(self, core_system):
