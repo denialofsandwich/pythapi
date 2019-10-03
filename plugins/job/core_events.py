@@ -4,18 +4,20 @@
 import core.plugin_base
 
 from . import header
-from . import base
 
 
 @core.plugin_base.event(header.plugin, 'core.terminate')
 def terminate():
-    job_list = list(base.JobObject.job_list)
+    job_table = dict(header.plugin.job_table)
 
-    for job in job_list:
+    for job_name, job in job_table.items():
         job.stop()
 
-    for job in job_list:
-        if job.daemon is not True:
+    for job_name, job in job_table.items():
+        if not job.daemon and job.is_alive():
             job.join()
+
+    for job_name, job in list(header.plugin.job_table.items()):
+        job.remove()
 
     core.plugin_base.log.info("Jobs terminated")

@@ -13,6 +13,7 @@ import tornado.websocket
 import json
 import asyncio
 import os
+import copy
 
 transaction_id = 0
 _status_code_to_error_id = {
@@ -50,13 +51,66 @@ def _get_client_ip(self):
         return self.request.remote_ip
 
 
+def format_message(env, message):
+    data = env['request_settings']
+
+    if data['content_type'] == "application/json":
+        if message is None:
+            message = {}
+
+        r_skel = copy.copy(data['output_message_format'])
+        r_skel['template'] = {
+            "type": dict,
+            "child": {
+                "status": {
+                    "type": str,
+                    "default": "success",
+                }
+            },
+            "type_defaults": {
+                float: {
+                    "type": float,
+                },
+                int: {
+                    "type": int,
+                },
+                bool: {
+                    "type": bool,
+                },
+                "*": {
+                    "type": str,
+                }
+            },
+        }
+
+        if env['url_params']['_pretty'] is True:
+            r_skel['template']['pretty'] = True
+            r_skel['template']['sort_keys'] = True
+
+        return core.casting.reinterpret(message, str, **r_skel) + '\n'
+
+
 class APIBase(tornado.web.RequestHandler):
     env = {}
 
-    def _handle_error(self, status_code=500, error_id=None, data=None):
+    def _handle_error(self, error_id='ERROR_GENERAL_INTERNAL', status_code=500, message="N/A", data=None, tpl=None):
+        if tpl:
+            error_id = tpl.get("error_id", None) or error_id
+            status_code = tpl.get("status_code", None) or status_code
+            message = tpl.get("message", None) or message
+
         data = data or {}
         data['status'] = data.get('status', 'error')
-        data['error_id'] = error_id or _status_code_to_error_id[status_code]
+        data['error_id'] = error_id
+
+        message = core.casting.reinterpret(message, **{
+            "inheritable_parameters": [
+                "pre_format",
+            ],
+            "pre_format": header.format_tr_table,
+            "request_obj": self
+        })
+        data['message'] = message
 
         core.plugin_base.log.access("{} {} {} {}".format(self.env.get('transaction_id', -1),
                                                          data['status'],
@@ -77,7 +131,7 @@ class APIBase(tornado.web.RequestHandler):
         except KeyError:
             pass
 
-        self._handle_error(status_code, error_id, {})
+        self._handle_error(status_code=status_code, tpl=header.plugin.web_exception_list[error_id])
 
     @gen.coroutine
     def _search_and_handle_request(self):
@@ -94,9 +148,7 @@ class APIBase(tornado.web.RequestHandler):
                 if i_match:
                     action = actions.get(method, None)
                     if not action:
-                        self._handle_error(405, None, {
-                            'message': "Method not allowed.",
-                        })
+                        self._handle_error(tpl=header.plugin.web_exception_list['ERROR_GENERAL_METHOD_NOT_ALLOWED'])
                         return
 
                     f = action[0]
@@ -131,38 +183,21 @@ class APIBase(tornado.web.RequestHandler):
 
                         yield execute_function_or_coroutine(i_f, args=(self.env, e_data))
             if not found:
-                self._handle_error(404, None, {
-                    'message': "Request doesn't exist.",
-                })
+                self._handle_error(tpl=header.plugin.web_exception_list['ERROR_GENERAL_NOT_FOUND'])
 
         except core.casting.CastingException as e:
-            data = {
-                'message': str(e),
-                'path': e.path,
-            }
+            data = {'path': e.path}
             data.update(e.data)
-            self._handle_error(400, 'ERROR_GENERAL_FORMAT', data)
+            self._handle_error('ERROR_GENERAL_FORMAT', 400, str(e), data)
         except header.WebRequestException as e:
-
-            message = core.casting.reinterpret(e.message, **{
-                "inheritable_parameters": [
-                    "pre_format",
-                ],
-                "pre_format": header.format_tr_table,
-                "request_obj": self
-            })
-
             data = {
-                'message': message,
                 'error_id': e.error_id,
             }
             data.update(e.data)
-            self._handle_error(e.status_code, e.error_id, data)
+            self._handle_error(e.error_id, e.status_code, e.message, data)
         except Exception as e:
             core.plugin_base.log.error("An exception occured.", exc_info=e)
-            self._handle_error(500, None, {
-                'message': "Internal Server Error."
-            })
+            self._handle_error(tpl=header.plugin.web_exception_list['ERROR_GENERAL_INTERNAL'])
         finally:
             transaction_id += 1
 
@@ -173,17 +208,29 @@ class APIBase(tornado.web.RequestHandler):
         yield self._search_and_handle_request()
 
 
-# TODO: Es fehlt eine write_message Funktion für anwendende Funktionen (Z.B. Jobs).
-# TODO: WebRequestException wird hier nicht richtig abgefangen
 class WebSocketBase(tornado.websocket.WebSocketHandler):
     env = {}
     ws_obj = None
     is_open = False
 
-    def _handle_error(self, status_code=500, error_id=None, data=None, fatal=True):
+    def _handle_error(self, error_id='ERROR_GENERAL_INTERNAL', status_code=500, message="N/A", data=None, fatal=True, tpl=None):
+        if tpl:
+            error_id = tpl.get("error_id", None) or error_id
+            status_code = tpl.get("status_code", None) or status_code
+            message = tpl.get("message", None) or message
+
         data = data or {}
         data['status'] = data.get('status', 'error')
-        data['error_id'] = error_id or _status_code_to_error_id[status_code]
+        data['error_id'] = error_id
+
+        message = core.casting.reinterpret(message, **{
+            "inheritable_parameters": [
+                "pre_format",
+            ],
+            "pre_format": header.format_tr_table,
+            "request_obj": self
+        })
+        data['message'] = message
 
         if fatal:
             core.plugin_base.log.access("{} {} {} {}".format(self.env.get('transaction_id', -1),
@@ -198,6 +245,18 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
             self.close(status_code)
 
     @gen.coroutine
+    def send_message(self, message):
+        self.env['response'] = message
+
+        if message is not None:
+            # Execute post_event_handlers
+            for post_event in reversed(header.websocket_post_message_event_list):
+                i_f = post_event[0]
+                e_data = post_event[1]
+
+                yield execute_function_or_coroutine(i_f, args=(self.env, e_data))
+
+    @gen.coroutine
     def open(self):
         global transaction_id
 
@@ -206,19 +265,18 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
             self.env = {
                 'transaction_id': transaction_id,
             }
-            found = False
             for action in header.websocket_event_list:
                 i_match = action[0].match(path)
                 if i_match:
                     f = action[1]
                     data = action[2]
-                    found = True
 
                     self.env.update({
                         'request_obj': self,
                         'request_settings': data,
                         'match_data': i_match,
                         'response': None,
+                        'send_message': self.send_message,
                     })
 
                     core.plugin_base.log.access("{} {} {} {}".format(self.env['transaction_id'],
@@ -236,29 +294,26 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
                     # Execute the actual request handler
                     self.env['ws_obj'] = self.ws_obj = f()
                     if hasattr(self.ws_obj, 'on_open'):
-                        self.env['response'] = yield execute_function_or_coroutine(self.ws_obj.on_open, kwargs=self.env)
-
-                    # Execute post_event_handlers
-                    for post_event in reversed(header.websocket_post_open_event_list):
-                        i_f = post_event[0]
-                        e_data = post_event[1]
-
-                        yield execute_function_or_coroutine(i_f, args=(self.env, e_data))
+                        response = yield execute_function_or_coroutine(self.ws_obj.on_open, kwargs=self.env)
+                        yield self.send_message(response)
 
                     self.is_open = True
 
         except core.casting.CastingException as e:
             data = {
-                'message': str(e),
                 'path': e.path,
             }
             data.update(e.data)
-            self._handle_error(400, 'ERROR_GENERAL_FORMAT', data)
+            self._handle_error('ERROR_GENERAL_FORMAT', 400, str(e), data)
+        except header.WebRequestException as e:
+            data = {
+                'error_id': e.error_id,
+            }
+            data.update(e.data)
+            self._handle_error(e.error_id, e.status_code, e.message, data)
         except Exception as e:
             core.plugin_base.log.error("An exception occured.", exc_info=e)
-            self._handle_error(500, None, {
-                'message': "Internal Server Error."
-            })
+            self._handle_error(tpl=header.plugin.web_exception_list['ERROR_GENERAL_INTERNAL'])
         finally:
             transaction_id += 1
 
@@ -276,27 +331,24 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
 
             # Execute the actual request handler
             if hasattr(self.ws_obj, 'on_message'):
-                self.env['response'] = yield execute_function_or_coroutine(self.ws_obj.on_message, kwargs=self.env)
-
-            # Execute post_event_handlers
-            for post_event in reversed(header.websocket_post_message_event_list):
-                i_f = post_event[0]
-                e_data = post_event[1]
-
-                yield execute_function_or_coroutine(i_f, args=(self.env, e_data))
+                response = yield execute_function_or_coroutine(self.ws_obj.on_message, kwargs=self.env)
+                yield self.send_message(response)
 
         except core.casting.CastingException as e:
             data = {
-                'message': str(e),
                 'path': e.path,
             }
             data.update(e.data)
-            self._handle_error(400, 'ERROR_GENERAL_FORMAT', data, False)
+            self._handle_error('ERROR_GENERAL_FORMAT', 400, str(e), data, False)
+        except header.WebRequestException as e:
+            data = {
+                'error_id': e.error_id,
+            }
+            data.update(e.data)
+            self._handle_error(e.error_id, e.status_code, e.message, data, e.data.get('fatal', False))
         except Exception as e:
             core.plugin_base.log.error("An exception occured.", exc_info=e)
-            self._handle_error(500, None, {
-                'message': "Internal Server Error."
-            })
+            self._handle_error(tpl=header.plugin.web_exception_list['ERROR_GENERAL_INTERNAL'])
 
     def on_close(self):
         try:
@@ -318,9 +370,7 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
 
         except Exception as e:
             core.plugin_base.log.error("An exception occured.", exc_info=e)
-            self._handle_error(500, None, {
-                'message': "Internal Server Error."
-            })
+            self._handle_error(tpl=header.plugin.web_exception_list['ERROR_GENERAL_INTERNAL'])
 
 
 class ServeMainPageHandler(tornado.web.RequestHandler):

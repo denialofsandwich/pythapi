@@ -20,21 +20,26 @@ plugin.config_defaults = {}
 
 def trd(**kwargs):
     stop_event = kwargs['_thread'].term_event
-
-    try:
-        while not stop_event.is_set():
-            #core.plugin_base.log.debug("AAA")
-            stop_event.wait(2)
-    finally:
-        core.plugin_base.log.debug("WUWUWUWUWUWUWU")
+    stop_event.wait()
 
 
-@core.plugin_base.event(plugin, 'core.load')
-def load():
+@core.plugin_base.external(plugin)
+def create_basic_job(name):
     job = core.plugin_base.plugin_dict['job']
 
-    core.plugin_base.log.debug("BBB")
-    t = job.JobObject(name="test_job1", target=trd, daemon=True)
-    # TODO: Implementiere das \/
-    #t = job.JobObject(name="test_job1", target=trd, daemon=True).every(5).days.at("17:35")
+    t = job.JobObject(name=name, target=trd)
     t.start()
+
+
+@core.plugin_base.external(plugin)
+def create_scheduled_job(name):
+    job = core.plugin_base.plugin_dict['job']
+
+    t = job.JobObject(name=name, target=trd).every(2).days.at("03:35")
+    t.start()
+
+
+@core.plugin_base.external(plugin)
+def remove_job(name):
+    job = core.plugin_base.plugin_dict['job']
+    job.job_table[name].remove()

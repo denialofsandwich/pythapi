@@ -3,7 +3,9 @@
 
 import core.plugin_base
 import core.casting
+
 from . import header
+from . import base
 
 import copy
 
@@ -137,56 +139,12 @@ def _base_pre_event_socket_message(env, event_data):
 
 @core.plugin_base.event(header.plugin, 'web.socket.post_message', {
     "priority": 5,
-    "format_slot": "output_message_message_format",
-})
-@core.plugin_base.event(header.plugin, 'web.socket.post_open', {
-    "priority": 5,
-    "format_slot": "response_format",
 })
 @core.plugin_base.event(header.plugin, 'web.post_request', {
     "priority": 5,
-    "format_slot": "response_format",
 })
 def _format_response(env, event_data):
-    data = env['request_settings']
-    response = env['response']
-
-    if data['content_type'] == "application/json":
-        if response is None:
-            response = {}
-
-        r_skel = copy.copy(data[event_data['format_slot']])
-        r_skel['template'] = {
-            "type": dict,
-            "child": {
-                "status": {
-                    "type": str,
-                    "default": "success",
-                }
-            },
-            "type_defaults": {
-                float: {
-                    "type": float,
-                },
-                int: {
-                    "type": int,
-                },
-                bool: {
-                    "type": bool,
-                },
-                "*": {
-                    "type": str,
-                }
-            },
-        }
-
-        if env['url_params']['_pretty'] is True:
-            r_skel['template']['pretty'] = True
-            r_skel['template']['sorted_keys'] = True
-
-        response = core.casting.reinterpret(response, str, **r_skel) + '\n'
-
-        env['response'] = response
+    env['response'] = base.format_message(env, env['response'])
 
 
 @core.plugin_base.event(header.plugin, 'web.post_request', {
@@ -203,9 +161,6 @@ def _send_response_request(env, event_data):
 
 
 @core.plugin_base.event(header.plugin, 'web.socket.post_message', {
-    "priority": 0
-})
-@core.plugin_base.event(header.plugin, 'web.socket.post_open', {
     "priority": 0
 })
 def _send_response_socket(env, event_data):

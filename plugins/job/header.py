@@ -26,3 +26,27 @@ plugin.depends = [
 plugin.config_defaults = {
     plugin.name: {},
 }
+
+plugin.JobNotFoundException = None
+plugin.job_table = {}
+
+
+def check_job_existence(val, **kwargs):
+    if val not in plugin.job_table:
+        raise plugin.JobNotFoundException(val)
+
+    return val
+
+
+plugin.web_template_table = {
+    "job_obj": {
+        "type": str,
+        "regex": r"[_a-zA-Z0-9-]+",
+        "pre_format": check_job_existence,
+        "f_name": {
+            "_tr": True,
+            "EN": "Job name",
+            "DE": "Job Name"
+        }
+    }
+}
