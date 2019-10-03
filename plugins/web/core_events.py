@@ -132,7 +132,6 @@ def load():
     header.pre_request_event_list = []
     header.post_request_event_list = []
     header.websocket_pre_open_event_list = []
-    header.websocket_post_open_event_list = []
     header.websocket_pre_message_event_list = []
     header.websocket_post_message_event_list = []
     header.websocket_close_event_list = []
@@ -145,7 +144,6 @@ def load():
         ('web.pre_request', header.pre_request_event_list, {}),
         ('web.post_request', header.post_request_event_list, {}),
         ('web.socket.pre_open', header.websocket_pre_open_event_list, {}),
-        ('web.socket.post_open', header.websocket_post_open_event_list, {}),
         ('web.socket.pre_message', header.websocket_pre_message_event_list, {}),
         ('web.socket.post_message', header.websocket_post_message_event_list, {}),
         ('web.socket.close', header.websocket_close_event_list, {}),

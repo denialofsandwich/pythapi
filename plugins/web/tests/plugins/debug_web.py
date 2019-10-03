@@ -23,6 +23,7 @@ def test_web_socket_close(env, event_data):
     core.plugin_base.log.debug("CLOSE_EVENT")
 
 
+# TODO: Das wird in den Tests nicht sauber abgebaut
 @core.plugin_base.event(plugin, 'web.init')
 def web_init(event_data):
     @core.plugin_base.event(plugin, 'web.request', {
@@ -229,7 +230,7 @@ class TestPathParams:
             },
         }
     },
-    "output_message_message_format": {
+    "output_message_format": {
         "type": dict,
         "child": {
             "delta": {
@@ -257,7 +258,7 @@ class TestExceptionSocket1:
 @core.plugin_base.event(plugin, 'web.socket', {
     "path": "/ws_except2"
 })
-class TestExceptionSocket1:
+class TestExceptionSocket2:
     def on_message(self, **kwargs):
         raise Exception("This is an Exception")
 
@@ -265,7 +266,7 @@ class TestExceptionSocket1:
 @core.plugin_base.event(plugin, 'web.socket', {
     "path": "/ws_except3"
 })
-class TestExceptionSocket1:
+class TestExceptionSocket3:
     def on_close(self, **kwargs):
         raise Exception("This is an Exception")
 
@@ -290,3 +291,34 @@ def test_throw_custom_exception2(**kwargs):
         "status_code": 569,
         "message": "Crazy error!"
     })
+
+
+@core.plugin_base.event(plugin, 'web.socket', {
+    "path": "/ws_throw_custom_exception"
+})
+class TestExceptionCustomSocket1:
+    def on_open(self, **kwargs):
+        web = core.plugin_base.plugin_dict['web']
+        raise web.WebRequestException(tpl=web.web_exception_list['ERROR_GENERAL_UNAUTHORIZED'], data={
+            "test": True
+        })
+
+
+@core.plugin_base.event(plugin, 'web.socket', {
+    "path": "/ws_throw_custom_exception2"
+})
+class TestExceptionCustomSocket2:
+    def on_message(self, **kwargs):
+        web = core.plugin_base.plugin_dict['web']
+        raise web.WebRequestException(tpl=web.web_exception_list['ERROR_GENERAL_UNAUTHORIZED'], data={
+            "test": True
+        })
+
+
+@core.plugin_base.event(plugin, 'web.socket', {
+    "path": "/ws_test_send_message"
+})
+class TestSendMessageSocket:
+    def on_open(self, send_message, **kwargs):
+        send_message({"alpha": "bravo"})
+        return {"charlie": "delta"}

@@ -16,8 +16,8 @@ import warnings
 
 import core.plugin_base
 
-base_url = "http://127.0.0.1:8223"
-ws_base_url = "ws://127.0.0.1:8223"
+base_url = "http://127.0.0.1:18223"
+ws_base_url = "ws://127.0.0.1:18223"
 
 
 @pytest.fixture(scope='function')
@@ -35,7 +35,7 @@ def _web_base_conf_gen():
         "web": {
             "binds": """{
                         "ip": "127.0.0.1",
-                        "port": 8223
+                        "port": 18223
                     }""",
         }
     }
@@ -65,7 +65,7 @@ def test_plain_start(capsys, cs_bare, web_base_conf):
     print(logs)
 
     # Port Open?
-    assert len(re.findall(re.escape("Opened port at: 127.0.0.1:8223, ssl: False, static_web_server: False"), logs)) == 1
+    assert len(re.findall(re.escape("Opened port at: 127.0.0.1:18223, ssl: False, static_web_server: False"), logs)) == 1
 
     # Detect ambiguous path
     assert len(re.findall(re.escape("Ambiguous path found: ^/debug_web/u_there2$"), logs)) == 1
@@ -168,7 +168,7 @@ def test_base_get_client_ip_non_local():
 def test_static_webserver_undefined_error(cs_bare, web_base_conf, capsys):
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
-        "port": 8223,
+        "port": 18223,
         "static_web_server": True,
     })
     cs_bare.conf = web_base_conf
@@ -185,7 +185,7 @@ def test_static_webserver_undefined_error(cs_bare, web_base_conf, capsys):
 def test_static_webserver_not_found_error(cs_bare, web_base_conf, capsys):
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
-        "port": 8223,
+        "port": 18223,
         "static_web_server": True,
         "static_root": "/tmp/web_root"
     })
@@ -209,7 +209,7 @@ def test_static_webserver_not_found_error(cs_bare, web_base_conf, capsys):
 def test_static_webserver(cs_bare, web_base_conf):
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
-        "port": 8223,
+        "port": 18223,
         "static_web_server": True,
         "static_root": "/tmp/web_root",
         "api_base_url": "/api"
@@ -241,7 +241,7 @@ def test_ssl_key_not_defined(cs_bare, web_base_conf, capsys):
     p_dir = os.path.dirname(core.plugin_base.module_dict['web'].__file__)
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
-        "port": 8223,
+        "port": 18223,
         "ssl": True,
         "cert_file": os.path.join(p_dir, "tests/ssl/test.crt"),
     })
@@ -260,7 +260,7 @@ def test_ssl_cert_not_found(cs_bare, web_base_conf, capsys):
     p_dir = os.path.dirname(core.plugin_base.module_dict['web'].__file__)
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
-        "port": 8223,
+        "port": 18223,
         "ssl": True,
         "cert_file": os.path.join(p_dir, "tests/ssl/testa.crt"),
         "key_file": os.path.join(p_dir, "tests/ssl/test.key"),
@@ -280,7 +280,7 @@ def test_ssl_request(cs_bare, web_base_conf):
     p_dir = os.path.dirname(core.plugin_base.module_dict['web'].__file__)
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
-        "port": 8223,
+        "port": 18223,
         "ssl": True,
         "cert_file": os.path.join(p_dir, "tests/ssl/test.crt"),
         "key_file": os.path.join(p_dir, "tests/ssl/test.key"),
@@ -290,11 +290,11 @@ def test_ssl_request(cs_bare, web_base_conf):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         with cs_bare:
-            response = requests.get("https://127.0.0.1:8223/debug_web/u_there", verify=False).json()
+            response = requests.get("https://127.0.0.1:18223/debug_web/u_there", verify=False).json()
             assert response == {"answer": "yes", "status": "success"}
 
 
-class TestFormatter:
+class TestSeries:
     def test_method_not_allowed(self, core_system):
         response = requests.post(base_url + "/debug_web/u_there").json()
         assert response == {
@@ -426,7 +426,8 @@ class TestFormatter:
         response = requests.delete(base_url + "/debug_web/empty_response").json()
         assert response == {
             "status": "error",
-            "error_id": "ERROR_GENERAL_METHOD_NOT_ALLOWED"
+            "error_id": "ERROR_GENERAL_METHOD_NOT_ALLOWED",
+            'message': 'Method not allowed.',
         }
 
     def test_other_error2(self, core_system):
@@ -436,7 +437,8 @@ class TestFormatter:
         response = requests.delete(base_url + "/debug_web/empty_response").json()
         assert response == {
             'status': 'error',
-            'error_id': 'ERROR_GENERAL_UNKNOWN'
+            'error_id': 'ERROR_GENERAL_UNKNOWN',
+            'message': 'Unknown error.',
         }
 
         core.plugin_base.module_dict['web'].base._status_code_to_error_id.update(status_code_backup)
@@ -444,9 +446,9 @@ class TestFormatter:
     def test_thrown_exception(self, core_system):
         response = requests.get(base_url + "/debug_web/throw_exception").json()
         assert response == {
-            "message": "Internal Server Error.",
+            "status": "error",
             "error_id": "ERROR_GENERAL_INTERNAL",
-            "status": "error"
+            "message": "You've just experienced bad programming in action.",
         }
 
     def test_throw_custom_exception_base(self, core_system):
@@ -544,11 +546,6 @@ class TestFormatter:
         async def ws_worker():
             uri = ws_base_url + "/debug_web/ws_message"
             async with websockets.connect(uri) as websocket:
-                response = await websocket.recv()
-                assert json.loads(response) == {
-                    'status': 'success'
-                }
-
                 await websocket.send(json.dumps({
                     "charlie": "golf",
                 }))
@@ -564,11 +561,6 @@ class TestFormatter:
 
             uri = ws_base_url + "/debug_web/ws_message"
             async with websockets.connect(uri) as websocket:
-                response = await websocket.recv()
-                assert json.loads(response) == {
-                    'status': 'success'
-                }
-
                 await websocket.send(json.dumps({}))
                 response = await websocket.recv()
                 assert json.loads(response) == {
@@ -589,7 +581,7 @@ class TestFormatter:
                 assert json.loads(response) == {
                     "status": "error",
                     "error_id": "ERROR_GENERAL_INTERNAL",
-                    "message": "Internal Server Error."
+                    "message": "You've just experienced bad programming in action.",
                 }
 
         asyncio.get_event_loop().run_until_complete(ws_worker())
@@ -598,17 +590,59 @@ class TestFormatter:
         async def ws_worker():
             uri = ws_base_url + "/debug_web/ws_except2"
             async with websockets.connect(uri) as websocket:
-                response = await websocket.recv()
-                assert json.loads(response) == {
-                    'status': 'success'
-                }
-
                 await websocket.send(json.dumps({}))
                 response = await websocket.recv()
                 assert json.loads(response) == {
                     "status": "error",
                     "error_id": "ERROR_GENERAL_INTERNAL",
-                    "message": "Internal Server Error."
+                    "message": "You've just experienced bad programming in action.",
+                }
+
+        asyncio.get_event_loop().run_until_complete(ws_worker())
+
+    def test_ws_throw_custom_exception_open(self, core_system):
+        async def ws_worker():
+            uri = ws_base_url + "/debug_web/ws_throw_custom_exception"
+            async with websockets.connect(uri) as websocket:
+                response = await websocket.recv()
+                assert json.loads(response) == {
+                    "status": "error",
+                    "error_id": "ERROR_GENERAL_UNAUTHORIZED",
+                    "message": "Authentication required.",
+                    "test": True,
+                }
+
+        asyncio.get_event_loop().run_until_complete(ws_worker())
+
+    def test_ws_throw_custom_exception_message(self, core_system):
+        async def ws_worker():
+            uri = ws_base_url + "/debug_web/ws_throw_custom_exception2"
+            async with websockets.connect(uri) as websocket:
+                await websocket.send(json.dumps({}))
+                response = await websocket.recv()
+                assert json.loads(response) == {
+                    "status": "error",
+                    "error_id": "ERROR_GENERAL_UNAUTHORIZED",
+                    "message": "Authentication required.",
+                    "test": True,
+                }
+
+        asyncio.get_event_loop().run_until_complete(ws_worker())
+
+    def test_ws_send_message(self, core_system):
+        async def ws_worker():
+            uri = ws_base_url + "/debug_web/ws_test_send_message"
+            async with websockets.connect(uri) as websocket:
+                response = await websocket.recv()
+                assert json.loads(response) == {
+                    "alpha": "bravo",
+                    "status": "success"
+                }
+
+                response = await websocket.recv()
+                assert json.loads(response) == {
+                    "charlie": "delta",
+                    "status": "success"
                 }
 
         asyncio.get_event_loop().run_until_complete(ws_worker())
@@ -621,10 +655,7 @@ def test_ws_except_close(cs_bare, web_base_conf, capsys):
         async def ws_worker():
             uri = ws_base_url + "/debug_web/ws_except3"
             async with websockets.connect(uri) as websocket:
-                response = await websocket.recv()
-                assert json.loads(response) == {
-                    'status': 'success'
-                }
+                pass
 
         asyncio.get_event_loop().run_until_complete(ws_worker())
 

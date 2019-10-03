@@ -4,6 +4,6 @@
 from . import header
 from . import base
 from . import core_events
-from . import web_requests
+from . import web_events
 
 plugin = header.plugin

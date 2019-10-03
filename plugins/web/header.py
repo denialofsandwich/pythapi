@@ -140,7 +140,7 @@ web_request_data_skeleton = {
             'type': dict,
             'default': {},
         },
-        'response_format': {
+        'output_message_format': {
             'type': dict,
             'default': {},
         },
@@ -181,11 +181,7 @@ web_socket_data_skeleton = {
             'type': dict,
             'default': {},
         },
-        'output_message_message_format': {
-            'type': dict,
-            'default': {},
-        },
-        'response_format': {
+        'output_message_format': {
             'type': dict,
             'default': {},
         },
@@ -210,7 +206,6 @@ websocket_event_list = []
 pre_request_event_list = []
 post_request_event_list = []
 websocket_pre_open_event_list = []
-websocket_post_open_event_list = []
 websocket_pre_message_event_list = []
 websocket_post_message_event_list = []
 websocket_close_event_list = []
@@ -251,8 +246,8 @@ plugin.web_exception_list = {
         "status_code": 404,
         "message": {
             "_tr": True,
-            "DE": "Die angeforderte Ressource wurde nicht gefunden.",
-            "EN": "Can't find the requested resource.",
+            "DE": "Request nicht gefunden.",
+            "EN": "Request doesn't exist.",
         }
     },
     "ERROR_GENERAL_METHOD_NOT_ALLOWED": {
@@ -260,8 +255,8 @@ plugin.web_exception_list = {
         "status_code": 405,
         "message": {
             "_tr": True,
-            "DE": "Die verwendete Methode wird nicht unterstützt.",
-            "EN": "The method used is not supported.",
+            "DE": "Die verwendete Methode ist hier nicht erlaubt.",
+            "EN": "Method not allowed.",
         }
     },
     "ERROR_GENERAL_INTERNAL": {
@@ -272,7 +267,28 @@ plugin.web_exception_list = {
             "DE": "Hier wurde schlecht programmiert.",
             "EN": "You've just experienced bad programming in action.",
         }
+    },
+    "ERROR_GENERAL_UNKNOWN": {
+        "error_id": "ERROR_GENERAL_UNKNOWN",
+        "message": {
+            "_tr": True,
+            "DE": "Unbekannter Fehler.",
+            "EN": "Unknown error.",
+        }
     }
+}
+
+
+plugin.web_template_table = {
+    "verbose": {
+        "type": list,
+        "default": [],
+        "single_cast_mode": 2,
+        "children": {
+            "type": bool,
+            "default": False,
+        },
+    },
 }
 
 
