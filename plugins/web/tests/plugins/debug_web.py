@@ -23,7 +23,6 @@ def test_web_socket_close(env, event_data):
     core.plugin_base.log.debug("CLOSE_EVENT")
 
 
-# TODO: Das wird in den Tests nicht sauber abgebaut
 @core.plugin_base.event(plugin, 'web.init')
 def web_init(event_data):
     @core.plugin_base.event(plugin, 'web.request', {

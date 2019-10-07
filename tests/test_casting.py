@@ -697,3 +697,11 @@ def test_custom_inherit_list():
         "pre_format": format_tr_table,
     })
     assert casted == desired
+
+
+def test_t2l():
+    data = ("1", 2)
+    desired = ["1", 2]
+
+    casted = c.reinterpret(data, list)
+    assert casted == desired

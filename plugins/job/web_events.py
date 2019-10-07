@@ -59,7 +59,7 @@ def web_init(event_data):
             }
         }
     })
-    def list_jobs_request(url_params, **kwargs):
+    def list_jobs(url_params, **kwargs):
         if url_params['verbose']:
             data = {}
             for job_name in header.plugin.job_table:
@@ -82,7 +82,7 @@ def web_init(event_data):
             ]
         },
     })
-    def get_job_request(path_params, **kwargs):
+    def get_job(path_params, **kwargs):
         return {
             "data": i_get_job_info(path_params[0]),
         }
@@ -96,6 +96,6 @@ def web_init(event_data):
             ]
         },
     })
-    def delete_job_request(path_params, **kwargs):
+    def delete_job(path_params, **kwargs):
         job_obj = header.plugin.job_table[path_params[0]]
         job_obj.remove()
