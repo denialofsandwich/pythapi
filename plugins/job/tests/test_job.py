@@ -250,10 +250,10 @@ class TestSeries:
         def func(**kwargs):
             pass
 
-        t = job.JobObject(name="test_job", target=func).every().day.at('15:00')
+        t = job.JobObject(name="test_job", target=func).every().day.at('10:25')
         t.start()
 
-        desired_target = datetime.datetime.now().replace(hour=15, minute=0, second=0, microsecond=0)
+        desired_target = datetime.datetime.now().replace(hour=10, minute=25, second=0, microsecond=0)
         if desired_target < datetime.datetime.now():
             desired_target += datetime.timedelta(0, 60*60*24)
 
@@ -269,10 +269,10 @@ class TestSeries:
         def func(**kwargs):
             pass
 
-        t = job.JobObject(name="test_job", target=func).every().week.at('Monday 17:33')
+        t = job.JobObject(name="test_job", target=func).every().week.at('Monday 00:05')
         t.start()
 
-        assert t.target_time.strftime("%A %H:%M") == "Monday 17:33"
+        assert t.target_time.strftime("%A %H:%M") == "Monday 00:05"
         assert t.interval == 1
         assert t.unit == 60*60*24*7
 

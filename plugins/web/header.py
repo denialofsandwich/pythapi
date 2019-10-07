@@ -10,10 +10,12 @@ plugin.version = "1.0"
 plugin.essential = False
 
 plugin.info['f_name'] = {
+    '_tr': True,
     'EN': 'Webserver'
 }
 
 plugin.info['f_description'] = {
+    '_tr': True,
     'EN': 'Provides a HTTP-API-interface.',
     'DE': 'Stellt ein HTTP API-Interface bereit.'
 }
@@ -200,8 +202,11 @@ pre_post_event_data_skeleton = {
 }
 plugin.pre_post_event_data_skeleton = pre_post_event_data_skeleton
 
+
 request_event_list = {}
 websocket_event_list = []
+
+plugin.request_name_table = {}
 
 pre_request_event_list = []
 post_request_event_list = []
@@ -293,10 +298,11 @@ plugin.web_template_table = {
 
 
 @core.plugin_base.external(plugin)
-def format_tr_table(var, **kwargs):
+def format_tr_table(var, env, **kwargs):
+    request_obj = env['request_obj']
 
     if type(var) is dict and var.get('_tr', False):
-        raw_languages = kwargs['request_obj'].request.headers.get("Accept-Language", 'en').split(',')
+        raw_languages = request_obj.request.headers.get("Accept-Language", 'en').split(',')
 
         for lang in raw_languages:
             lang = lang.split(';')[0].upper()

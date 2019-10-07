@@ -8,10 +8,12 @@ plugin.version = "1.0"
 plugin.essential = False
 
 plugin.info['f_name'] = {
+    '_tr': True,
     'EN': 'Jobs'
 }
 
 plugin.info['f_description'] = {
+    '_tr': True,
     'EN': 'Provides functionalities for background processes.',
     'DE': 'Stellt Funktionalitäten für Hintergrundprozesse bereit.'
 }

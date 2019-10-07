@@ -67,6 +67,7 @@ def format_message(env, message):
                     "default": "success",
                 }
             },
+            "env": env,
             "type_defaults": {
                 float: {
                     "type": float,
@@ -76,6 +77,9 @@ def format_message(env, message):
                 },
                 bool: {
                     "type": bool,
+                },
+                tuple: {
+                    "type": list,
                 },
                 "*": {
                     "type": str,
@@ -90,8 +94,13 @@ def format_message(env, message):
         return core.casting.reinterpret(message, str, **r_skel) + '\n'
 
 
+# TODO: Method not supported mal richtig machen
 class APIBase(tornado.web.RequestHandler):
-    env = {}
+    def __init__(self, *args, **kwargs):
+        self.env = {
+            "request_obj": self,
+        }
+        tornado.web.RequestHandler.__init__(self, *args, **kwargs)
 
     def _handle_error(self, error_id='ERROR_GENERAL_INTERNAL', status_code=500, message="N/A", data=None, tpl=None):
         if tpl:
@@ -108,7 +117,7 @@ class APIBase(tornado.web.RequestHandler):
                 "pre_format",
             ],
             "pre_format": header.format_tr_table,
-            "request_obj": self
+            "env": self.env,
         })
         data['message'] = message
 
@@ -139,9 +148,9 @@ class APIBase(tornado.web.RequestHandler):
         try:
             method = self.request.method
             path = self.request.path[len(header.request_prefix_table[self.request.host.split(':')[1]]):]
-            self.env = {
+            self.env.update({
                 'transaction_id': transaction_id,
-            }
+            })
             found = False
             for rgx, actions in header.request_event_list.items():
                 i_match = rgx.match(path)
@@ -156,7 +165,6 @@ class APIBase(tornado.web.RequestHandler):
                     found = True
 
                     self.env.update({
-                        'request_obj': self,
                         'request_settings': data,
                         'match_data': i_match,
                         'response': None,
@@ -209,9 +217,14 @@ class APIBase(tornado.web.RequestHandler):
 
 
 class WebSocketBase(tornado.websocket.WebSocketHandler):
-    env = {}
     ws_obj = None
     is_open = False
+
+    def __init__(self, *args, **kwargs):
+        self.env = {
+            "request_obj": self,
+        }
+        tornado.websocket.WebSocketHandler.__init__(self, *args, **kwargs)
 
     def _handle_error(self, error_id='ERROR_GENERAL_INTERNAL', status_code=500, message="N/A", data=None, fatal=True, tpl=None):
         if tpl:
@@ -228,7 +241,7 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
                 "pre_format",
             ],
             "pre_format": header.format_tr_table,
-            "request_obj": self
+            "env": self.env,
         })
         data['message'] = message
 
@@ -262,9 +275,10 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
 
         try:
             path = self.request.path[len(header.request_prefix_table[self.request.host.split(':')[1]]):]
-            self.env = {
+            self.env.update({
                 'transaction_id': transaction_id,
-            }
+                'send_message': self.send_message,
+            })
             for action in header.websocket_event_list:
                 i_match = action[0].match(path)
                 if i_match:
@@ -272,11 +286,9 @@ class WebSocketBase(tornado.websocket.WebSocketHandler):
                     data = action[2]
 
                     self.env.update({
-                        'request_obj': self,
                         'request_settings': data,
                         'match_data': i_match,
                         'response': None,
-                        'send_message': self.send_message,
                     })
 
                     core.plugin_base.log.access("{} {} {} {}".format(self.env['transaction_id'],

@@ -424,6 +424,7 @@ class TestSeries:
 
     def test_other_error(self, core_system):
         response = requests.delete(base_url + "/debug_web/empty_response").json()
+        print(response)
         assert response == {
             "status": "error",
             "error_id": "ERROR_GENERAL_METHOD_NOT_ALLOWED",

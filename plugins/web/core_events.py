@@ -128,6 +128,7 @@ def load():
 
     header.request_event_list = {}
     header.websocket_event_list = []
+    header.plugin.request_name_table = {}
 
     header.pre_request_event_list = []
     header.post_request_event_list = []
@@ -149,6 +150,8 @@ def load():
         ('web.socket.close', header.websocket_close_event_list, {}),
     ]
     for plugin_name in core.plugin_base.serialized_plugin_list:
+        header.plugin.request_name_table[plugin_name] = {}
+
         # This is necessary, to keep the static event support
         core.plugin_base.plugin_dict[plugin_name].events['_BAK_web.request'] = \
             list(core.plugin_base.plugin_dict[plugin_name].events.get('web.request', []))
@@ -160,7 +163,9 @@ def load():
 
         # Building index and initialize values for request handlers
         for f, data in core.plugin_base.plugin_dict[plugin_name].events.get('web.request', []):
-            data = core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_request_data_skeleton)
+            data.update(core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_request_data_skeleton))
+
+            header.plugin.request_name_table[plugin_name][data['name']] = data
 
             if data["_c_regex"] not in header.request_event_list:
                 header.request_event_list[data["_c_regex"]] = {}
@@ -172,7 +177,9 @@ def load():
             supported_methods_set.add(data['method'])
 
         for c, data in core.plugin_base.plugin_dict[plugin_name].events.get('web.socket', []):
-            data = core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_socket_data_skeleton)
+            data.update(core.casting.reinterpret(data, d_plugin_name=plugin_name, **header.web_socket_data_skeleton))
+
+            header.plugin.request_name_table[plugin_name][data['name']] = data
 
             ws_re_list.append(data["_raw_regex"])
             header.websocket_event_list.append((data["_c_regex"], c, data))

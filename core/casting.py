@@ -20,6 +20,7 @@ _reinterpret_defaults = {
     'path': [],
     'convert': True,
     'verify': False,
+    '_env': {},
 }
 
 _inheritable_parameters = {
@@ -28,6 +29,7 @@ _inheritable_parameters = {
     'verify',
     'type_defaults',
     'inheritable_parameters',
+    '_env',
 }
 
 
@@ -198,6 +200,7 @@ def float_to_int(val, round_type=0, **kwargs):
 
 
 def list_to_list(val, empty=True, children=None, child=None, single_cast_mode=0, **kwargs):
+    val = list(val)
     children = children or {}
     child = child or []
 
@@ -259,6 +262,8 @@ def dict_to_dict(val, empty=True, child=None, children=None, **kwargs):
     if id(val) in _rec_set:
         return val
 
+    _rec_set.add(id(val))
+    val = dict(val)
     _rec_set.add(id(val))
     children['_rec_set'] = _rec_set
 
@@ -322,6 +327,10 @@ def all_to_str(val, **kwargs):
     return str(val)
 
 
+def tuple_to_list(val, **kwargs):
+    return reinterpret(list(val), list, **kwargs)
+
+
 convert_dict = {
     str: {
         int: str_to_int,
@@ -347,6 +356,9 @@ convert_dict = {
         None: list_to_list,
         list: list_to_list,
         dict: list_to_dict,
+    },
+    tuple: {
+        list: tuple_to_list,
     },
     dict: {
         None: dict_to_dict,
@@ -412,6 +424,7 @@ def _d1_reinterpret(value, **kwargs):
 
         result = convert_dict[s][t](value, **kwargs)
     except KeyError:
+        # TODO: Wirft sehr irreführende Fehler, wenn weiter unten bei den Formattern ein KeyError geworfen wird.
         raise InconvertibleError(kwargs['path'], "Can't convert {} to {}".format(s, t))
 
     kwargs['raw_value'] = value
