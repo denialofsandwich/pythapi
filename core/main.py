@@ -22,6 +22,8 @@ log = None
 terminated = True
 
 # TODO: core.terminate auch bei kritischen Fehlern ausführen. (Für sauberen Abbau in Tests)
+# TODO: Debug Meldungen zu Infomeldungen machen
+#   - Dafür mit Debug mehr Debugzeug anzeigen
 # TODO: Implement essential flag
 # TODO: Core Events priorisierbar machen (Wie bei web; Da habe ich ja Bock drauf)
 
@@ -163,18 +165,17 @@ def run(args, event=None, config_dict=None):
     # Read configuration files
     config_parser = parse_conf.PythapiConfigParser()
 
-    config_file = None
+    config_file = args.config or [defaults.config_base_path]
+
+    for config in config_file:
+        config_parser.recursive_read(config)
+    
     if config_dict:
         if type(config_dict) is dict:
             config_dict = [config_dict]
 
         for config in config_dict:
             config_parser.recursive_read_dict(config)
-    else:
-        config_file = args.config or [defaults.config_base_path]
-
-        for config in config_file:
-            config_parser.recursive_read(config)
 
     config_parser.read_list(args.config_parameter)
 
