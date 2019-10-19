@@ -4,4 +4,4 @@ cd "$(dirname "$0")"
 P=${1:-.}
 shift
 
-PYTHONPATH=. pytest --cov=. $P --cov-report term-missing $@
+PYTHONPATH=. pytest --cov=$P $P --cov-report term-missing $@

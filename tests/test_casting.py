@@ -705,3 +705,39 @@ def test_t2l():
 
     casted = c.reinterpret(data, list)
     assert casted == desired
+
+
+def test_s2b():
+    data = "Hello World! ä"
+    desired = b'Hello World! \xc3\xa4'
+
+    casted = c.reinterpret(data, bytes)
+    assert type(casted) == bytes
+    assert casted == desired
+
+
+def test_alternating_verify_flag():
+    data = {
+        "alpha": {
+            "bravo": "charlie",
+            "delta": None
+        },
+        "echo": {
+            "foxtrot": None
+        }
+    }
+
+    casted = c.reinterpret(data, **{
+        "type": dict,
+        "verify": True,
+        "child": {
+            "alpha": {
+                "verify": False
+            },
+            "echo": {
+                "verify": False
+            }
+        }
+    })
+
+    assert casted == data

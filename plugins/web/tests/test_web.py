@@ -328,11 +328,11 @@ class TestSeries:
 
         response = requests.get(base_url + "/debug_web/url_arg2").json()
         assert response == {
-            "path": ".hello",
+            "error_id": "ERROR_GENERAL_FORMAT",
             "status": "error",
+            "path": ".hello",
             "section": "url_params",
-            "message": "This Value must be set.",
-            "error_id": "ERROR_GENERAL_FORMAT"
+            "message": "hello must be set.",
         }
 
     def test_empty_path_params(self, core_system):
@@ -401,7 +401,7 @@ class TestSeries:
             "section": "body_data",
             "status": "error",
             "error_id": "ERROR_GENERAL_FORMAT",
-            "message": "This Value must be set.",
+            "message": "bravo must be set.",
             "path": ".bravo"
         }
 
@@ -512,7 +512,7 @@ class TestSeries:
                     "path": ".alpha.0",
                     "error_id": "ERROR_GENERAL_FORMAT",
                     "section": "url_params",
-                    "message": "This Value must be set."
+                    "message": "alpha.0 must be set."
                 }
 
         asyncio.get_event_loop().run_until_complete(ws_worker())
@@ -569,7 +569,7 @@ class TestSeries:
                     "error_id": "ERROR_GENERAL_FORMAT",
                     "status": "error",
                     "section": "message_data",
-                    "message": "This Value must be set."
+                    "message": "charlie must be set."
                 }
 
         asyncio.get_event_loop().run_until_complete(ws_worker())

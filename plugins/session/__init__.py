@@ -3,7 +3,6 @@
 
 from . import header
 from . import base
-from . import core_events
-from . import web_events
+from . import events
 
 plugin = header.plugin
