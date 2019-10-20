@@ -94,9 +94,16 @@ plugin.config_defaults = {
 }
 
 
+path_param_regex = r'{([a-zA-Z0-9_-]+)}'
+
+
 def _post_event_data_formatter(val, **kwargs):
+
     if "path" in val:
-        val['_raw_regex'] = ['^', '/' + kwargs['d_plugin_name'] + val['path'].replace('*', '([^/]*)') + '$']
+        val['_path_param_names'] = re.findall(path_param_regex, val['path'])
+        val['_raw_regex'] = ['^', '/' + kwargs['d_plugin_name'] + re.sub(path_param_regex,
+                                                                         '([^/]*)',
+                                                                         val['path']) + '$']
         val['regex'] = ''.join(val['_raw_regex'])
 
     if "regex" in val:

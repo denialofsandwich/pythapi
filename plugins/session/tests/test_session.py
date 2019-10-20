@@ -12,13 +12,6 @@ import json
 import datetime
 
 
-# TODO: Um sicherzustellen, dass alle Zeichen bei den Cookies funktionieren (da ich nicht base64 kodieren werde),
-#       sollte ich auch möglichst alle Zeichen Testen
-#   Insbesondere: ; " ,
-
-# TODO: Besondere Präzision bei den Tests erforderlich, da sicherheitskritisch.
-
-
 base_url = "http://127.0.0.1:18223"
 
 
@@ -62,7 +55,6 @@ def core_system():
         yield cs
 
 
-# TODO: Der sollte hier eigentlich wegen dem fehlenden Secret motzen
 class TestSeries:
     def test_set_insecure_cookie(self, core_system):
         session = core.plugin_base.plugin_dict['session']
@@ -252,7 +244,7 @@ class TestSeries:
         s = requests.Session()
         s.put(base_url + "/debug_session/session", json={
             "data": {
-                "alpha": "juliett"
+                "alpha": "juliet"
             }
         })
 

@@ -12,9 +12,7 @@ import base64
 import datetime
 import json
 
-# TODO: tornado.locale ausprobieren
 
-# TODO: Absolute Fehlertolleranz erforderlich! Da Daten manipuliert werden können.
 @core.plugin_base.external(header.plugin)
 def set_cookie(robj, name, data, signed=True, encrypted=False, expires=None):
     config = core.plugin_base.config[header.plugin.name]

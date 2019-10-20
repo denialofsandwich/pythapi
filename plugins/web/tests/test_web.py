@@ -338,10 +338,10 @@ class TestSeries:
     def test_empty_path_params(self, core_system):
         response = requests.get(base_url + "/debug_web/path_arg1/hello/world").json()
         assert response == {
-            "data": [
-                "hello",
-                "world"
-            ],
+            "data": {
+                "alpha": "hello",
+                "bravo": "world"
+            },
             "status": "success"
         }
 
@@ -349,18 +349,18 @@ class TestSeries:
         response = requests.get(base_url + "/debug_web/path_arg2/56/true").json()
         assert response == {
             "status": "success",
-            "data": [
-                56,
-                True
-            ]
+            "data": {
+                "india": 56,
+                "juliet": True
+            }
         }
 
-        response = requests.get(base_url + "/debug_web/path_arg2/charlie/hotel").json()
+        response = requests.get(base_url + "/debug_web/path_arg2/charlie/false").json()
         assert response == {
             "error_id": "ERROR_GENERAL_FORMAT",
             "message": "Can't convert \"charlie\" to int",
             "section": "path_params",
-            "path": ".0",
+            "path": ".india",
             "status": "error"
         }
 
@@ -524,10 +524,10 @@ class TestSeries:
                 response = await websocket.recv()
                 assert json.loads(response) == {
                     "status": "success",
-                    "data": [
-                        69,
-                        1.45
-                    ]
+                    "data": {
+                        "india": 69,
+                        "juliet": 1.45
+                    }
                 }
 
             uri = ws_base_url + "/debug_web/ws_path_params/4/f"
@@ -538,7 +538,7 @@ class TestSeries:
                     "section": "path_params",
                     "status": "error",
                     "error_id": "ERROR_GENERAL_FORMAT",
-                    "path": ".1"
+                    "path": ".juliet"
                 }
 
         asyncio.get_event_loop().run_until_complete(ws_worker())

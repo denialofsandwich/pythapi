@@ -26,6 +26,7 @@ _status_code_to_error_id = {
 }
 
 
+# TODO: tornado.locale ausprobieren
 @gen.coroutine
 def execute_function_or_coroutine(f, args=None, kwargs=None):
     args = args or ()
