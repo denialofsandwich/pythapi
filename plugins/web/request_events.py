@@ -12,18 +12,17 @@ import copy
 
 def _path_and_url_arg_handling(match_data, data, robj):
     # Url-arg handling
-    path_params = list(match_data.groups())
+    path_params = dict(zip(data['_path_param_names'], list(match_data.groups())))
     try:
         ua_skel = copy.copy(data['path_params'])
         ua_skel['template'] = {
-            "type": list,
+            "type": dict,
             "verify": False,
         }
 
         path_params = core.casting.reinterpret(path_params, **ua_skel)
     except core.casting.CastingException as e:
         e.data['section'] = 'path_params'
-        core.plugin_base.log.debug("", e)
         raise e
 
     # Get-Param handling

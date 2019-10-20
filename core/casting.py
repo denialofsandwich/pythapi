@@ -7,7 +7,6 @@ import re
 import math
 import json
 
-
 # TODO: Restrict Keys d2d
 # TODO: Reformat keys from dict
 #   - Ein Dict kann anders als JSON jeden serialisierbaren Datentypen als Key haben.
@@ -331,6 +330,10 @@ def tuple_to_list(val, **kwargs):
     return reinterpret(list(val), list, **kwargs)
 
 
+def str_to_bytes(val, encoding='utf8', **kwargs):
+    return val.encode(encoding)
+
+
 convert_dict = {
     str: {
         int: str_to_int,
@@ -339,6 +342,7 @@ convert_dict = {
         str: str_to_str,
         list: str_to_list,
         dict: str_to_dict,
+        bytes: str_to_bytes,
     },
     int: {
         int: int_to_int,
@@ -389,7 +393,7 @@ def _d1_reinterpret(value, **kwargs):
     if value is None:
         if default is None:
             if kwargs['verify']:
-                raise MissingValueError(kwargs['path'], "This Value must be set.")
+                raise MissingValueError(kwargs['path'], "{} must be set.".format('.'.join(kwargs['path'])))
             else:
                 return None
         else:
@@ -422,10 +426,11 @@ def _d1_reinterpret(value, **kwargs):
         type_default = copy.copy(type_defaults.get(s, type_defaults.get('*', {})))
         kwargs = _update(type_default, kwargs)
 
-        result = convert_dict[s][t](value, **kwargs)
+        convert_func = convert_dict[s][t]
     except KeyError:
-        # TODO: Wirft sehr irreführende Fehler, wenn weiter unten bei den Formattern ein KeyError geworfen wird.
         raise InconvertibleError(kwargs['path'], "Can't convert {} to {}".format(s, t))
+
+    result = convert_func(value, **kwargs)
 
     kwargs['raw_value'] = value
     if post_format:

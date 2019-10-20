@@ -146,9 +146,9 @@ def test_verify():
     }
 
     config_parser = p.PythapiConfigParser()
-    config_parser.read_defaults(cfg_defaults)
+    config_parser.recursive_read_string(cfg)
 
     with pytest.raises(core.casting.MissingValueError):
-        config_parser.recursive_read_string(cfg)
+        config_parser.read_defaults(cfg_defaults)
 
 

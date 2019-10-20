@@ -26,6 +26,7 @@ _status_code_to_error_id = {
 }
 
 
+# TODO: tornado.locale ausprobieren
 @gen.coroutine
 def execute_function_or_coroutine(f, args=None, kwargs=None):
     args = args or ()
@@ -94,7 +95,6 @@ def format_message(env, message):
         return core.casting.reinterpret(message, str, **r_skel) + '\n'
 
 
-# TODO: Method not supported mal richtig machen
 class APIBase(tornado.web.RequestHandler):
     def __init__(self, *args, **kwargs):
         self.env = {

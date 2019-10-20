@@ -74,28 +74,28 @@ def web_init(event_data):
         }
 
     @core.plugin_base.event(header.plugin, 'web.request', {
-        "path": "/id/*",
+        "path": "/id/{job_id}",
         "method": "GET",
         "path_params": {
-            "child": [
-                header.plugin.web_template_table['job_obj']
-            ]
+            "child": {
+                "job_id": header.plugin.web_template_table['job_obj'],
+            }
         },
     })
     def get_job(path_params, **kwargs):
         return {
-            "data": i_get_job_info(path_params[0]),
+            "data": i_get_job_info(path_params['job_id']),
         }
 
     @core.plugin_base.event(header.plugin, 'web.request', {
-        "path": "/id/*",
+        "path": "/id/{job_id}",
         "method": "DELETE",
         "path_params": {
-            "child": [
-                header.plugin.web_template_table['job_obj']
-            ]
+            "child": {
+                "job_id": header.plugin.web_template_table['job_obj'],
+            }
         },
     })
     def delete_job(path_params, **kwargs):
-        job_obj = header.plugin.job_table[path_params[0]]
+        job_obj = header.plugin.job_table[path_params['job_id']]
         job_obj.remove()

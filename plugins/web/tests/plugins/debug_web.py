@@ -84,7 +84,7 @@ def test_req_url_args2(url_params, **kwargs):
 
 
 @core.plugin_base.event(plugin, 'web.request', {
-    "path": "/path_arg1/*/*",
+    "path": "/path_arg1/{alpha}/{bravo}",
 })
 def test_req_path_args1(path_params, **kwargs):
     return {
@@ -93,16 +93,16 @@ def test_req_path_args1(path_params, **kwargs):
 
 
 @core.plugin_base.event(plugin, 'web.request', {
-    "path": "/path_arg2/*/*",
+    "path": "/path_arg2/{india}/{juliet}",
     "path_params": {
-        "child": [
-            {
+        "child": {
+            "india": {
                 "type": int
             },
-            {
+            "juliet": {
                 "type": bool
             }
-        ]
+        }
     },
 })
 def test_req_path_args2(path_params, **kwargs):
@@ -197,16 +197,16 @@ class TestURLParams:
 
 
 @core.plugin_base.event(plugin, 'web.socket', {
-    "path": "/ws_path_params/*/*",
+    "path": "/ws_path_params/{india}/{juliet}",
     "path_params": {
-        "child": [
-            {
-                "type": int,
+        "child": {
+            "india": {
+                "type": int
             },
-            {
-                "type": float,
+            "juliet": {
+                "type": float
             }
-        ],
+        }
     },
 })
 class TestPathParams:

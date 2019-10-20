@@ -82,14 +82,14 @@ class TestSeries:
 
         assert r['data']['get_plugin']['f_name'] == "Get plugin"
         assert r['data']['get_plugin']['f_description'] == "Returns information about a single plugin."
-        assert r['data']['get_plugin']['path'] == "/plugin/name/*"
+        assert r['data']['get_plugin']['path'] == "/plugin/name/{plugin_name}"
 
     def test_get_request_of_plugin(self, core_system):
         r = requests.get(base_url + "/info/request/info/name/get_plugin").json()
 
         assert r['data']['f_name'] == "Get plugin"
         assert r['data']['f_description'] == "Returns information about a single plugin."
-        assert r['data']['path'] == "/plugin/name/*"
+        assert r['data']['path'] == "/plugin/name/{plugin_name}"
 
     def test_plugin_not_found(self, core_system):
         response = requests.get(base_url + "/info/request/lala/name/get_plugin").json()

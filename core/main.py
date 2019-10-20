@@ -169,7 +169,7 @@ def run(args, event=None, config_dict=None):
 
     for config in config_file:
         config_parser.recursive_read(config)
-    
+
     if config_dict:
         if type(config_dict) is dict:
             config_dict = [config_dict]

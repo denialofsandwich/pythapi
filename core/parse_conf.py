@@ -6,9 +6,10 @@ import glob
 import collections
 from . import casting
 
+
 def _update(d, u):
     for k, v in u.items():
-        if isinstance(v, collections.Mapping):
+        if isinstance(v, collections.Mapping) and type(d.get(k, None)) is not str:
             d[k] = _update(d.get(k, {}), v)
         else:
             d[k] = v
@@ -61,6 +62,7 @@ class PythapiConfigParser:
             'verify': True,
         }
         self._dict = {}
+        self._unparsed_conf = {}
 
     def __getitem__(self, key):
         return self._dict[key]
@@ -76,7 +78,10 @@ class PythapiConfigParser:
 
     def read_defaults(self, cfg_dict):
         formatted_defaults = {}
+        conf_slice = {}
         for section_name, section in cfg_dict.items():
+            conf_slice[section_name] = dict(self._unparsed_conf.get(section_name, {}))
+
             formatted_defaults[section_name] = {
                 'type': dict,
                 'default': {},
@@ -85,14 +90,19 @@ class PythapiConfigParser:
                 'post_format': _post_operator_formatter,
             }
 
-        self._dict = casting.reinterpret(self._dict, **{
+        conf_slice = casting.reinterpret(conf_slice, **{
             'type': dict,
             'child': formatted_defaults,
             'default': {},
+            'verify': True,
         })
+
+        self.update(conf_slice)
         self.defaults['child'] = _update(self.defaults['child'], formatted_defaults)
 
     def _process_config(self, config_dict):
+        _update(self._unparsed_conf, config_dict)
+
         self.update(config_dict)
 
         try:
@@ -101,7 +111,10 @@ class PythapiConfigParser:
             for i_path in glob.glob(next_path):
                 i_cfg = PythapiConfigParser()
                 i_cfg.recursive_read(i_path)
-                self.update(i_cfg.as_dict())
+                i_cfg_dict = i_cfg.as_dict()
+
+                _update(self._unparsed_conf, i_cfg_dict)
+                self.update(i_cfg_dict)
 
         except KeyError:
             pass

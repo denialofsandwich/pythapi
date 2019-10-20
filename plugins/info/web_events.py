@@ -77,7 +77,7 @@ def web_init(event_data):
         }
 
     @core.plugin_base.event(header.plugin, 'web.request', {
-        "path": "/plugin/name/*",
+        "path": "/plugin/name/{plugin_name}",
         "method": "GET",
         'f_name': {
             '_tr': True,
@@ -90,9 +90,9 @@ def web_init(event_data):
             'DE': 'Gibt Informationen über ein einzelnes Plugin zurück.',
         },
         "path_params": {
-            "child": [
-                header.plugin.web_template_table['plugin_name'],
-            ]
+            "child": {
+                "plugin_name": header.plugin.web_template_table['plugin_name'],
+            }
         },
         "output_message_format": {
             "inheritable_parameters": [
@@ -104,11 +104,11 @@ def web_init(event_data):
     })
     def get_plugin(path_params, **kwargs):
         return {
-            "data": base.get_plugin_info(path_params[0]),
+            "data": base.get_plugin_info(path_params['plugin_name']),
         }
 
     @core.plugin_base.event(header.plugin, 'web.request', {
-        "path": "/request/*/list",
+        "path": "/request/{plugin_name}/list",
         "method": "GET",
         'f_name': {
             '_tr': True,
@@ -121,9 +121,9 @@ def web_init(event_data):
             'DE': 'Gibt eine Liste mit allen Requests eines Plugins zurück.',
         },
         "path_params": {
-            "child": [
-                header.plugin.web_template_table['plugin_name'],
-            ]
+            "child": {
+                "plugin_name": header.plugin.web_template_table['plugin_name'],
+            }
         },
         "url_params": {
             "child": {
@@ -139,7 +139,7 @@ def web_init(event_data):
         },
     })
     def list_requests_of_plugin(path_params, url_params, **kwargs):
-        plugin_name = path_params[0]
+        plugin_name = path_params['plugin_name']
 
         if url_params['verbose']:
             data = {}
@@ -153,7 +153,7 @@ def web_init(event_data):
         }
 
     @core.plugin_base.event(header.plugin, 'web.request', {
-        "path": "/request/*/name/*",
+        "path": "/request/{plugin_name}/name/{request_name}",
         "method": "GET",
         'f_name': {
             '_tr': True,
@@ -166,10 +166,10 @@ def web_init(event_data):
             'DE': 'Gibt Informationen über einen einzelnen Request zurück.',
         },
         "path_params": {
-            "child": [
-                header.plugin.web_template_table['plugin_name'],
-                header.plugin.web_template_table['request_name'],
-            ]
+            "child": {
+                "plugin_name": header.plugin.web_template_table['plugin_name'],
+                "request_name": header.plugin.web_template_table['request_name'],
+            }
         },
         "output_message_format": {
             "inheritable_parameters": [
@@ -181,5 +181,5 @@ def web_init(event_data):
     })
     def get_request_of_plugin(path_params, **kwargs):
         return {
-            "data": base.get_request_info(path_params[0], path_params[1]),
+            "data": base.get_request_info(path_params['plugin_name'], path_params['request_name']),
         }
