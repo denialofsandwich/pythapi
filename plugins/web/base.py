@@ -95,7 +95,6 @@ def format_message(env, message):
         return core.casting.reinterpret(message, str, **r_skel) + '\n'
 
 
-# TODO: Method not supported mal richtig machen
 class APIBase(tornado.web.RequestHandler):
     def __init__(self, *args, **kwargs):
         self.env = {

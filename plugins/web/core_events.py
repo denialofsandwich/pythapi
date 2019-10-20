@@ -21,10 +21,6 @@ import copy
 servers = []
 ws_re_list = []
 
-# TODO: Vielleicht ändere ich die "path" Syntax von /user/* zu /user/{user_name}
-#   => Ein Dict statt List bei path_params
-#   - Ich stelle mir das deutlich leserlicher vor. Und so lässt es sich auch einfacher dokumentieren.
-
 
 def _set_base_url(prefix='', static_web_server=False):
     tmp_re_list = copy.deepcopy(ws_re_list)
