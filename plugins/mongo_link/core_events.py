@@ -9,6 +9,9 @@ from mongoengine import *
 
 plugin = header.plugin
 
+
+# TODO: Refactor
+#   - Datenbank parametrisieren
 @core.plugin_base.event(plugin, 'core.load', {})
 def load():
     global log
@@ -40,18 +43,7 @@ def load():
             log.error("Fehler bei Aufbau der DB-Verbindung.", exc_info=e)
             return False
 
+
 @core.plugin_base.event(plugin, 'core.terminate')
 def terminate():
     disconnect()
-
-@core.plugin_base.external(plugin)
-def insert(model, data):
-    try:
-        return model(**data).save()
-    except errors.FieldDoesNotExist as e:
-        log.debug(str(e.args))
-        log.debug(str(e.with_traceback))
-        raise web.WebRequestException("FIELD_DOES_NOT_EXIST", 400, str(e))
-    except Exception as e:
-        log.debug("Generischer Fehler bei Mongo Insert")
-        log.error(e)
