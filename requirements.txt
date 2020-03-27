@@ -1,3 +1,4 @@
+mongoengine
 tornado>=6.0.2
 pytest>=4.5.0
 requests>=2.22.0

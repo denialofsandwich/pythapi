@@ -5,7 +5,7 @@ config_defaults = {
     "core.general": {
         "loglevel": {
             "type": int,
-            "default": 6
+            "default": 5
         },
         "colored_logs": {
             "type": bool,

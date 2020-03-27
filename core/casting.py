@@ -7,7 +7,7 @@ import re
 import math
 import json
 
-# TODO: Restrict Keys d2d
+# TODO: "fuzzy casting" (Treat eg. dict"ish" Types like dicts)
 # TODO: Reformat keys from dict
 #   - Ein Dict kann anders als JSON jeden serialisierbaren Datentypen als Key haben.
 #   - Deswegen ist auch hier eine Formatierung von Nöten.
@@ -85,11 +85,11 @@ def _base_n(num, b, numerals="0123456789abcdefghijklmnopqrstuvwxyz"):
 def _verify_range(val, min_val=None, max_val=None, **kwargs):
 
     if min_val and val < min_val:
-        raise RangeExceededError(kwargs['path'], "You have exceeded the boundaries of this value.", data={
+        raise RangeExceededError(kwargs['path'], "{} is under the given minimum of {}".format(val, min_val), data={
             'min_val': min_val,
         })
     elif max_val and val > max_val:
-        raise RangeExceededError(kwargs['path'], "You have exceeded the boundaries of this value.", data={
+        raise RangeExceededError(kwargs['path'], "{} is over the given maximum of {}".format(val, max_val), data={
             'max_val': max_val,
         })
 
@@ -249,7 +249,7 @@ def list_to_dict(val, **kwargs):
         raise InconvertibleError(kwargs['path'], "Can't convert \"{}\" to dict".format(val))
 
 
-def dict_to_dict(val, empty=True, child=None, children=None, **kwargs):
+def dict_to_dict(val, empty=True, child=None, children=None, restricted=False, **kwargs):
     children = children or {}
     child = child or {}
 
@@ -276,6 +276,9 @@ def dict_to_dict(val, empty=True, child=None, children=None, **kwargs):
 
     key_children_list = list(child.keys())
     for key, item in val.items():
+        if restricted and key not in key_children_list:
+            raise InvalidFormatError(kwargs['path'], "{} is not allowed.".format(key))
+
         i_children = copy.copy(children)
         if key in key_children_list:
             i_children = _update(i_children, child[key])

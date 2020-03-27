@@ -155,5 +155,6 @@ class PythapiConfigParser:
 
             d[section][key] = data
 
-        self.update(d)
+        _update(self._unparsed_conf, d)
+        #self.update(d)
         self._apply_defaults()

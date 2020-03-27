@@ -25,8 +25,12 @@ _status_code_to_error_id = {
     500: "ERROR_GENERAL_INTERNAL"
 }
 
-
+# TODO: Requests als Klassen aufbauen
+#   - GET, POST, DELETE, ... sind dann Methoden, wie von Tornado vorgesehen
+#   - Fand ich anfangs doof, kann aber Vorteile haben
 # TODO: tornado.locale ausprobieren
+
+
 @gen.coroutine
 def execute_function_or_coroutine(f, args=None, kwargs=None):
     args = args or ()

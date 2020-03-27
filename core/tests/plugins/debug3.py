@@ -19,12 +19,9 @@ plugin.depends = [
 plugin.config_defaults = {}
 
 
-@core.plugin_base.event(plugin, 'core.check')
-def check():
-    return True
-
-
-@core.plugin_base.event(plugin, 'core.load')
+@core.plugin_base.event(plugin, 'core.load', {
+    "priority": 5,
+})
 def load():
     global log
     log = core.plugin_base.log

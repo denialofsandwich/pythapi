@@ -15,19 +15,12 @@ if __name__ == "__main__":
         "mode",
         default="run",
         nargs="?",
-        choices=["run", "install", "uninstall"],
         help="Specifies the run-mode",
     )
     parser.add_argument(
         "plugin", nargs="?", help="Specify a plugin to install/uninstall"
     )
     parser.add_argument("--verbosity", "-v", type=int, help="Sets the verbosity")
-    parser.add_argument(
-        "--reinstall",
-        "-r",
-        action="store_true",
-        help="Uninstalls a plugin before installing it",
-    )
     parser.add_argument(
         "--no-fancy",
         "-n",

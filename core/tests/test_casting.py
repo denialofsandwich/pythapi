@@ -741,3 +741,35 @@ def test_alternating_verify_flag():
     })
 
     assert casted == data
+
+
+def test_restricted_dict():
+    valid = {
+        "alpha": True,
+        "bravo": 3
+    }
+
+    invalid = {
+        "alpha": True,
+        "bravo": 3,
+        "juliet": "uniform"
+    }
+
+    skel = {
+        "type": dict,
+        "restricted": True,
+        "child": {
+           "alpha": {
+               "type": bool
+           },
+           "bravo": {
+               "type": int
+           }
+       }
+    }
+
+    casted = c.reinterpret(valid, **skel)
+    assert casted == valid
+
+    with pytest.raises(c.InvalidFormatError):
+        c.reinterpret(invalid, **skel)
