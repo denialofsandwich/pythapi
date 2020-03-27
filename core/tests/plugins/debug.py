@@ -7,25 +7,30 @@ log = None
 
 plugin = core.plugin_base.PythapiPlugin("debug1")
 
+plugin.version = "1.0"
+plugin.essential = False
 
-@core.plugin_base.event(plugin, 'core.init')
-def init():
-    plugin.version = "1.0"
-    plugin.essential = False
+plugin.depends = [
+    {
+        'name': 'debug2',
+        'required': False
+    }
+]
 
-    plugin.depends = [
-        {
-            'name': 'debug2',
-            'required': False
-        }
-    ]
-
-    plugin.config_defaults = {}
+plugin.config_defaults = {}
 
 
-@core.plugin_base.event(plugin, 'core.check')
-def check():
-    return True
+@core.plugin_base.external(plugin)
+def external_func():
+    return 4
+
+
+@core.plugin_base.event(plugin, 'core.declare')
+def declare():
+    global log
+    log = core.plugin_base.log
+
+    log.debug("I'm declared!")
 
 
 @core.plugin_base.event(plugin, 'core.load')

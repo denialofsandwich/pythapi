@@ -3,7 +3,7 @@
 
 import pytest
 
-import tests.tools
+import core.tests.tools
 import core.plugin_base
 
 import datetime
@@ -16,7 +16,7 @@ base_url = "http://127.0.0.1:18223"
 
 @pytest.fixture(scope='function')
 def cs_bare():
-    yield tests.tools.CoreSystem()
+    yield core.tests.tools.CoreSystem()
 
 
 def _job_base_conf_gen():
@@ -42,7 +42,7 @@ def job_base_conf():
 
 @pytest.fixture(scope='class')
 def core_system():
-    cs = tests.tools.CoreSystem()
+    cs = core.tests.tools.CoreSystem()
     cs.conf = _job_base_conf_gen()
 
     with cs:
@@ -141,6 +141,7 @@ class TestSeries:
         t = job.JobObject(name="test_job", target=func, autoremove=False).every()
 
         t.start()
+        t.join()
         time.sleep(0.01)
 
         assert t.status == "crashed"

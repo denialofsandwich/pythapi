@@ -3,7 +3,7 @@
 
 import pytest
 
-import tests.tools
+import core.tests.tools
 
 import core.plugin_base
 
@@ -27,7 +27,7 @@ class TestPerson(Document):
 
 @pytest.fixture(scope='function')
 def cs_bare():
-    yield tests.tools.CoreSystem()
+    yield core.tests.tools.CoreSystem()
 
 
 def _base_conf_gen():
@@ -47,7 +47,7 @@ def base_conf():
 
 @pytest.fixture(scope='class')
 def core_system():
-    cs = tests.tools.CoreSystem()
+    cs = core.tests.tools.CoreSystem()
     cs.conf = _base_conf_gen()
 
     with cs:

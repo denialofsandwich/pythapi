@@ -4,6 +4,7 @@
 import pytest
 
 import core.main
+import core.plugin_base
 
 import argparse
 import asyncio
@@ -36,6 +37,7 @@ class CoreSystem:
         def use_core(a, e, c):
             try:
                 asyncio.set_event_loop(asyncio.new_event_loop())
+                core.plugin_base.broken_plugin_list.clear()
                 core.main.run(a, e, c)
             except Exception as excp:
                 e.set()
@@ -52,8 +54,11 @@ class CoreSystem:
 
     def stop(self):
         time.sleep(0.1)
-        with pytest.raises(SystemExit):
+        #with pytest.raises(SystemExit):
+        try:
             core.main.termination_handler(None, None)
+        except SystemExit:
+            pass
 
         self.t.join()
 

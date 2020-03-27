@@ -3,7 +3,7 @@
 
 import pytest
 
-import tests.tools
+import core.tests.tools
 
 import re
 import requests
@@ -22,7 +22,7 @@ ws_base_url = "ws://127.0.0.1:18223"
 
 @pytest.fixture(scope='function')
 def cs_bare():
-    yield tests.tools.CoreSystem()
+    yield core.tests.tools.CoreSystem()
 
 
 def _web_base_conf_gen():
@@ -48,7 +48,7 @@ def web_base_conf():
 
 @pytest.fixture(scope='class')
 def core_system():
-    cs = tests.tools.CoreSystem()
+    cs = core.tests.tools.CoreSystem()
     cs.conf = _web_base_conf_gen()
 
     with cs:
@@ -238,12 +238,12 @@ def test_static_webserver(cs_bare, web_base_conf):
 
 
 def test_ssl_key_not_defined(cs_bare, web_base_conf, capsys):
-    p_dir = os.path.dirname(core.plugin_base.module_dict['web'].__file__)
+    t_dir = os.path.dirname(__file__)
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
         "port": 18223,
         "ssl": True,
-        "cert_file": os.path.join(p_dir, "tests/ssl/test.crt"),
+        "cert_file": os.path.join(t_dir, "ssl/test.crt"),
     })
     cs_bare.conf = web_base_conf
 
@@ -257,13 +257,13 @@ def test_ssl_key_not_defined(cs_bare, web_base_conf, capsys):
 
 
 def test_ssl_cert_not_found(cs_bare, web_base_conf, capsys):
-    p_dir = os.path.dirname(core.plugin_base.module_dict['web'].__file__)
+    t_dir = os.path.dirname(__file__)
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
         "port": 18223,
         "ssl": True,
-        "cert_file": os.path.join(p_dir, "tests/ssl/testa.crt"),
-        "key_file": os.path.join(p_dir, "tests/ssl/test.key"),
+        "cert_file": os.path.join(t_dir, "ssl/testa.crt"),
+        "key_file": os.path.join(t_dir, "ssl/test.key"),
     })
     cs_bare.conf = web_base_conf
 
@@ -277,13 +277,13 @@ def test_ssl_cert_not_found(cs_bare, web_base_conf, capsys):
 
 
 def test_ssl_request(cs_bare, web_base_conf):
-    p_dir = os.path.dirname(core.plugin_base.module_dict['web'].__file__)
+    t_dir = os.path.dirname(__file__)
     web_base_conf['web']['binds'] = json.dumps({
         "ip": "127.0.0.1",
         "port": 18223,
         "ssl": True,
-        "cert_file": os.path.join(p_dir, "tests/ssl/test.crt"),
-        "key_file": os.path.join(p_dir, "tests/ssl/test.key"),
+        "cert_file": os.path.join(t_dir, "ssl/test.crt"),
+        "key_file": os.path.join(t_dir, "ssl/test.key"),
     })
     cs_bare.conf = web_base_conf
 

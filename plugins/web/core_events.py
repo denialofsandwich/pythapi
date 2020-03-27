@@ -21,6 +21,8 @@ import copy
 servers = []
 ws_re_list = []
 
+# TODO: Access Loglevel definieren
+
 
 def _set_base_url(prefix='', static_web_server=False):
     tmp_re_list = copy.deepcopy(ws_re_list)
@@ -43,7 +45,7 @@ def _set_base_url(prefix='', static_web_server=False):
 @core.plugin_base.external(header.plugin)
 def start():
     core.plugin_base.log.info("Starting HTTP servers...")
-    core.plugin_base.log.indent(1)
+    core.plugin_base.log.set_indent(1)
     for item in core.plugin_base.config[header.plugin.name]['binds']:
 
         if item['static_web_server']:
@@ -109,7 +111,7 @@ def start():
                                    item['static_web_server']
                                    ))
 
-    core.plugin_base.log.indent(-1)
+    core.plugin_base.log.set_indent(-1)
 
 
 @core.plugin_base.external(header.plugin)
@@ -124,6 +126,10 @@ def stop():
 def load():
     global servers
     global ws_re_list
+
+    # Add new access loglevel
+    core.plugin_base.log.create_loglevel('access', 15)
+
     servers = []
 
     header.request_event_list = {}

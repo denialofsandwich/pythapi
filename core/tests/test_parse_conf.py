@@ -10,7 +10,7 @@ import core.casting
 def test_read_base():
     config_parser = p.PythapiConfigParser()
     config_parser.read_defaults(core.defaults.config_defaults)
-    config_parser.recursive_read("tests/configs/read_basic.ini")
+    config_parser.recursive_read("core/tests/configs/read_basic.ini")
     config_cgen = config_parser['core.general']
 
     assert type(config_cgen['loglevel']) == int
@@ -25,11 +25,11 @@ def test_read_base():
 
 def test_read_list():
     config_parser = p.PythapiConfigParser()
-    config_parser.read_defaults(core.defaults.config_defaults)
     config_parser.read_list([
         "core.general.loglevel=1",
         "core.general.logfile=space between.log",
     ])
+    config_parser.read_defaults(core.defaults.config_defaults)
     config_cgen = config_parser['core.general']
 
     assert type(config_cgen['loglevel']) == int
@@ -91,7 +91,7 @@ def test_read_recursive():
     cfg = """
         [core.general]
         loglevel = 3
-        include_files = tests/configs/read_basic.ini
+        include_files = core/tests/configs/read_basic.ini
     """
 
     config_parser = p.PythapiConfigParser()
